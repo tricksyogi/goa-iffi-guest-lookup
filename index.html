@@ -1,0 +1,1550 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Goa IFFI Guest Lookup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      :root{
+        --bg:#f6f4ef; --surface:#ffffff; --surface2:#efece4; --ink:#1c1a15; --ink2:#5c564a;
+        --line:#ddd6c7; --accent:#c2410c; --accent-ink:#ffffff; --accent-soft:#fbe9dd;
+        --ok:#166534; --ok-soft:#dcf0e2; --warn:#92400e; --warn-soft:#fdeecd;
+        --chip:#efece4; --shadow:0 10px 30px rgba(28,26,21,.14);
+        --radius:14px;
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --bg:#14120e; --surface:#1f1c16; --surface2:#29251d; --ink:#f2ede1; --ink2:#b6ad99;
+          --line:#3a352a; --accent:#f0702a; --accent-ink:#1c1005; --accent-soft:#3d2412;
+          --ok:#7fd79b; --ok-soft:#173526; --warn:#f5c86e; --warn-soft:#3a2d10;
+          --chip:#29251d; --shadow:0 10px 30px rgba(0,0,0,.5);
+        }
+      }
+      *{box-sizing:border-box}
+      html{-webkit-text-size-adjust:100%}
+      body{margin:0;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.45}
+      button,[role="button"],select,summary,input:not([type="checkbox"],[type="radio"]),a.btn{min-height:2.75rem}
+      button{font:inherit;cursor:pointer}
+      .wrap{max-width:1060px;margin:0 auto;padding:0 16px 64px}
+
+      /* ---------- Data banner ---------- */
+      .databanner{margin-top:16px;border-radius:var(--radius);padding:12px 14px;font-weight:700;font-size:.98rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);background:var(--surface2);color:var(--ink2)}
+      .databanner .dot{width:10px;height:10px;border-radius:50%;background:var(--ink2);flex:none}
+      .databanner.real{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+      .databanner.real .dot{background:var(--ok)}
+      .databanner.sample{background:#dc2626;color:#fff;border-color:#dc2626}
+      .databanner.sample .dot{background:#fff}
+      .databanner .src{font-weight:600;overflow-wrap:anywhere}
+      .databanner .upd{font-weight:600}
+      .databanner .spacer{flex:1}
+      .privacy{margin-top:16px;border:2px solid #dc2626;border-radius:var(--radius);background:#fef2f2;color:#7f1d1d;padding:14px 16px}
+      @media (prefers-color-scheme: dark){.privacy{background:#2a1111;color:#fecaca;border-color:#b91c1c}}
+      .privacy h2{font-size:1rem;margin:0 0 6px}
+      .privacy p,.privacy li{font-size:.92rem;margin:0 0 6px}
+      .privacy ul{margin:0;padding-left:18px}
+      .privacy p:last-child,.privacy li:last-child{margin-bottom:0}
+      .practice-note{margin-top:14px;border:1px dashed #dc2626;border-radius:10px;padding:10px 12px;font-weight:700;color:#dc2626;background:#fef2f2}
+      @media (prefers-color-scheme: dark){.practice-note{background:#2a1111;color:#fca5a5}}
+
+      /* ---------- Header ---------- */
+      header.top{padding:22px 0 6px}
+      .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+      h1{font-family:"Barlow Condensed",sans-serif;font-size:clamp(2rem,6vw,3rem);line-height:1.02;margin:4px 0 6px;font-weight:700;letter-spacing:.01em}
+      .sub{color:var(--ink2);max-width:62ch;margin:0}
+      .sub strong{color:var(--ink)}
+
+      /* ---------- User bar ---------- */
+      .userbar{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.95rem}
+      .userbar .who{font-weight:600}
+      .userbar .spacer{flex:1}
+
+      /* ---------- Login gate ---------- */
+      .logingate{position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;display:none;padding:16px}
+      .logingate.open{display:block}
+      .logincard{max-width:430px;margin:6vh auto;padding:24px 20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+      .logincard h2{font-family:"Barlow Condensed",sans-serif;font-size:1.9rem;margin:2px 0 8px;line-height:1.05}
+      .logincard p{color:var(--ink2);font-size:.94rem;margin:0 0 10px}
+      .logincard p strong{color:var(--ink)}
+      .logincard label{display:block;margin-top:14px;font-weight:600;font-size:.92rem}
+      .logincard label input{margin-top:5px}
+
+      /* ---------- Panels ---------- */
+      .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px}
+      .panel h2{font-size:1.02rem;margin:0 0 4px;font-weight:700}
+      .panel p.hint{color:var(--ink2);font-size:.92rem;margin:0 0 12px}
+      .steps{display:grid;gap:14px}
+      @media(min-width:760px){.steps{grid-template-columns:1fr 1fr 1fr}}
+      .step{border:1px dashed var(--line);border-radius:10px;padding:12px}
+      .step h3{margin:0 0 6px;font-size:.95rem}
+      .step p{margin:0 0 10px;font-size:.88rem;color:var(--ink2)}
+      .rowflex{display:flex;gap:8px;flex-wrap:wrap}
+      input[type="text"],input[type="url"],input[type="search"],input[type="password"],select,textarea{
+        font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);
+        border-radius:9px;padding:10px 12px;width:100%;
+      }
+      textarea{resize:vertical}
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:9px;border:1px solid var(--line);
+        background:var(--surface2);color:var(--ink);padding:10px 14px;font-weight:600;text-decoration:none;font-size:.95rem}
+      .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+      .btn.ghost{background:transparent}
+      .btn.small{min-height:2.25rem;padding:6px 11px;font-size:.88rem}
+      .btn:disabled{opacity:.5;cursor:not-allowed}
+      input[type="file"]{width:100%;border:1px dashed var(--line);border-radius:9px;padding:8px;background:var(--surface);color:var(--ink2);font-size:.9rem}
+      input[type="file"]::file-selector-button{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:none;border-radius:7px;padding:10px 14px;margin-right:10px;cursor:pointer;min-height:2.5rem}
+      .status{font-size:.9rem;margin-top:10px;min-height:1.3em}
+      .status.ok{color:var(--ok)} .status.err{color:#dc2626}
+      @media (prefers-color-scheme: dark){.status.err{color:#f28b82}}
+      .cols-note{font-size:.85rem;color:var(--ink2);margin-top:10px}
+      .cols-note code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:.82rem}
+
+      /* ---------- Search ---------- */
+      .searchbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:14px 0 8px;margin-top:8px}
+      .searchrow{display:flex;gap:8px}
+      .searchrow input{flex:1;font-size:1.05rem;padding:12px 14px;border-radius:11px;border:2px solid var(--accent);background:var(--surface)}
+      .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      .chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:.9rem;min-height:2.5rem}
+      .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+      .selrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      .selrow select{flex:1;min-width:150px}
+      .count{color:var(--ink2);font-size:.92rem;margin:10px 2px 0}
+      .count strong{color:var(--ink)}
+
+      /* ---------- Result cards ---------- */
+      .results{display:grid;gap:10px;margin-top:10px}
+      @media(min-width:760px){.results{grid-template-columns:1fr 1fr}}
+      .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;text-align:left;width:100%;color:var(--ink)}
+      .card:active{transform:scale(.995)}
+      .card .nm{font-weight:700;font-size:1.08rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .badge{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+      .badge.arr{background:var(--ok-soft);color:var(--ok)}
+      .badge.dep{background:var(--warn-soft);color:var(--warn)}
+      .badge.sample{background:#dc2626;color:#fff}
+      @media (prefers-color-scheme: dark){.badge.sample{background:#7f1d1d;color:#fca5a5}}
+      .card .desig{color:var(--ink2);font-size:.9rem}
+      .card .meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:.92rem}
+      .card .meta b{font-weight:600}
+      .empty{border:1px dashed var(--line);border-radius:var(--radius);padding:28px 18px;text-align:center;color:var(--ink2);margin-top:12px;background:var(--surface)}
+      .empty strong{color:var(--ink);display:block;font-size:1.05rem;margin-bottom:4px}
+
+      /* ---------- Full-screen detail / admin overlays ---------- */
+      .overlay{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;overflow-y:auto}
+      .overlay.open{display:block}
+      .overlay.adminov{z-index:60}
+      .sheet{background:var(--surface);width:100%;max-width:760px;margin:0 auto;min-height:100%;padding:16px 16px 34px;box-shadow:var(--shadow)}
+      .toprow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+      .sheet h2{font-size:1.35rem;margin:0;line-height:1.15}
+      .sheet .desig{color:var(--ink2);margin-top:2px}
+      .xbtn{border:1px solid var(--line);background:var(--surface2);border-radius:9px;width:44px;height:44px;font-size:1.15rem;flex:none}
+      table.fields{width:100%;border-collapse:collapse;margin-top:14px}
+      table.fields th,table.fields td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+      table.fields th{width:38%;color:var(--ink2);font-weight:600;font-size:.88rem}
+      table.fields td{font-weight:500;word-break:break-word}
+      .actions{display:grid;gap:8px;margin-top:16px}
+      @media(min-width:560px){.actions{grid-template-columns:1fr 1fr}}
+      .actions .btn{width:100%}
+      .msgbox{margin-top:16px}
+      .msgbox h3{font-size:.95rem;margin:0 0 6px}
+      .msgbox pre{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;margin:0}
+      .msg-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+      .msg-actions .btn{width:100%;padding-left:8px;padding-right:8px}
+
+      /* ---------- Remarks ---------- */
+      .remarks{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
+      .remarks h3{font-size:1rem;margin:0 0 4px}
+      .remark{padding:9px 0;border-bottom:1px dashed var(--line)}
+      .remark .rguest{font-weight:700;font-size:.92rem}
+      .remark .rtext{white-space:pre-wrap;word-break:break-word}
+      .remark .rmeta{font-size:.8rem;color:var(--ink2);margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .btn.rdel{min-height:2rem;padding:3px 10px;font-size:.78rem;color:#dc2626;border-color:#dc2626;background:transparent}
+      @media (prefers-color-scheme: dark){.btn.rdel{color:#f28b82;border-color:#b91c1c}}
+      .remark-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+      .remark-add input{flex:1;min-width:200px}
+      .cardcell{display:flex;flex-direction:column;gap:6px}
+      .cardcell .card{flex:1}
+      .card-track{display:flex}
+      .trackBtn{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+      .liveloc{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
+      .liveloc h3{font-size:1rem;margin:0 0 4px}
+      .liveloc .hint{color:var(--ink2);font-size:.92rem;margin:0 0 10px}
+
+      .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);
+        padding:11px 18px;border-radius:999px;font-weight:600;font-size:.95rem;opacity:0;pointer-events:none;transition:.25s;z-index:300;box-shadow:var(--shadow)}
+      .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+      /* ---------- Help ---------- */
+      .help{display:grid;gap:12px}
+      @media(min-width:760px){.help{grid-template-columns:1fr 1fr}}
+      .help div h3{margin:0 0 5px;font-size:.98rem}
+      .help div p,.help div li{font-size:.92rem;color:var(--ink2)}
+      .help ul,.help ol{margin:0;padding-left:18px}
+      .help ol li{font-size:.92rem;color:var(--ink2);margin-bottom:4px}
+      .fmt{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.83rem;white-space:pre-wrap;word-break:break-word}
+      footer{margin-top:26px;color:var(--ink2);font-size:.85rem;text-align:center}
+      @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026</div>
+        <h1>Guest Lookup</h1>
+        <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
+      </header>
+
+      <!-- ============ USER BAR ============ -->
+      <div class="userbar" id="userbar">
+        <span class="who" id="userInfo">Not logged in</span>
+        <span class="spacer"></span>
+        <button class="btn small" id="adminBtn" type="button" style="display:none">Admin — all remarks</button>
+        <button class="btn small" id="settingsBtn" type="button">Settings</button>
+        <button class="btn small ghost" id="switchBtn" type="button">Switch user</button>
+      </div>
+
+      <!-- ============ DATA BANNER ============ -->
+      <div class="databanner" id="dataBanner" role="status">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="dataBannerText">NO DATA LOADED</span>
+        <span class="upd" id="lastUpdated"></span>
+        <span class="spacer"></span>
+        <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh sheet</button>
+      </div>
+
+      <!-- ============ PRIVACY WARNING ============ -->
+      <section class="privacy" aria-labelledby="privacy-h">
+        <h2 id="privacy-h">⚠ Privacy — read before sharing</h2>
+        <p>This page's link and the shared guest sheet expose <strong>guest names and phone numbers</strong> to anyone who holds them. Share both links <strong>only with the team</strong>. <strong>NEVER post this tool link or the sheet link in the client group.</strong></p>
+        <p style="margin-bottom:2px"><strong>If a link leaks:</strong></p>
+        <ul>
+          <li>Open the Google Sheet → Share → change access back to restricted (or remove “Anyone with the link”).</li>
+          <li>Re-share the sheet with a fresh link and load the new link in this tool.</li>
+          <li>Tell the whole team in the internal group to stop using the old link immediately.</li>
+        </ul>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="panel" id="settingsPanel" style="display:none" aria-labelledby="settings-h">
+        <h2 id="settings-h">Settings</h2>
+        <p class="hint">These are saved on this phone only.</p>
+        <h3 style="font-size:.95rem;margin:14px 0 6px">Remarks webhook URL</h3>
+        <p class="hint" style="margin-bottom:8px">The Google Apps Script web-app URL that saves remarks into the sheet's “Remarks” tab. Setup steps and the script code are in “Remarks setup” at the bottom of this page. Tip: the admin can share one link carrying both — the tool link with <code>?sheet=…&amp;hook=…</code> added — and the webhook is then set automatically on every phone that opens it.</p>
+        <input type="url" id="hookInput" placeholder="Paste remarks webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn primary" id="hookSaveBtn" type="button">Save webhook URL</button>
+        </div>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
+        <p class="hint" style="margin-bottom:8px">Changes the PIN for your name on this phone. If you are logged in as <strong>Yogesh</strong>, this is the admin PIN.</p>
+        <div class="rowflex">
+          <input type="password" id="newPinInput" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" autocomplete="off" style="max-width:200px" />
+          <button class="btn" id="pinSaveBtn" type="button">Change PIN</button>
+        </div>
+        <div class="status" id="settingsStatus" role="status"></div>
+      </section>
+
+      <!-- ============ LOAD DATA ============ -->
+      <section class="panel" aria-labelledby="load-h">
+        <h2 id="load-h">1 · Load the guest sheet</h2>
+        <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 2 minutes on its own, and Refresh in the banner above pulls the latest version any time.</p>
+        <div class="steps">
+          <div class="step">
+            <h3>Option A — Google Sheet link</h3>
+            <p>Share the sheet as “Anyone with the link can view”, paste the link, and load. Best for the whole team: one sheet, everyone loads the same link. Note: only the <strong>first tab</strong> of the sheet is read — keep the guest list on the first tab.</p>
+            <input type="url" id="sheetUrl" placeholder="Paste Google Sheet link…" autocomplete="off" />
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn primary" id="loadUrlBtn" type="button" style="flex:1">Load from link</button>
+            </div>
+          </div>
+          <div class="step">
+            <h3>Option B — Excel / CSV file</h3>
+            <p>Upload the .xlsx or .csv file you received on mail or WhatsApp. The first sheet is read automatically.</p>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" aria-label="Upload Excel or CSV guest sheet" />
+          </div>
+          <div class="step">
+            <h3>Option C — Practice / template</h3>
+            <p>Try the search and copy buttons with sample rows, or download the empty template to start your own sheet.</p>
+            <div class="rowflex">
+              <button class="btn" id="sampleBtn" type="button">Load sample rows</button>
+              <button class="btn ghost" id="tplBtn" type="button">Download template (.csv)</button>
+            </div>
+          </div>
+        </div>
+        <div class="status" id="loadStatus" role="status"></div>
+        <p class="cols-note">Columns match the master file <code>Goa-IFFI-Guest-Master.xlsx</code> exactly (any order in your copy, extra columns are kept and shown too):
+          <code>Guest ID</code> <code>Guest Name</code> <code>Phone</code> <code>Country Code</code> <code>Designation</code> <code>Type</code> <code>Date</code> <code>Time</code>
+          <code>Flight No</code> <code>Airport</code> <code>Hotel</code> <code>Venue</code> <code>Pickup Point</code> <code>Drop Point</code> <code>Vehicle No</code> <code>Vehicle Type</code>
+          <code>Driver Name</code> <code>Driver Contact</code> <code>Status</code> <code>Live Location Link</code>
+        </p>
+      </section>
+
+      <!-- ============ SEARCH ============ -->
+      <div class="searchbar">
+        <div class="searchrow">
+          <input type="search" id="q" placeholder="Search name / phone / flight / vehicle no / hotel…" autocomplete="off" aria-label="Search guests" />
+          <button class="btn" id="clearBtn" type="button">Clear</button>
+        </div>
+        <div class="chips" role="group" aria-label="Movement type">
+          <button class="chip" type="button" data-type="all" aria-pressed="true">All</button>
+          <button class="chip" type="button" data-type="arrival" aria-pressed="false">Arrivals</button>
+          <button class="chip" type="button" data-type="departure" aria-pressed="false">Departures</button>
+          <button class="chip" type="button" data-type="shuttle" aria-pressed="false">Shuttles</button>
+        </div>
+        <div class="selrow">
+          <select id="hotelFilter" aria-label="Filter by hotel"><option value="">All hotels</option></select>
+          <select id="dateFilter" aria-label="Filter by date"><option value="">All dates</option></select>
+        </div>
+        <p class="count" id="countLine"></p>
+      </div>
+
+      <div class="results" id="results"></div>
+      <div class="empty" id="emptyState">
+        <strong>No guest data loaded yet</strong>
+        Load the sheet above (link, file, or sample rows) — then search any guest from here. Coordinators at the airport, hotels and venues all use this same page.
+      </div>
+
+      <!-- ============ HELP ============ -->
+      <section class="panel" aria-labelledby="help-h">
+        <h2 id="help-h">How the team uses this</h2>
+        <div class="help" style="margin-top:10px">
+          <div>
+            <h3>Giving access to your team</h3>
+            <ul>
+              <li>Share this page's link with your team and coordinators. On first open, each person enters their own name and a 4-digit PIN they choose — that is only so their remarks carry their name.</li>
+              <li>Keep ONE master Google Sheet. Share it as “Anyone with the link can view” and give the team that sheet link too.</li>
+              <li>When the sheet changes (new flight, new vehicle), the open page picks it up by itself within 2 minutes — or tap Refresh. No new file to forward.</li>
+              <li>Only you and Puneet ji should have edit access on the sheet; the team only views.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Daily flow</h3>
+            <ul>
+              <li>Vendor (Joe / Ramesh ji) mails vehicle + driver details → update the master sheet's Vehicle No, Driver Name, Driver Contact columns.</li>
+              <li>Coordinator searches the guest → taps <strong>WhatsApp Driver</strong> or <strong>Copy for Driver</strong> → the assignment goes in the fixed format, nothing to retype.</li>
+              <li>Guest needs the details → <strong>WhatsApp Guest</strong> sends driver name, vehicle and pickup time in the guest format.</li>
+              <li>Anything the team should know about a guest (reached hotel, flight delayed, waiting at gate) → open the guest and add it as a <strong>remark</strong> under their name. Remarks carry your name and the time automatically.</li>
+              <li>On the driver's phone, generate the Google Maps 24-hour share link (Maps → profile photo → Location sharing → Share for 24 hours → copy the link).</li>
+              <li>In this tool, search the vehicle no., open that vehicle, paste the link in the Live Location box and tap <strong>Save</strong> — the link attaches to every row with that vehicle number.</li>
+              <li>Repeat this the next day — the old link expires after 24 hours, so a fresh link has to be saved each day.</li>
+              <li>After drop, confirm in the group as usual: “Dropped + Returned”.</li>
+            </ul>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver</h3>
+          <div class="fmt">Pickup: {Guest Name} ({Designation}, {Phone}). Flight {Flight No}, {Date} {Time}. From: {Pickup Point} To: {Drop Point}. Vehicle: {Vehicle Type} {Vehicle No}. Please confirm. - Fox India</div>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to guest</h3>
+          <div class="fmt">Welcome to IFFI Goa, {Guest Name}. Your {Arrival/Departure/Shuttle} is confirmed. Flight {Flight No} on {Date} at {Time}. Vehicle: {Vehicle Type} {Vehicle No} (Driver: {Driver Name}, {Driver Contact}). Pickup: {Pickup Point} at {Time}. Drop: {Drop Point}. Need help? Call Fox India transport desk: 9261201083. - Fox India Transport Team</div>
+        </div>
+        <div style="margin-top:18px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Remarks setup — admin, one time (about 2 minutes)</h3>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 8px">Remarks are saved into the master Google Sheet itself (a “Remarks” tab), so the sheet stays the record and the admin sees who wrote what, and when. Until this is set up, remarks still work — they are saved on each phone only.</p>
+          <ol style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li style="margin-bottom:4px">Open the master Google Sheet → <strong>Extensions → Apps Script</strong>.</li>
+            <li style="margin-bottom:4px">Delete whatever code is there, paste the code below, and Save.</li>
+            <li style="margin-bottom:4px"><strong>Deploy → New deployment → type: Web app → Execute as: Me → Who has access: Anyone → Deploy.</strong></li>
+            <li style="margin-bottom:4px">Copy the Web app URL. Paste it in this tool under <strong>Settings → Remarks webhook URL → Save</strong>. Or share the tool link with <code>&amp;hook=&lt;that URL&gt;</code> added after the sheet part, so it is set automatically for the whole team.</li>
+            <li>If you ever change the code, deploy again as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version), otherwise the old code keeps running.</li>
+            <li>If the webhook was already deployed for remarks, redeploy the same Apps Script project as a new version so setLocation goes live (Deploy → Manage deployments → edit → new version).</li>
+          </ol>
+          <div class="fmt" id="gasCode" style="margin-top:10px">function doGet() {
+  var sh = remarksSheet_();
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ time: rows[i][0], guestId: rows[i][1], guestName: rows[i][2], remark: rows[i][3], author: rows[i][4] });
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  if (data.action === "setLocation") {
+    var updatedCount = setLocation_(data);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: updatedCount })).setMimeType(ContentService.MimeType.JSON);
+  }
+  var sh = remarksSheet_();
+  if (data.action === "add") {
+    sh.appendRow([data.time, data.guestId, data.guestName, data.remark, data.author]);
+  } else if (data.action === "delete") {
+    var rows = sh.getDataRange().getValues();
+    for (var i = rows.length - 1; i &gt;= 1; i--) {
+      if (String(rows[i][1]) === String(data.guestId) &amp;&amp;
+          String(rows[i][3]) === String(data.remark) &amp;&amp;
+          String(rows[i][4]) === String(data.author) &amp;&amp;
+          sameTime_(rows[i][0], data.time)) {
+        sh.deleteRow(i + 1);
+        break;
+      }
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function sameTime_(cell, t) {
+  if (String(cell) === String(t)) return true;
+  var d = new Date(cell);
+  return !isNaN(d.getTime()) &amp;&amp; d.toISOString() === String(t);
+}
+
+function remarksSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Remarks");
+  if (!sh) {
+    sh = ss.insertSheet("Remarks");
+    sh.appendRow(["Time", "Guest ID", "Guest Name", "Remark", "By"]);
+  }
+  return sh;
+}
+
+function setLocation_(data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Guest Master");
+  if (!sh) sh = ss.getSheets()[0];
+  var lastCol = sh.getLastColumn();
+  var lastRow = sh.getLastRow();
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var vehCol = -1;
+  var locCol = -1;
+  var driverCol = -1;
+  for (var c = 0; c &lt; headers.length; c++) {
+    var h = String(headers[c]).trim().toLowerCase();
+    if (h === "vehicle no" || h === "vehicle number") vehCol = c + 1;
+    if (h === "live location link" || h === "location link" || h === "live location") locCol = c + 1;
+    if (h === "driver name" || h === "driver") driverCol = c + 1;
+  }
+  if (vehCol &lt; 0) return 0;
+  if (locCol &lt; 0) {
+    locCol = lastCol + 1;
+    sh.getRange(1, locCol).setValue("Live Location Link");
+  }
+  var target = String(data.vehicleNo == null ? "" : data.vehicleNo).trim();
+  var updated = 0;
+  var driverName = "";
+  if (lastRow &gt;= 2) {
+    var vehValues = sh.getRange(2, vehCol, lastRow - 1, 1).getValues();
+    for (var r = 0; r &lt; vehValues.length; r++) {
+      if (String(vehValues[r][0]).trim() === target) {
+        sh.getRange(r + 2, locCol).setValue(data.link);
+        if (driverCol &gt; 0 &amp;&amp; !driverName) driverName = String(sh.getRange(r + 2, driverCol).getValue() || "");
+        updated++;
+      }
+    }
+  }
+  if (updated > 0) {
+    var log = ss.getSheetByName("Live Locations");
+    if (!log) {
+      log = ss.insertSheet("Live Locations");
+      log.appendRow(["Date", "Time", "Vehicle No", "Driver Name", "Link", "By"]);
+    } else if (log.getLastRow() === 0) {
+      log.appendRow(["Date", "Time", "Vehicle No", "Driver Name", "Link", "By"]);
+    }
+    var dt = new Date(data.time);
+    var ist = isNaN(dt.getTime()) ? null : new Date(dt.getTime() + (5 * 60 + 30) * 60 * 1000);
+    var dateStr = !ist ? String(data.time || "") : ist.toISOString().slice(0, 10);
+    var timeStr = !ist ? "" : ist.toISOString().slice(11, 19);
+    log.appendRow([dateStr, timeStr, data.vehicleNo, driverName, data.link, data.author]);
+  }
+  return updated;
+}</div>
+          <div class="rowflex" style="margin-top:8px">
+            <button class="btn" id="gasCopyBtn" type="button">Copy the Apps Script code</button>
+          </div>
+        </div>
+      </section>
+
+      <footer>Fox India · IFFI Goa transport desk · Hotels in scope: Cidade de Goa Horizon &amp; Heritage, Taj Vivanta Panjim, Fortune Miramar, Novotel Goa Panjim · Venues: Taj Cidade, Kala Academy, ESG Maquinez Palace</footer>
+    </div>
+
+    <!-- ============ DETAIL (full screen) ============ -->
+    <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="dName">
+      <div class="sheet">
+        <div class="toprow">
+          <button class="btn small" id="backBtn" type="button">← Back to results</button>
+          <button class="xbtn" id="closeBtn" type="button" aria-label="Close">✕</button>
+        </div>
+        <h2 id="dName">Guest</h2>
+        <div class="desig" id="dDesig"></div>
+        <table class="fields" id="dFields"></table>
+
+        <div class="actions">
+          <button class="btn primary" id="copyDriverBtn" type="button">Copy for Driver</button>
+          <a class="btn" id="waDriverBtn" href="#" target="_blank" rel="noopener">WhatsApp Driver</a>
+          <button class="btn" id="copyGuestBtn" type="button">Copy for Guest</button>
+          <a class="btn" id="waGuestBtn" href="#" target="_blank" rel="noopener">WhatsApp Guest</a>
+          <button class="btn" id="copyAllBtn" type="button">Copy Full Details</button>
+          <a class="btn" id="callGuestBtn" href="#">Call Guest</a>
+          <a class="btn" id="smsGuestBtn" href="#">SMS Guest</a>
+          <a class="btn" id="callDriverBtn" href="#">Call Driver</a>
+          <a class="btn" id="smsDriverBtn" href="#">SMS Driver</a>
+        </div>
+        <div class="practice-note" id="practiceNote" style="display:none">Practice data — load the real sheet to send</div>
+
+        <div class="liveloc" id="liveLocSection">
+          <h3>Live Location</h3>
+          <div id="liveLocCurrent"></div>
+          <p class="hint">Paste the Google Maps share link from the driver's phone (24-hour share)</p>
+          <p class="cols-note" style="margin:-4px 0 10px">This link is saved on every guest row with this vehicle number.</p>
+          <div class="remark-add">
+            <input type="url" id="liveLocInput" placeholder="Paste Google Maps share link…" autocomplete="off" aria-label="Live Location Link" />
+            <button class="btn primary" id="liveLocSaveBtn" type="button">Save live location link</button>
+          </div>
+          <p class="cols-note" id="liveLocWarn" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This doesn't look like a Google Maps link — check it before saving.</p>
+          <div class="status err" id="liveLocError" role="alert"></div>
+          <p class="cols-note" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</p>
+          <div class="practice-note" id="liveLocPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
+        </div>
+
+        <div class="msgbox">
+          <h3>Message for driver (preview)</h3>
+          <pre id="driverMsg"></pre>
+          <div class="msg-actions" aria-label="Driver message actions">
+            <button class="btn" id="previewCopyDriverBtn" type="button" aria-label="Copy driver message">Copy</button>
+            <a class="btn" id="previewCallDriverBtn" href="#" aria-label="Call driver">Call</a>
+            <button class="btn" id="previewShareDriverBtn" type="button" aria-label="Share driver message">Share</button>
+          </div>
+        </div>
+        <div class="msgbox">
+          <h3>Message for guest (preview)</h3>
+          <pre id="guestMsg"></pre>
+          <div class="msg-actions" aria-label="Guest message actions">
+            <button class="btn" id="previewCopyGuestBtn" type="button" aria-label="Copy guest message">Copy</button>
+            <a class="btn" id="previewCallGuestBtn" href="#" aria-label="Call guest">Call</a>
+            <button class="btn" id="previewShareGuestBtn" type="button" aria-label="Share guest message">Share</button>
+          </div>
+        </div>
+
+        <div class="remarks">
+          <h3>Remarks for this guest</h3>
+          <div id="remarkThread"></div>
+          <div class="remark-add">
+            <input type="text" id="remarkInput" placeholder="Add a remark — e.g. guest reached the hotel" autocomplete="off" aria-label="Add a remark for this guest" />
+            <button class="btn primary" id="remarkSendBtn" type="button">Send</button>
+          </div>
+          <p class="cols-note" id="remarkLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share remarks with the team</p>
+          <div class="rowflex" style="margin-top:8px">
+            <button class="btn small" id="copyRemarksBtn" type="button" style="display:none">Copy all remarks</button>
+          </div>
+          <div class="practice-note" id="remarkPracticeNote" style="display:none">Practice data — load the real sheet to add remarks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ADMIN — ALL REMARKS (full screen) ============ -->
+    <div class="overlay adminov" id="adminOverlay" role="dialog" aria-modal="true" aria-labelledby="admin-h">
+      <div class="sheet">
+        <div class="toprow">
+          <button class="btn small" id="adminBackBtn" type="button">← Back</button>
+          <button class="xbtn" id="adminCloseBtn" type="button" aria-label="Close">✕</button>
+        </div>
+        <h2 id="admin-h">Admin — all remarks</h2>
+        <p class="cols-note" id="adminUpdated" style="margin-top:6px"></p>
+        <div id="adminList"></div>
+      </div>
+    </div>
+
+    <!-- ============ LOGIN GATE ============ -->
+    <div class="logingate" id="loginGate">
+      <div class="logincard">
+        <div class="eyebrow">57th IFFI · Goa · Fox India</div>
+        <h2>Team login</h2>
+        <p>This is a <strong>light team login</strong> so that every remark shows who wrote it — it is <strong>not bank-level security</strong>, and it does not lock the guest data. Anyone with this page's link can still open the tool; the name + PIN just tags your remarks with your name.</p>
+        <label for="loginName">Your name
+          <input type="text" id="loginName" placeholder="e.g. Ravi Kumar" autocomplete="off" />
+        </label>
+        <label for="loginPin">4-digit PIN
+          <input type="password" id="loginPin" placeholder="Choose any 4 digits" inputmode="numeric" maxlength="4" autocomplete="off" />
+        </label>
+        <p style="margin-top:14px">First time on this phone? Just type your name and choose any 4-digit PIN — it is set for your name on this phone, and you stay logged in here. The name <strong>Yogesh</strong> is the admin: the first login as Yogesh sets the admin PIN on that phone.</p>
+        <div class="status err" id="loginErr" role="alert"></div>
+        <button class="btn primary" id="loginBtn" type="button" style="width:100%;margin-top:10px">Log in</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+    (function(){
+      "use strict";
+
+      /* ---------- Field definitions: canonical key -> header synonyms ----------
+         The first synonym of each field is the exact Goa-IFFI-Guest-Master.xlsx header. */
+      var FIELDS = [
+        {key:"guestId",     label:"Guest ID",     syn:["guest id","id","guestid"]},
+        {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name"]},
+        {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp"]},
+        {key:"cc",          label:"Country Code", syn:["country code","cc","dial code","isd code"]},
+        {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization"]},
+        {key:"type",        label:"Type",         syn:["type","movement","movement type","trip type","arr dep","service"]},
+        {key:"date",        label:"Date",         syn:["date","day","travel date","arrival date","departure date"]},
+        {key:"time",        label:"Time",         syn:["time","arrival time","departure time","pickup time","pick up time","eta","reporting time"]},
+        {key:"flight",      label:"Flight No",    syn:["flight no","flight","flight number","flt","flt no"]},
+        {key:"airport",     label:"Airport",      syn:["airport","airport name"]},
+        {key:"hotel",       label:"Hotel",        syn:["hotel","hotel name","stay","property","accommodation"]},
+        {key:"venue",       label:"Venue",        syn:["venue","venue name"]},
+        {key:"from",        label:"Pickup Point", syn:["pickup point","pickup from","pickup","pick up","from","pickup location","origin"]},
+        {key:"to",          label:"Drop Point",   syn:["drop point","drop to","drop","to","drop location","destination"]},
+        {key:"vehNo",       label:"Vehicle No",   syn:["vehicle no","vehicle number","car no","car number","cab no","reg no","registration"]},
+        {key:"vehType",     label:"Vehicle Type", syn:["vehicle type","car type","vehicle","car","cab type"]},
+        {key:"driver",      label:"Driver Name",  syn:["driver name","driver","chauffeur"]},
+        {key:"driverPhone", label:"Driver Contact", syn:["driver contact","driver phone","driver mobile","driver no"]},
+        {key:"status",      label:"Status",       syn:["status","trip status","movement status"]},
+        {key:"pax",         label:"Pax",          syn:["pax","guests","no of guests","persons","passengers"]},
+        {key:"remarks",     label:"Remarks",      syn:["remarks","remark","notes","note","special instructions","comments"]},
+        {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]}
+      ];
+      var FIELD_BY_KEY = {};
+      FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
+
+      var state = { guests:[], typeFilter:"all", current:null, currentKey:"", detailOpen:false, adminOpen:false,
+                    source:{kind:"none", label:"", url:""}, lastUpdated:"" };
+      var LS_KEY = "iffi-guest-lookup-sheet-url";
+      var LS_HOOK = "iffi-remarks-hook-url";
+      var LS_USERS = "iffi-team-users";
+      var LS_SESSION = "iffi-team-session";
+      var LS_LOCAL_REMARKS = "iffi-local-remarks";
+      var LS_LOCAL_LOCATIONS = "iffi-local-locations";
+      var REFRESH_MS = 120000;
+
+      function $(id){ return document.getElementById(id); }
+      function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+      function norm(s){ return String(s==null?"":s).toLowerCase().replace(/[().]/g," ").replace(/\s+/g," ").trim(); }
+      function digits(s){ return String(s==null?"":s).replace(/\D/g,""); }
+      function clean(v){ var s = String(v==null?"":v).trim(); return (s==="" || s==="-" || s==="–" || s==="—") ? "" : s; }
+      function val(g,key){ var v=clean(g[key]); return v==="" ? "—" : v; }
+      function lsGetRaw(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+      function lsSetRaw(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+      function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+      function lsGetJSON(k, def){
+        var raw = lsGetRaw(k);
+        if(raw==null) return def;
+        try{ var p = JSON.parse(raw); return (p==null ? def : p); }catch(e){ return def; }
+      }
+      function lsSetJSON(k,v){ lsSetRaw(k, JSON.stringify(v)); }
+
+      var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      function fmtDT(t){
+        var d = new Date(t);
+        if(isNaN(d.getTime())) return String(t==null?"":t);
+        var h=d.getHours(), m=d.getMinutes(), ap = h>=12 ? "PM":"AM";
+        h = h%12 || 12;
+        return d.getDate()+" "+MONTHS[d.getMonth()]+" "+d.getFullYear()+", "+h+":"+("0"+m).slice(-2)+" "+ap;
+      }
+      function hhmm(d){
+        var h=d.getHours(), m=d.getMinutes(), ap = h>=12 ? "PM":"AM";
+        h = h%12 || 12;
+        return h+":"+("0"+m).slice(-2)+" "+ap;
+      }
+      /* Build an international number for wa.me / tel: / sms:.
+         Strip one leading 0; only prepend the country code (guest's Country Code
+         column, default 91) when the number is exactly 10 digits after that. */
+      function intlNumber(phone, cc){
+        var d = digits(phone);
+        if(!d) return null;
+        if(d.charAt(0)==="0") d = d.slice(1);
+        if(d.length===10){
+          var c = digits(cc) || "91";
+          return c + d;
+        }
+        if(d.length<10) return null;
+        return d;
+      }
+
+      function toast(msg){
+        var t=$("toast"); t.textContent=msg; t.classList.add("show");
+        clearTimeout(t._h); t._h=setTimeout(function(){ t.classList.remove("show"); },2200);
+      }
+      function setStatus(msg,cls){
+        var s=$("loadStatus"); s.textContent=msg; s.className="status"+(cls?" "+cls:"");
+      }
+      function setSettingsStatus(msg,cls){
+        var s=$("settingsStatus"); s.textContent=msg; s.className="status"+(cls?" "+cls:"");
+      }
+
+      /* ================= LOGIN ================= */
+      var currentUser = null; /* {name, isAdmin} */
+      function loadUsers(){ var u = lsGetJSON(LS_USERS, {}); return (u && typeof u==="object") ? u : {}; }
+      function saveUsers(u){ lsSetJSON(LS_USERS, u); }
+      function isAdminName(name){ return norm(name)==="yogesh"; }
+
+      function showLogin(){
+        $("loginGate").classList.add("open");
+        document.body.style.overflow="hidden";
+      }
+      function startSession(rec){
+        currentUser = { name: rec.name, isAdmin: isAdminName(rec.name) };
+        lsSetRaw(LS_SESSION, norm(rec.name));
+        $("loginGate").classList.remove("open");
+        if(!state.detailOpen && !state.adminOpen) document.body.style.overflow="";
+        $("loginErr").textContent="";
+        updateUserbar();
+      }
+      function updateUserbar(){
+        if(currentUser){
+          $("userInfo").innerHTML = "Logged in as <strong>"+esc(currentUser.name)+"</strong>"
+            + (currentUser.isAdmin ? ' <span class="badge">Admin</span>' : "");
+          $("adminBtn").style.display = currentUser.isAdmin ? "" : "none";
+        }else{
+          $("userInfo").textContent = "Not logged in";
+          $("adminBtn").style.display = "none";
+        }
+      }
+      function doLogin(){
+        var name = $("loginName").value.trim();
+        var pin = $("loginPin").value.trim();
+        var err = $("loginErr");
+        if(!name){ err.textContent="Type your name first."; return; }
+        if(!/^\d{4}$/.test(pin)){ err.textContent="PIN must be exactly 4 digits — choose any 4 digits the first time."; return; }
+        var users = loadUsers();
+        var key = norm(name);
+        if(users[key]){
+          if(users[key].pin !== pin){
+            err.textContent = "Wrong PIN for "+users[key].name+" on this phone. Use the PIN set on this phone, or log in with a different name.";
+            return;
+          }
+          startSession(users[key]);
+        }else{
+          users[key] = { name:name, pin:pin };
+          saveUsers(users);
+          startSession(users[key]);
+          toast("Welcome, "+name+" — your PIN is set on this phone");
+        }
+        fetchRemarks(true);
+      }
+      $("loginBtn").addEventListener("click", doLogin);
+      $("loginPin").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+      $("loginName").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+      $("switchBtn").addEventListener("click", function(){
+        lsDel(LS_SESSION);
+        currentUser = null;
+        closeAdmin();
+        closeDetail();
+        $("loginName").value=""; $("loginPin").value=""; $("loginErr").textContent="";
+        updateUserbar();
+        showLogin();
+      });
+      $("settingsBtn").addEventListener("click", function(){
+        var p=$("settingsPanel");
+        p.style.display = (p.style.display==="none" || !p.style.display) ? "" : "none";
+      });
+      $("pinSaveBtn").addEventListener("click", function(){
+        if(!currentUser){ setSettingsStatus("Log in first.", "err"); return; }
+        var np = $("newPinInput").value.trim();
+        if(!/^\d{4}$/.test(np)){ setSettingsStatus("New PIN must be exactly 4 digits.", "err"); return; }
+        var users = loadUsers();
+        var key = norm(currentUser.name);
+        if(!users[key]) users[key] = { name: currentUser.name, pin: np };
+        else users[key].pin = np;
+        saveUsers(users);
+        $("newPinInput").value="";
+        setSettingsStatus("PIN changed for "+currentUser.name+" on this phone.", "ok");
+      });
+
+      /* ================= REMARKS ================= */
+      var allRemarks = [];
+      var threadList = [];
+      var adminListArr = [];
+
+      function hookUrl(){ return (lsGetRaw(LS_HOOK) || "").trim(); }
+      function setHook(u){
+        u = (u || "").trim();
+        if(u) lsSetRaw(LS_HOOK, u); else lsDel(LS_HOOK);
+        $("hookInput").value = u;
+      }
+      function localRemarks(){ var r = lsGetJSON(LS_LOCAL_REMARKS, []); return Array.isArray(r) ? r : []; }
+      function remarkKey(g){
+        if(!g) return "";
+        var id = clean(g.guestId);
+        if(id) return id;
+        return norm(g.name)+"|"+digits(g.phone);
+      }
+      function normalizeRemark(r){
+        r = r || {};
+        return {
+          time: String(r.time==null?"":r.time),
+          guestId: String(r.guestId==null?"":r.guestId),
+          guestName: String(r.guestName==null?"":r.guestName),
+          remark: String(r.remark==null?"":r.remark),
+          author: String(r.author==null?"":r.author)
+        };
+      }
+      function sameRemark(a,b){
+        return a.time===b.time && a.guestId===b.guestId && a.author===b.author && a.remark===b.remark;
+      }
+      function canDelete(r){
+        if(!currentUser) return false;
+        return currentUser.isAdmin || norm(r.author)===norm(currentUser.name);
+      }
+      function guestRemarks(g){
+        var k = remarkKey(g);
+        return allRemarks.filter(function(r){ return r.guestId===k; })
+          .sort(function(a,b){ return String(a.time) < String(b.time) ? -1 : (String(a.time) > String(b.time) ? 1 : 0); });
+      }
+      function remarkRowHtml(r, i, showGuest){
+        return '<div class="remark">'
+          + (showGuest ? '<div class="rguest">'+esc(r.guestName||"Guest")+"</div>" : "")
+          + '<div class="rtext">'+esc(r.remark)+"</div>"
+          + '<div class="rmeta"><span>'+esc(r.author||"")+" · "+esc(fmtDT(r.time))+"</span>"
+          + (canDelete(r) ? '<button class="btn rdel" type="button" data-deli="'+i+'">Delete</button>' : "")
+          + "</div></div>";
+      }
+      function renderRemarks(){
+        var box = $("remarkThread");
+        if(!state.current){ threadList=[]; box.innerHTML=""; return; }
+        threadList = guestRemarks(state.current);
+        if(!threadList.length){
+          box.innerHTML = '<p class="cols-note" style="margin:6px 0">No remarks yet for this guest.</p>';
+          return;
+        }
+        box.innerHTML = threadList.map(function(r,i){ return remarkRowHtml(r,i,false); }).join("");
+      }
+      function renderAdmin(){
+        adminListArr = allRemarks.slice().sort(function(a,b){
+          return String(a.time) < String(b.time) ? 1 : (String(a.time) > String(b.time) ? -1 : 0);
+        });
+        $("adminUpdated").textContent = "Last updated: "+(state.lastUpdated || "—")
+          + " · "+adminListArr.length+" remark"+(adminListArr.length===1?"":"s")+" across all guests, newest first.";
+        $("adminList").innerHTML = adminListArr.length
+          ? adminListArr.map(function(r,i){ return remarkRowHtml(r,i,true); }).join("")
+          : '<p class="cols-note">No remarks yet — remarks the team adds on any guest will appear here.</p>';
+      }
+      function fetchRemarks(quiet){
+        var hook = hookUrl();
+        if(!hook){
+          allRemarks = localRemarks();
+          if(state.detailOpen) renderRemarks();
+          if(state.adminOpen) renderAdmin();
+          return;
+        }
+        fetch(hook).then(function(res){ return res.json(); }).then(function(list){
+          if(Array.isArray(list)) allRemarks = list.map(normalizeRemark);
+          if(state.detailOpen) renderRemarks();
+          if(state.adminOpen) renderAdmin();
+        }).catch(function(){
+          if(!quiet) toast("Could not load remarks from the sheet — check the webhook URL in Settings");
+        });
+      }
+      function postToHook(payload){
+        return fetch(hookUrl(), {
+          method:"POST",
+          headers:{ "Content-Type":"text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+      }
+      function addRemark(){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var text = $("remarkInput").value.trim();
+        if(!text){ toast("Type the remark first"); return; }
+        var r = {
+          time: new Date().toISOString(),
+          guestId: remarkKey(g),
+          guestName: clean(g.name),
+          remark: text,
+          author: currentUser.name
+        };
+        $("remarkInput").value = "";
+        if(hookUrl()){
+          allRemarks.push(r);
+          renderRemarks();
+          if(state.adminOpen) renderAdmin();
+          postToHook({ action:"add", guestId:r.guestId, guestName:r.guestName, remark:r.remark, author:r.author, time:r.time })
+            .then(function(){ fetchRemarks(true); toast("Remark saved to the sheet"); })
+            .catch(function(){ toast("Remark is shown here, but saving to the sheet failed — check the webhook URL in Settings"); });
+        }else{
+          var loc = localRemarks();
+          loc.push(r);
+          lsSetJSON(LS_LOCAL_REMARKS, loc);
+          allRemarks = loc;
+          renderRemarks();
+          if(state.adminOpen) renderAdmin();
+          toast("Remark saved on this phone");
+        }
+      }
+      function deleteRemark(r){
+        if(!canDelete(r)){ toast("You can only delete your own remarks"); return; }
+        allRemarks = allRemarks.filter(function(x){ return !sameRemark(x, r); });
+        if(state.detailOpen) renderRemarks();
+        if(state.adminOpen) renderAdmin();
+        if(hookUrl()){
+          postToHook({ action:"delete", guestId:r.guestId, time:r.time, author:r.author, remark:r.remark })
+            .then(function(){ fetchRemarks(true); toast("Remark deleted"); })
+            .catch(function(){ toast("Delete could not reach the sheet — check the webhook URL in Settings"); });
+        }else{
+          lsSetJSON(LS_LOCAL_REMARKS, allRemarks);
+          toast("Remark deleted");
+        }
+      }
+      $("remarkSendBtn").addEventListener("click", addRemark);
+      $("remarkInput").addEventListener("keydown", function(e){ if(e.key==="Enter") addRemark(); });
+      $("remarkThread").addEventListener("click", function(e){
+        var t = e.target;
+        var i = (t && t.getAttribute) ? t.getAttribute("data-deli") : null;
+        if(i!==null && i!==undefined && threadList[+i]) deleteRemark(threadList[+i]);
+      });
+      $("adminList").addEventListener("click", function(e){
+        var t = e.target;
+        var i = (t && t.getAttribute) ? t.getAttribute("data-deli") : null;
+        if(i!==null && i!==undefined && adminListArr[+i]) deleteRemark(adminListArr[+i]);
+      });
+      $("copyRemarksBtn").addEventListener("click", function(){
+        if(!allRemarks.length){ toast("No remarks yet"); return; }
+        var lines = allRemarks.slice()
+          .sort(function(a,b){ return String(a.time) < String(b.time) ? -1 : (String(a.time) > String(b.time) ? 1 : 0); })
+          .map(function(r){ return fmtDT(r.time)+" | "+(r.guestName||"")+" | "+r.remark+" | "+(r.author||""); });
+        copyText(lines.join("\n"), "All remarks copied — paste them into the sheet");
+      });
+      $("hookSaveBtn").addEventListener("click", function(){
+        setHook($("hookInput").value);
+        setSettingsStatus(hookUrl() ? "Webhook URL saved — remarks now save to the sheet." : "Webhook URL cleared — remarks will save on this phone only.", "ok");
+        updateRemarkChrome();
+        if(state.detailOpen) renderLiveLoc();
+        fetchRemarks(true);
+      });
+
+      /* ================= LIVE LOCATION ================= */
+      function localLocations(){
+        var m = lsGetJSON(LS_LOCAL_LOCATIONS, {});
+        return (m && typeof m==="object" && !Array.isArray(m)) ? m : {};
+      }
+      function saveLocalLocation(vehicleNo, link){
+        var m = localLocations();
+        m[String(vehicleNo).trim()] = link;
+        lsSetJSON(LS_LOCAL_LOCATIONS, m);
+      }
+      function applyLocalLocations(guests){
+        var m = localLocations();
+        guests.forEach(function(g){
+          var key = String(clean(g.vehNo)).trim();
+          if(key && m[key]) g.liveLocation = m[key];
+        });
+      }
+      function applyLocationToRows(vehicleNo, link){
+        var target = String(vehicleNo).trim();
+        state.guests.forEach(function(g){
+          if(String(clean(g.vehNo)).trim() === target) g.liveLocation = link;
+        });
+        if(state.current && String(clean(state.current.vehNo)).trim() === target) state.current.liveLocation = link;
+      }
+      function renderLiveLoc(){
+        var g = state.current;
+        var box = $("liveLocCurrent");
+        if(!box) return;
+        if(!g){ box.innerHTML=""; return; }
+        var existing = clean(g.liveLocation);
+        var isSample = !!g._sample;
+        if(existing){
+          box.innerHTML = '<div class="rowflex" style="align-items:center"><a class="btn small trackBtn" href="'+esc(existing)+'" target="_blank" rel="noopener">Track</a><span style="overflow-wrap:anywhere;font-size:.9rem">'+esc(existing)+"</span></div>";
+        }else{
+          box.innerHTML = '<p class="cols-note" style="margin:6px 0">No live location link attached yet for this vehicle.</p>';
+        }
+        setSendable($("liveLocSaveBtn"), !isSample);
+        $("liveLocInput").disabled = isSample;
+        $("liveLocPracticeNote").style.display = isSample ? "" : "none";
+        $("liveLocLocalNote").style.display = (!isSample && !hookUrl()) ? "" : "none";
+      }
+      function isMapsLink(link){
+        return link.indexOf("google.com/maps")>-1 || link.indexOf("maps.app.goo.gl")>-1 || link.indexOf("maps.google")>-1;
+      }
+      function updateLiveLocWarn(){
+        var w = $("liveLocWarn");
+        if(!w) return;
+        var link = $("liveLocInput").value.trim();
+        if(link && !isMapsLink(link)){
+          w.textContent = "This doesn't look like a Google Maps link — check it before saving.";
+          w.style.display = "";
+        }else{
+          w.style.display = "none";
+        }
+      }
+      function saveLiveLocation(){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var link = $("liveLocInput").value.trim();
+        var errBox = $("liveLocError");
+        updateLiveLocWarn();
+        if(!(link.indexOf("http://")===0 || link.indexOf("https://")===0)){
+          errBox.textContent = "Paste a full link starting with http:// or https://";
+          return;
+        }
+        errBox.textContent = "";
+        var vehicleNo = clean(g.vehNo);
+        if(!vehicleNo){
+          errBox.textContent = "No vehicle number on this row — add the vehicle number in the sheet first.";
+          return;
+        }
+        var payload = {action:"setLocation", vehicleNo:vehicleNo, link:link, author:currentUser.name, time:new Date().toISOString()};
+        if(hookUrl()){
+          postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+            var data = null;
+            try{ data = JSON.parse(txt); }catch(e){}
+            if(!data || typeof data.updated !== "number"){
+              errBox.textContent = "Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+              return;
+            }
+            if(data.updated === 0){
+              errBox.textContent = "Vehicle not found in the sheet";
+              toast("Vehicle not found in the sheet");
+              return;
+            }
+            applyLocationToRows(vehicleNo, link);
+            state.lastUpdated = hhmm(new Date());
+            updateBanner();
+            render();
+            renderLiveLoc();
+            $("liveLocInput").value = "";
+            updateLiveLocWarn();
+            toast("Live location link saved to "+data.updated+" rows in the sheet");
+          }).catch(function(){
+            errBox.textContent = "Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+          });
+        }else{
+          saveLocalLocation(vehicleNo, link);
+          applyLocationToRows(vehicleNo, link);
+          state.lastUpdated = hhmm(new Date());
+          updateBanner();
+          render();
+          renderLiveLoc();
+          $("liveLocInput").value = "";
+          updateLiveLocWarn();
+          toast("Live location saved on this phone");
+        }
+      }
+      $("liveLocSaveBtn").addEventListener("click", saveLiveLocation);
+      $("liveLocInput").addEventListener("keydown", function(e){ if(e.key==="Enter") saveLiveLocation(); });
+      $("liveLocInput").addEventListener("input", updateLiveLocWarn);
+
+      /* ---------- CSV parser (quotes aware) ---------- */
+      function parseCSV(text){
+        var rows=[], row=[], cur="", inQ=false, i, c;
+        text = String(text).replace(/^\uFEFF/,"");
+        for(i=0;i<text.length;i++){
+          c=text[i];
+          if(inQ){
+            if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else inQ=false; }
+            else cur+=c;
+          }else{
+            if(c==='"') inQ=true;
+            else if(c===","){ row.push(cur); cur=""; }
+            else if(c==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; }
+            else if(c==="\r"){ /* skip */ }
+            else cur+=c;
+          }
+        }
+        if(cur!==""||row.length){ row.push(cur); rows.push(row); }
+        return rows.filter(function(r){ return r.some(function(x){ return String(x).trim()!==""; }); });
+      }
+
+      /* ---------- Map a 2D table into guest records ---------- */
+      function tableToGuests(table){
+        if(!table.length) return [];
+        var headers = table[0].map(function(h){ return norm(h); });
+        var colKey = headers.map(function(h){
+          for(var i=0;i<FIELDS.length;i++){
+            for(var j=0;j<FIELDS[i].syn.length;j++){
+              if(norm(FIELDS[i].syn[j])===h) return FIELDS[i].key;
+            }
+          }
+          return null;
+        });
+        var guests=[];
+        for(var r=1;r<table.length;r++){
+          var rowArr=table[r], g={ _extra:{}, _sample:false };
+          FIELDS.forEach(function(f){ g[f.key]=""; });
+          for(var c=0;c<headers.length;c++){
+            var v = clean(rowArr[c]);
+            if(colKey[c]){ if(!g[colKey[c]]) g[colKey[c]]=v; }
+            else if(headers[c] && v){ g._extra[table[0][c]]=v; }
+          }
+          if(g.name || g.phone || g.flight) guests.push(g);
+        }
+        return guests;
+      }
+
+      /* ---------- Data banner ---------- */
+      function updateBanner(){
+        var b=$("dataBanner"), t=$("dataBannerText");
+        b.classList.remove("real","sample");
+        if(state.source.kind==="sample"){
+          b.classList.add("sample");
+          t.textContent="SAMPLE DATA — DO NOT SEND";
+        }else if(state.source.kind==="real" && state.guests.length){
+          b.classList.add("real");
+          t.innerHTML="REAL DATA · "+state.guests.length+" guest"+(state.guests.length===1?"":"s")+" · <span class=\"src\">"+esc(state.source.label)+"</span>";
+        }else if(state.source.kind==="real"){
+          t.textContent="NO GUEST ROWS FOUND · "+state.source.label;
+        }else{
+          t.textContent="NO DATA LOADED";
+        }
+        $("lastUpdated").textContent = state.lastUpdated ? "· Last updated "+state.lastUpdated : "";
+        $("refreshBtn").style.display = state.source.url ? "" : "none";
+      }
+
+      function loadGuests(guests, source){
+        applyLocalLocations(guests);
+        state.guests = guests;
+        state.source = source || {kind:"real", label:"loaded data", url:""};
+        buildFilters();
+        render();
+        updateBanner();
+        /* If a guest detail is open, refresh it in place with the new data
+           (same guest, matched by ID) — the search and list stay untouched. */
+        if(state.detailOpen && state.currentKey){
+          for(var i=0;i<state.guests.length;i++){
+            if(remarkKey(state.guests[i])===state.currentKey){ openDetail(i); break; }
+          }
+        }
+        if(guests.length){
+          setStatus("Loaded "+guests.length+" guest record"+(guests.length===1?"":"s")+" from "+state.source.label+". Search below.", "ok");
+        }else{
+          setStatus("No guest rows found in "+state.source.label+". Check that the first row has column headings like Guest Name, Phone, Flight No.", "err");
+        }
+      }
+
+      /* ---------- Option A: Google Sheet link ---------- */
+      function sheetCsvUrl(url){
+        var m = String(url).match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if(!m) return null;
+        var gid = "0";
+        var gm = String(url).match(/[#&?]gid=(\d+)/);
+        if(gm) gid = gm[1];
+        return "https://docs.google.com/spreadsheets/d/"+m[1]+"/export?format=csv&gid="+gid;
+      }
+      function loadFromUrl(url, quiet, silent){
+        var csvUrl = sheetCsvUrl(url);
+        if(!csvUrl){
+          if(!quiet) setStatus("That doesn't look like a Google Sheet link. Copy the full link from the sheet's address bar or Share dialog.", "err");
+          return;
+        }
+        if(!silent) setStatus("Loading sheet…");
+        fetch(csvUrl).then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        }).then(function(text){
+          if(/^\s*</.test(text)) throw new Error("html");
+          lsSetRaw(LS_KEY, url);
+          state.lastUpdated = hhmm(new Date());
+          loadGuests(tableToGuests(parseCSV(text)), {kind:"real", label:"the Google Sheet", url:url});
+        }).catch(function(){
+          if(!silent) setStatus("Could not read that sheet. Make sure it is shared as “Anyone with the link can view”, then try again — or download it as .xlsx/.csv and use Option B.", "err");
+        });
+      }
+      $("loadUrlBtn").addEventListener("click", function(){
+        var url = $("sheetUrl").value.trim();
+        if(!url){ setStatus("Paste the Google Sheet link first.", "err"); return; }
+        loadFromUrl(url, false, false);
+      });
+      $("refreshBtn").addEventListener("click", function(){
+        if(state.source.url) loadFromUrl(state.source.url, false, false);
+        fetchRemarks(true);
+      });
+
+      /* ---------- Live auto-refresh: every 2 minutes while the page is visible ---------- */
+      function autoRefresh(){
+        if(typeof document!=="undefined" && document.hidden) return;
+        if(state.source.url) loadFromUrl(state.source.url, true, true);
+        if(hookUrl()) fetchRemarks(true);
+      }
+      setInterval(autoRefresh, REFRESH_MS);
+
+      /* ---------- Option B: file upload ---------- */
+      $("fileInput").addEventListener("change", function(e){
+        var file = e.target.files && e.target.files[0];
+        if(!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev){
+          try{
+            if(/\.csv$/i.test(file.name)){
+              loadGuests(tableToGuests(parseCSV(ev.target.result)), {kind:"real", label:file.name, url:""});
+            }else{
+              if(typeof XLSX==="undefined"){ setStatus("Excel reader could not load (needs internet once). Save the file as .csv and upload that instead.", "err"); return; }
+              var wb = XLSX.read(new Uint8Array(ev.target.result), {type:"array"});
+              var ws = wb.Sheets[wb.SheetNames[0]];
+              var table = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:""});
+              loadGuests(tableToGuests(table), {kind:"real", label:file.name, url:""});
+            }
+          }catch(err){
+            setStatus("Could not read that file. Use the template format (.xlsx or .csv, headings in the first row).", "err");
+          }
+        };
+        if(/\.csv$/i.test(file.name)) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+      });
+
+      /* ---------- Option C: template + sample ---------- */
+      var HEADERS = ["Guest ID","Guest Name","Phone","Country Code","Designation","Type","Date","Time","Flight No","Airport","Hotel","Venue","Pickup Point","Drop Point","Vehicle No","Vehicle Type","Driver Name","Driver Contact","Status","Live Location Link"];
+      $("tplBtn").addEventListener("click", function(){
+        var csv = HEADERS.join(",")+"\n";
+        var blob = new Blob([csv], {type:"text/csv"});
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "iffi-guest-sheet-template.csv";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+        toast("Template downloaded");
+      });
+
+      var SAMPLE = [
+        {guestId:"SAMPLE-1", name:"Aarav Kapoor", designation:"Delegate, Film Bazaar", phone:"9000000001", cc:"91", flight:"6E 531", date:"20 Nov 2026", time:"11:40 AM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Cidade de Goa - Horizon", hotel:"Cidade de Goa - Horizon", vehType:"Innova Crysta", vehNo:"GA 07 S 1001", driver:"Sample Driver Ramesh", driverPhone:"9000000011", pax:"2", status:"Confirmed", remarks:"Sample row — replace with real data"},
+        {guestId:"SAMPLE-2", name:"Meera Nair", designation:"Jury Member", phone:"9000000002", cc:"91", flight:"AI 867", date:"20 Nov 2026", time:"1:15 PM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Taj Vivanta Panjim", hotel:"Taj Vivanta Panjim", vehType:"Innova Crysta", vehNo:"GA 07 S 1002", driver:"Sample Driver Suresh", driverPhone:"9000000012", pax:"1", status:"Confirmed", remarks:"Sample row — replace with real data"},
+        {guestId:"SAMPLE-3", name:"Daniel D'Souza", designation:"Media", phone:"9000000003", cc:"91", flight:"", date:"21 Nov 2026", time:"9:00 AM", type:"Shuttle", from:"Fortune Miramar", to:"ESG Maquinez Palace", hotel:"Fortune Miramar", venue:"ESG Maquinez Palace", vehType:"Sedan", vehNo:"GA 07 S 1003", driver:"Sample Driver Prakash", driverPhone:"9000000013", pax:"3", status:"Confirmed", remarks:"Sample row — replace with real data"},
+        {guestId:"SAMPLE-4", name:"Kavita Rao", designation:"Speaker, WAVES", phone:"9000000004", cc:"91", flight:"UK 863", date:"24 Nov 2026", time:"6:30 PM", type:"Departure", airport:"Mopa Airport (GOX)", from:"Novotel Goa Panjim", to:"Mopa Airport (GOX)", hotel:"Novotel Goa Panjim", vehType:"Sedan", vehNo:"GA 07 S 1004", driver:"Sample Driver Anil", driverPhone:"9000000014", pax:"1", status:"Confirmed", remarks:"Sample row — replace with real data"}
+      ];
+      $("sampleBtn").addEventListener("click", function(){
+        var g = SAMPLE.map(function(s){
+          var o={ _extra:{}, _sample:true };
+          FIELDS.forEach(function(f){ o[f.key]=s[f.key]||""; });
+          return o;
+        });
+        loadGuests(g, {kind:"sample", label:"sample rows (practice only — not real guests)", url:""});
+      });
+
+      /* ---------- Filters ---------- */
+      function buildFilters(){
+        var hotels={}, dates={};
+        state.guests.forEach(function(g){
+          if(g.hotel) hotels[g.hotel]=1;
+          if(g.date) dates[g.date]=1;
+        });
+        var hf=$("hotelFilter"), df=$("dateFilter");
+        var hv=hf.value, dv=df.value;
+        hf.innerHTML='<option value="">All hotels</option>'+Object.keys(hotels).sort().map(function(h){ return '<option>'+esc(h)+"</option>"; }).join("");
+        df.innerHTML='<option value="">All dates</option>'+Object.keys(dates).sort().map(function(d){ return '<option>'+esc(d)+"</option>"; }).join("");
+        hf.value=hv; df.value=dv;
+      }
+      $("hotelFilter").addEventListener("change", render);
+      $("dateFilter").addEventListener("change", render);
+      $("q").addEventListener("input", render);
+      $("clearBtn").addEventListener("click", function(){
+        $("q").value=""; $("hotelFilter").value=""; $("dateFilter").value="";
+        setType("all"); render(); $("q").focus();
+      });
+      function setType(t){
+        state.typeFilter=t;
+        var chips=document.querySelectorAll(".chip");
+        for(var i=0;i<chips.length;i++) chips[i].setAttribute("aria-pressed", chips[i].getAttribute("data-type")===t ? "true":"false");
+      }
+      var chipEls=document.querySelectorAll(".chip");
+      for(var ci=0;ci<chipEls.length;ci++){
+        chipEls[ci].addEventListener("click", function(){ setType(this.getAttribute("data-type")); render(); });
+      }
+
+      function typeClass(t){
+        var n=norm(t);
+        if(n.indexOf("arr")>-1) return "arr";
+        if(n.indexOf("dep")>-1) return "dep";
+        return "";
+      }
+      function typeMatches(g){
+        if(state.typeFilter==="all") return true;
+        var n=norm(g.type);
+        if(state.typeFilter==="arrival") return n.indexOf("arr")>-1;
+        if(state.typeFilter==="departure") return n.indexOf("dep")>-1;
+        if(state.typeFilter==="shuttle") return n.indexOf("shut")>-1 || n.indexOf("pool")>-1 || n.indexOf("transfer")>-1;
+        return true;
+      }
+      function matchesQuery(g,q){
+        if(!q) return true;
+        var hay = FIELDS.map(function(f){ return g[f.key]||""; }).join(" ") + " " + Object.keys(g._extra||{}).map(function(k){ return g._extra[k]; }).join(" ");
+        var qd = digits(q);
+        if(qd.length>=4 && digits(hay).indexOf(qd)>-1) return true;
+        var tokens = norm(q).split(" ").filter(Boolean);
+        var hn = norm(hay);
+        return tokens.every(function(tok){ return hn.indexOf(tok)>-1; });
+      }
+
+      /* ---------- Render results ---------- */
+      function render(){
+        var q=$("q").value, hf=$("hotelFilter").value, df=$("dateFilter").value;
+        var list = state.guests.filter(function(g){
+          return typeMatches(g) && matchesQuery(g,q)
+            && (!hf || g.hotel===hf) && (!df || g.date===df);
+        });
+        var box=$("results");
+        $("emptyState").style.display = state.guests.length ? "none":"block";
+        $("countLine").innerHTML = state.guests.length
+          ? "Showing <strong>"+list.length+"</strong> of <strong>"+state.guests.length+"</strong> guests — tap a card for full details and send options."
+          : "";
+        box.innerHTML = list.map(function(g){
+          var idx = state.guests.indexOf(g);
+          var meta=[];
+          if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
+          if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" · "))+"</b></span>");
+          if(g.hotel) meta.push("<span>"+esc(g.hotel)+"</span>");
+          if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
+          if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
+          var cardHtml = '<button class="card" type="button" data-idx="'+idx+'">'
+            + '<span class="nm">'+esc(g.name||"Unnamed guest")
+            + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
+            + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
+            + "</span>"
+            + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
+            + '<span class="meta">'+meta.join("")+"</span>"
+            + "</button>";
+          var trackHtml = clean(g.liveLocation) ? '<div class="card-track"><a class="btn small trackBtn" href="'+esc(clean(g.liveLocation))+'" target="_blank" rel="noopener">Track</a></div>' : "";
+          return '<div class="cardcell">'+cardHtml+trackHtml+"</div>";
+        }).join("");
+        if(state.guests.length && !list.length){
+          box.innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>No guest matches</strong>Check the spelling, or clear the search and filters.</div>';
+        }
+        var cards=box.querySelectorAll(".card");
+        for(var i=0;i<cards.length;i++){
+          cards[i].addEventListener("click", function(){ openDetail(parseInt(this.getAttribute("data-idx"),10)); });
+        }
+        var trackBtns=box.querySelectorAll(".trackBtn");
+        for(var ti=0;ti<trackBtns.length;ti++){
+          trackBtns[ti].addEventListener("click", function(e){ e.stopPropagation(); });
+        }
+      }
+
+      /* ---------- Messages ---------- */
+      function dropPoint(g){
+        var to = clean(g.to);
+        if(to) return to;
+        return clean(g.hotel);
+      }
+      function vehicleStr(g){
+        return [clean(g.vehType), clean(g.vehNo)].filter(Boolean).join(" ");
+      }
+      function typeWord(g){
+        var n = norm(g.type);
+        if(n.indexOf("arr")>-1) return "Arrival";
+        if(n.indexOf("dep")>-1) return "Departure";
+        if(clean(g.type)) return clean(g.type);
+        return clean(g.flight) ? "Arrival" : "Shuttle";
+      }
+      function driverMsg(g){
+        var parts = [];
+        var head = "Pickup: "+val(g,"name");
+        var meta = [clean(g.designation), clean(g.phone)].filter(Boolean).join(", ");
+        if(meta) head += " ("+meta+")";
+        parts.push(head+".");
+        if(clean(g.flight)){
+          parts.push("Flight "+clean(g.flight)+", "+[clean(g.date), clean(g.time)].filter(Boolean).join(" ")+".");
+        }
+        parts.push("From: "+val(g,"from")+" To: "+dropPoint(g)+".");
+        if(vehicleStr(g)) parts.push("Vehicle: "+vehicleStr(g)+".");
+        parts.push("Please confirm. - Fox India");
+        return parts.join(" ");
+      }
+      function guestMsg(g){
+        var parts = [];
+        parts.push("Welcome to IFFI Goa, "+val(g,"name")+".");
+        parts.push("Your "+typeWord(g)+" is confirmed.");
+        if(clean(g.flight)){
+          parts.push("Flight "+clean(g.flight)+" on "+clean(g.date)+" at "+clean(g.time)+".");
+        }
+        var veh = vehicleStr(g);
+        var drv = [clean(g.driver), clean(g.driverPhone)].filter(Boolean).join(", ");
+        if(veh || drv){
+          parts.push("Vehicle: "+(veh||"—")+(drv ? " (Driver: "+drv+")" : "")+".");
+        }
+        parts.push("Pickup: "+val(g,"from")+" at "+val(g,"time")+".");
+        parts.push("Drop: "+dropPoint(g)+".");
+        parts.push("Need help? Call Fox India transport desk: 9261201083. - Fox India Transport Team");
+        return parts.join(" ");
+      }
+      function fullText(g){
+        var lines=["IFFI GOA — GUEST DETAILS"];
+        FIELDS.forEach(function(f){
+          if(clean(g[f.key])) lines.push(f.label+": "+clean(g[f.key]));
+        });
+        Object.keys(g._extra||{}).forEach(function(k){ lines.push(k+": "+g._extra[k]); });
+        return lines.join("\n");
+      }
+      function waLink(phone, cc, text){
+        var n = intlNumber(phone, cc);
+        if(!n) return null;
+        return "https://wa.me/"+n+"?text="+encodeURIComponent(text);
+      }
+
+      /* ---------- Detail (full screen) ---------- */
+      function updateRemarkChrome(){
+        var g = state.current;
+        var isSample = !!(g && g._sample);
+        setSendable($("remarkSendBtn"), !isSample);
+        $("remarkInput").disabled = isSample;
+        $("remarkPracticeNote").style.display = isSample ? "" : "none";
+        $("remarkLocalNote").style.display = (!isSample && !hookUrl()) ? "" : "none";
+        $("copyRemarksBtn").style.display = hookUrl() ? "none" : "";
+      }
+      function openDetail(idx){
+        var g = state.guests[idx]; if(!g) return;
+        state.current = g;
+        state.currentKey = remarkKey(g);
+        state.detailOpen = true;
+        $("dName").textContent = (g._sample ? "SAMPLE — " : "") + (g.name || "Unnamed guest");
+        $("dDesig").textContent = [g.designation, g.type].filter(Boolean).join(" · ");
+        var rowsHtml = FIELDS.filter(function(f){ return clean(g[f.key]); }).map(function(f){
+          return "<tr><th>"+esc(f.label)+"</th><td>"+esc(clean(g[f.key]))+"</td></tr>";
+        }).join("");
+        Object.keys(g._extra||{}).forEach(function(k){
+          rowsHtml += "<tr><th>"+esc(k)+"</th><td>"+esc(g._extra[k])+"</td></tr>";
+        });
+        $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
+        var dm = driverMsg(g), gm = guestMsg(g);
+        $("driverMsg").textContent = dm;
+        $("guestMsg").textContent = gm;
+        var isSample = !!g._sample;
+        $("practiceNote").style.display = isSample ? "" : "none";
+        setSendable($("copyDriverBtn"), !isSample);
+        setSendable($("copyGuestBtn"), !isSample);
+        setSendable($("copyAllBtn"), !isSample);
+        setSendable($("previewCopyDriverBtn"), !isSample);
+        setSendable($("previewCopyGuestBtn"), !isSample);
+        setSendable($("previewShareDriverBtn"), !isSample);
+        setSendable($("previewShareGuestBtn"), !isSample);
+        if(isSample){
+          killLink($("waDriverBtn")); killLink($("waGuestBtn"));
+          killLink($("callGuestBtn")); killLink($("callDriverBtn"));
+          killLink($("smsGuestBtn")); killLink($("smsDriverBtn"));
+          killLink($("previewCallGuestBtn")); killLink($("previewCallDriverBtn"));
+        }else{
+          setWa($("waDriverBtn"), g.driverPhone, "", dm);
+          setWa($("waGuestBtn"), g.phone, g.cc, gm);
+          setTel($("callGuestBtn"), g.phone, g.cc);
+          setTel($("callDriverBtn"), g.driverPhone, "");
+          setSms($("smsGuestBtn"), g.phone, g.cc, gm);
+          setSms($("smsDriverBtn"), g.driverPhone, "", dm);
+          setTel($("previewCallGuestBtn"), g.phone, g.cc);
+          setTel($("previewCallDriverBtn"), g.driverPhone, "");
+        }
+        updateRemarkChrome();
+        renderLiveLoc();
+        $("liveLocError").textContent = "";
+        if($("liveLocWarn")) $("liveLocWarn").style.display = "none";
+        renderRemarks();
+        $("overlay").classList.add("open");
+        $("overlay").scrollTop = 0;
+        document.body.style.overflow="hidden";
+      }
+      function setSendable(btn, ok){
+        btn.disabled = !ok;
+        btn.style.opacity = ok ? "" : ".45";
+      }
+      function killLink(a){
+        a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none";
+      }
+      function setWa(a, phone, cc, text){
+        var link = waLink(phone, cc, text);
+        if(link){ a.href=link; a.style.opacity=""; a.style.pointerEvents=""; }
+        else{ a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none"; }
+      }
+      function setTel(a, phone, cc){
+        var n=intlNumber(phone, cc);
+        if(n){ a.href="tel:+"+n; a.style.opacity=""; a.style.pointerEvents=""; }
+        else{ a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none"; }
+      }
+      function setSms(a, phone, cc, text){
+        var n=intlNumber(phone, cc);
+        if(n){ a.href="sms:+"+n+"?&body="+encodeURIComponent(text); a.style.opacity=""; a.style.pointerEvents=""; }
+        else{ a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none"; }
+      }
+      function closeDetail(){
+        state.detailOpen = false;
+        $("overlay").classList.remove("open");
+        if(!state.adminOpen && !$("loginGate").classList.contains("open")) document.body.style.overflow="";
+      }
+      $("closeBtn").addEventListener("click", closeDetail);
+      $("backBtn").addEventListener("click", closeDetail);
+
+      /* ---------- Admin — all remarks ---------- */
+      function openAdmin(){
+        if(!currentUser || !currentUser.isAdmin) return;
+        state.adminOpen = true;
+        renderAdmin();
+        $("adminOverlay").classList.add("open");
+        $("adminOverlay").scrollTop = 0;
+        document.body.style.overflow="hidden";
+      }
+      function closeAdmin(){
+        state.adminOpen = false;
+        $("adminOverlay").classList.remove("open");
+        if(!state.detailOpen && !$("loginGate").classList.contains("open")) document.body.style.overflow="";
+      }
+      $("adminBtn").addEventListener("click", openAdmin);
+      $("adminCloseBtn").addEventListener("click", closeAdmin);
+      $("adminBackBtn").addEventListener("click", closeAdmin);
+      document.addEventListener("keydown", function(e){
+        if(e.key==="Escape"){ closeDetail(); closeAdmin(); }
+      });
+
+      function copyText(text, okMsg){
+        function done(){ toast(okMsg); }
+        function fallback(){
+          var ta=document.createElement("textarea");
+          ta.value=text; ta.setAttribute("readonly","");
+          ta.style.position="fixed"; ta.style.top="0"; ta.style.left="0"; ta.style.opacity="0"; ta.style.fontSize="16px";
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          try{ ta.setSelectionRange(0, text.length); }catch(e){}
+          var ok=false;
+          try{ ok=document.execCommand("copy"); }catch(e){}
+          ta.remove();
+          if(ok) done(); else toast("Copy failed — long-press the preview text to copy it");
+        }
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
+        }else fallback();
+      }
+      function sendableCurrent(){
+        if(state.current && state.current._sample){ toast("Practice data — load the real sheet to send"); return false; }
+        return !!state.current;
+      }
+      function shareText(text){
+        if(!sendableCurrent()) return;
+        if(typeof navigator!=="undefined" && navigator.share){
+          try{
+            var p = navigator.share({text:text});
+            if(p && typeof p.catch==="function") p.catch(function(){});
+          }catch(e){}
+        }else{
+          copyText(text, "Sharing not supported — message copied, paste it in WhatsApp");
+        }
+      }
+      $("copyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(driverMsg(state.current), "Copied — paste it to the driver"); });
+      $("copyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(guestMsg(state.current), "Copied — paste it to the guest"); });
+      $("copyAllBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(fullText(state.current), "Full guest details copied"); });
+      $("previewCopyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(driverMsg(state.current), "Copied — paste it to the driver"); });
+      $("previewCopyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(guestMsg(state.current), "Copied — paste it to the guest"); });
+      $("previewShareDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(driverMsg(state.current)); });
+      $("previewShareGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(guestMsg(state.current)); });
+      $("gasCopyBtn").addEventListener("click", function(){ copyText($("gasCode").textContent, "Apps Script code copied — paste it into Apps Script"); });
+
+      /* ---------- Init: login session, ?sheet= / ?hook= params, saved sheet ---------- */
+      (function(){
+        var params = null;
+        try{ params = new URLSearchParams(window.location.search); }catch(e){}
+        var hookParam = params ? params.get("hook") : null;
+        if(hookParam) setHook(hookParam);
+        else $("hookInput").value = hookUrl();
+
+        var users = loadUsers();
+        var sess = lsGetRaw(LS_SESSION);
+        if(sess && users[sess]) startSession(users[sess]);
+        else showLogin();
+        updateUserbar();
+        fetchRemarks(true);
+
+        var sheetParam = params ? params.get("sheet") : null;
+        var saved = lsGetRaw(LS_KEY);
+        var url = sheetParam || saved;
+        updateBanner();
+        if(url){
+          $("sheetUrl").value = url;
+          loadFromUrl(url, true, false);
+        }
+        render();
+      })();
+    })();
+    </script>
+  </body>
+</html>
