@@ -238,7 +238,7 @@
           <button class="btn primary" id="hookSaveBtn" type="button">Save webhook URL</button>
         </div>
         <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
-        <p class="hint" style="margin-bottom:8px">Changes the PIN for your name on this phone. If you are logged in as <strong>Yogesh</strong>, this is the admin PIN.</p>
+        <p class="hint" style="margin-bottom:8px">When the team list is active, your PIN is the <strong>last 4 digits of your mobile number</strong> and cannot be changed here — ask the admin to correct your mobile number in the Team list if it is wrong. This change only applies to the admin fallback login (no team list), where it changes the admin PIN on this phone.</p>
         <div class="rowflex">
           <input type="password" id="newPinInput" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" autocomplete="off" style="max-width:200px" />
           <button class="btn" id="pinSaveBtn" type="button">Change PIN</button>
@@ -313,10 +313,19 @@
           <div>
             <h3>Giving access to your team</h3>
             <ul>
-              <li>Share this page's link with your team and coordinators. On first open, each person enters their own name and a 4-digit PIN they choose — that is only so their remarks carry their name.</li>
+              <li>Share this page's link with your team and coordinators. Each person logs in with their name and a PIN that is the <strong>last 4 digits of their mobile number</strong> — the admin adds every member first (see “Team list &amp; PINs” below), and a name that is not in the team list, or a wrong PIN, cannot log in.</li>
               <li>Keep ONE master Google Sheet. Share it as “Anyone with the link can view” and give the team that sheet link too.</li>
               <li>When the sheet changes (new flight, new vehicle), the open page picks it up by itself within 2 minutes — or tap Refresh. No new file to forward.</li>
               <li>Only you and Puneet ji should have edit access on the sheet; the team only views.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Team list &amp; PINs</h3>
+            <ul>
+              <li>The team list lives in the sheet itself, in a tab named <strong>Team</strong> with three columns: <strong>Name | Mobile | Role</strong> (Role is Admin or Member).</li>
+              <li>There is no separate PIN to set or share: each member's <strong>PIN is the last 4 digits of their mobile number</strong> in that list, and login is checked against it every time.</li>
+              <li>The <strong>admin manages the team list</strong> — from Admin view → “Team members” (needs the webhook below), or by adding rows directly in the sheet's Team tab. Names must be unique.</li>
+              <li>If there is no Team tab yet, only the admin (Yogesh) can log in, with the PIN set on first login on that phone. Once a team list exists, the roster rule applies to everyone, including Yogesh.</li>
             </ul>
           </div>
           <div>
@@ -351,6 +360,7 @@
             <li style="margin-bottom:4px">Copy the Web app URL. Paste it in this tool under <strong>Settings → Remarks webhook URL → Save</strong>. Or share the tool link with <code>&amp;hook=&lt;that URL&gt;</code> added after the sheet part, so it is set automatically for the whole team.</li>
             <li>If you ever change the code, deploy again as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version), otherwise the old code keeps running.</li>
             <li>If the webhook was already deployed for remarks, redeploy the same Apps Script project as a new version so setLocation goes live (Deploy → Manage deployments → edit → new version).</li>
+            <li>The same webhook also saves the <strong>team list</strong>: Admin view → “Team members” adds and removes members through it, into the sheet's <strong>Team</strong> tab (columns Name | Mobile | Role — the script creates the tab with those headers if it does not exist). If the webhook was deployed before team members were supported, redeploy the current code below as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — the webhook must be running the current code for the addMember / removeMember actions to work, otherwise the old code keeps running and team changes will not save.</li>
           </ol>
           <div class="fmt" id="gasCode" style="margin-top:10px">function doGet() {
   var sh = remarksSheet_();
@@ -367,6 +377,14 @@ function doPost(e) {
   if (data.action === "setLocation") {
     var updatedCount = setLocation_(data);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: updatedCount })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "addMember") {
+    teamSheet_().appendRow([data.name, data.mobile, data.role]);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "removeMember") {
+    removeMember_(data);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   if (data.action === "add") {
@@ -400,6 +418,30 @@ function remarksSheet_() {
     sh.appendRow(["Time", "Guest ID", "Guest Name", "Remark", "By"]);
   }
   return sh;
+}
+
+function teamSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Team");
+  if (!sh) {
+    sh = ss.insertSheet("Team");
+    sh.appendRow(["Name", "Mobile", "Role"]);
+  } else if (sh.getLastRow() === 0) {
+    sh.appendRow(["Name", "Mobile", "Role"]);
+  }
+  return sh;
+}
+
+function removeMember_(data) {
+  var sh = teamSheet_();
+  var rows = sh.getDataRange().getValues();
+  var target = String(data.name == null ? "" : data.name).trim().toLowerCase();
+  for (var i = rows.length - 1; i &gt;= 1; i--) {
+    if (String(rows[i][0]).trim().toLowerCase() === target) {
+      sh.deleteRow(i + 1);
+      break;
+    }
+  }
 }
 
 function setLocation_(data) {
@@ -544,7 +586,33 @@ function setLocation_(data) {
         </div>
         <h2 id="admin-h">Admin — all remarks</h2>
         <p class="cols-note" id="adminUpdated" style="margin-top:6px"></p>
-        <div id="adminList"></div>
+        <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
+          <h3 style="font-size:1rem;margin:0 0 4px">Team members</h3>
+          <p class="cols-note" style="margin:0 0 10px">The team list lives in the sheet's <strong>Team</strong> tab (Name | Mobile | Role). Each member's PIN is the <strong>last 4 digits of their mobile number</strong> — there is no separate PIN to set. Only the admin manages this list.</p>
+          <div id="teamList"></div>
+          <div id="teamConfirmBar" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
+            <span id="teamConfirmText" style="font-weight:600"></span>
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn small" id="teamConfirmYes" type="button" style="color:#dc2626;border-color:#dc2626">Confirm remove</button>
+              <button class="btn small ghost" id="teamConfirmNo" type="button">Cancel</button>
+            </div>
+          </div>
+          <h4 style="font-size:.95rem;margin:16px 0 6px">Add member</h4>
+          <div class="remark-add" style="margin-top:0">
+            <input type="text" id="teamName" placeholder="Member name" autocomplete="off" aria-label="New member name" style="flex:1;min-width:160px" />
+            <input type="text" id="teamMobile" placeholder="Mobile number" inputmode="numeric" autocomplete="off" aria-label="New member mobile number" style="flex:1;min-width:160px" />
+            <select id="teamRole" aria-label="New member role" style="flex:0 1 140px;width:auto">
+              <option value="Member" selected>Member</option>
+              <option value="Admin">Admin</option>
+            </select>
+            <button class="btn primary" id="teamAddBtn" type="button">Save member</button>
+          </div>
+          <div class="status" id="teamStatus" role="status"></div>
+        </div>
+        <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
+          <h3 style="font-size:1rem;margin:0 0 4px">All remarks</h3>
+          <div id="adminList"></div>
+        </div>
       </div>
     </div>
 
@@ -554,13 +622,15 @@ function setLocation_(data) {
         <div class="eyebrow">57th IFFI · Goa · Fox India</div>
         <h2>Team login</h2>
         <p>This is a <strong>light team login</strong> so that every remark shows who wrote it — it is <strong>not bank-level security</strong>, and it does not lock the guest data. Anyone with this page's link can still open the tool; the name + PIN just tags your remarks with your name.</p>
+        <p>Your <strong>PIN is the last 4 digits of your mobile number</strong>, exactly as the admin has listed it in the team list. The PIN is checked against that list — a wrong PIN will not log you in.</p>
+        <p id="loginRosterNote" style="display:none;border:1px dashed var(--line);border-radius:10px;padding:10px 12px">Team list not set up yet — only the admin can log in. Admin: add the team list (Name + Mobile) in the sheet's Team tab or in Admin view.</p>
         <label for="loginName">Your name
           <input type="text" id="loginName" placeholder="e.g. Ravi Kumar" autocomplete="off" />
         </label>
-        <label for="loginPin">4-digit PIN
-          <input type="password" id="loginPin" placeholder="Choose any 4 digits" inputmode="numeric" maxlength="4" autocomplete="off" />
+        <label for="loginPin">PIN — last 4 digits of your mobile number
+          <input type="password" id="loginPin" placeholder="Last 4 digits of your mobile" inputmode="numeric" maxlength="4" autocomplete="off" />
         </label>
-        <p style="margin-top:14px">First time on this phone? Just type your name and choose any 4-digit PIN — it is set for your name on this phone, and you stay logged in here. The name <strong>Yogesh</strong> is the admin: the first login as Yogesh sets the admin PIN on that phone.</p>
+        <p style="margin-top:14px">Type your name exactly as the admin added it in the team list, and your PIN is the last 4 digits of your mobile number. You stay logged in on this phone — and your login is checked against the team list again each time the page opens, so a removed member or a changed mobile number means logging in again.</p>
         <div class="status err" id="loginErr" role="alert"></div>
         <button class="btn primary" id="loginBtn" type="button" style="width:100%;margin-top:10px">Log in</button>
       </div>
@@ -672,12 +742,109 @@ function setLocation_(data) {
       function saveUsers(u){ lsSetJSON(LS_USERS, u); }
       function isAdminName(name){ return norm(name)==="yogesh"; }
 
+      /* ---------- Team roster (sheet "Team" tab: Name | Mobile | Role) ----------
+         roster is null when there is no roster (no sheet linked, or no Team tab);
+         otherwise an array of {name, mobile, role}. A member's PIN is the last 4
+         digits of their mobile number. */
+      var roster = null;
+      function last4Digits(mobile){
+        var d = digits(mobile);
+        return d.length>=4 ? d.slice(-4) : d;
+      }
+      function findMember(name){
+        if(!roster) return null;
+        var k = norm(name);
+        for(var i=0;i<roster.length;i++){
+          if(norm(roster[i].name)===k) return roster[i];
+        }
+        return null;
+      }
+      function memberIsAdmin(m){
+        if(!m) return false;
+        return norm(m.role)==="admin" || norm(m.name)==="yogesh";
+      }
+      function hasRoster(){ return !!(roster && roster.length); }
+      function sheetIdFromUrl(url){
+        var m = String(url==null?"":url).match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        return m ? m[1] : null;
+      }
+      function teamCsvUrl(sheetUrl){
+        var id = sheetIdFromUrl(sheetUrl);
+        if(!id) return null;
+        return "https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?tqx=out:csv&sheet=Team";
+      }
+      function parseRoster(text){
+        var table = parseCSV(text);
+        if(!table.length) return null;
+        var headers = table[0].map(function(h){ return norm(h); });
+        var nameIdx = headers.indexOf("name");
+        var mobileIdx = headers.indexOf("mobile");
+        var roleIdx = headers.indexOf("role");
+        if(nameIdx<0 || mobileIdx<0) return null;
+        var out = [];
+        for(var r=1;r<table.length;r++){
+          var nm = clean(table[r][nameIdx]);
+          if(!nm) continue;
+          out.push({
+            name: nm,
+            mobile: clean(table[r][mobileIdx]),
+            role: roleIdx>=0 ? (clean(table[r][roleIdx]) || "Member") : "Member"
+          });
+        }
+        return out.length ? out : null;
+      }
+      function updateLoginNote(){
+        var note = $("loginRosterNote");
+        if(!note) return;
+        note.style.display = hasRoster() ? "none" : "";
+      }
+      function loadRoster(sheetUrl, cb){
+        var csvUrl = teamCsvUrl(sheetUrl);
+        if(!csvUrl){
+          roster = null;
+          updateLoginNote();
+          if(typeof renderTeam==="function") renderTeam();
+          if(cb) cb();
+          return;
+        }
+        fetch(csvUrl).then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        }).then(function(text){
+          roster = /^\s*</.test(text) ? null : parseRoster(text);
+          updateLoginNote();
+          if(state.adminOpen && typeof renderTeam==="function") renderTeam();
+          if(cb) cb();
+        }).catch(function(){
+          roster = null;
+          updateLoginNote();
+          if(cb) cb();
+        });
+      }
+      /* Validate a name + PIN against the roster. Returns {ok:true, member} or
+         {ok:false, error}. This is the check the old login never made. */
+      function validateRosterLogin(name, pin){
+        var member = findMember(name);
+        if(!member) return { ok:false, error:"Your name is not in the team list. Ask the admin (Yogesh) to add you." };
+        if(String(pin) !== last4Digits(member.mobile)) return { ok:false, error:"Wrong PIN. Your PIN is the last 4 digits of your mobile number." };
+        return { ok:true, member:member };
+      }
+
       function showLogin(){
+        updateLoginNote();
         $("loginGate").classList.add("open");
         document.body.style.overflow="hidden";
       }
       function startSession(rec){
-        currentUser = { name: rec.name, isAdmin: isAdminName(rec.name) };
+        var isAdmin = isAdminName(rec.name);
+        if(hasRoster()){
+          var m = findMember(rec.name);
+          if(m) isAdmin = memberIsAdmin(m);
+        }
+        currentUser = { name: rec.name, isAdmin: isAdmin };
+        var users = loadUsers();
+        users[norm(rec.name)] = { name: rec.name, pin: rec.pin };
+        saveUsers(users);
         lsSetRaw(LS_SESSION, norm(rec.name));
         $("loginGate").classList.remove("open");
         if(!state.detailOpen && !state.adminOpen) document.body.style.overflow="";
@@ -699,12 +866,29 @@ function setLocation_(data) {
         var pin = $("loginPin").value.trim();
         var err = $("loginErr");
         if(!name){ err.textContent="Type your name first."; return; }
+        if(hasRoster()){
+          /* Roster rules: name must be in the team list and the PIN must be the
+             last 4 digits of that member's mobile number. Wrong PIN is rejected. */
+          if(!pin){ err.textContent="Wrong PIN. Your PIN is the last 4 digits of your mobile number."; return; }
+          var v = validateRosterLogin(name, pin);
+          if(!v.ok){ err.textContent = v.error; return; }
+          startSession({ name: v.member.name, pin: pin });
+          toast("Welcome, "+v.member.name);
+          fetchRemarks(true);
+          return;
+        }
+        /* Fallback — no team list loaded: only the admin (Yogesh) can log in,
+           with the PIN set on first login on this device. */
+        if(!isAdminName(name)){
+          err.textContent = "Team list not set up yet — only the admin can log in. Admin: add the team list (Name + Mobile) in the sheet's Team tab or in Admin view.";
+          return;
+        }
         if(!/^\d{4}$/.test(pin)){ err.textContent="PIN must be exactly 4 digits — choose any 4 digits the first time."; return; }
         var users = loadUsers();
         var key = norm(name);
         if(users[key]){
           if(users[key].pin !== pin){
-            err.textContent = "Wrong PIN for "+users[key].name+" on this phone. Use the PIN set on this phone, or log in with a different name.";
+            err.textContent = "Wrong PIN for "+users[key].name+" on this phone. Use the PIN set on this phone.";
             return;
           }
           startSession(users[key]);
@@ -734,6 +918,7 @@ function setLocation_(data) {
       });
       $("pinSaveBtn").addEventListener("click", function(){
         if(!currentUser){ setSettingsStatus("Log in first.", "err"); return; }
+        if(hasRoster()){ setSettingsStatus("Your PIN is the last 4 digits of your mobile number — it cannot be changed here. Ask the admin to update your mobile number in the Team list if it is wrong.", "err"); return; }
         var np = $("newPinInput").value.trim();
         if(!/^\d{4}$/.test(np)){ setSettingsStatus("New PIN must be exactly 4 digits.", "err"); return; }
         var users = loadUsers();
@@ -1134,6 +1319,7 @@ function setLocation_(data) {
           lsSetRaw(LS_KEY, url);
           state.lastUpdated = hhmm(new Date());
           loadGuests(tableToGuests(parseCSV(text)), {kind:"real", label:"the Google Sheet", url:url});
+          loadRoster(url);
         }).catch(function(){
           if(!silent) setStatus("Could not read that sheet. Make sure it is shared as “Anyone with the link can view”, then try again — or download it as .xlsx/.csv and use Option B.", "err");
         });
@@ -1461,6 +1647,7 @@ function setLocation_(data) {
         if(!currentUser || !currentUser.isAdmin) return;
         state.adminOpen = true;
         renderAdmin();
+        renderTeam();
         $("adminOverlay").classList.add("open");
         $("adminOverlay").scrollTop = 0;
         document.body.style.overflow="hidden";
@@ -1475,6 +1662,133 @@ function setLocation_(data) {
       $("adminBackBtn").addEventListener("click", closeAdmin);
       document.addEventListener("keydown", function(e){
         if(e.key==="Escape"){ closeDetail(); closeAdmin(); }
+      });
+
+      /* ---------- Admin — team members ---------- */
+      var pendingRemoveName = null;
+      function setTeamStatus(msg, cls){
+        var s = $("teamStatus");
+        if(!s) return;
+        s.textContent = msg;
+        s.className = "status"+(cls ? " "+cls : "");
+      }
+      function renderTeam(){
+        var box = $("teamList");
+        if(!box) return;
+        if(!hasRoster()){
+          box.innerHTML = '<p class="cols-note" style="margin:6px 0">No team list loaded yet. Add a member below (saved into the sheet\'s Team tab through the webhook), or add rows to the Team tab in the sheet directly (Name | Mobile | Role), then reload the sheet.</p>';
+          return;
+        }
+        box.innerHTML = roster.map(function(m, i){
+          return '<div class="remark">'
+            + '<div class="rguest">'+esc(m.name)+' <span class="badge">'+esc(m.role||"Member")+"</span></div>"
+            + '<div class="rmeta"><span>'+esc(m.mobile)+" · PIN: "+esc(last4Digits(m.mobile))+"</span>"
+            + '<button class="btn rdel" type="button" data-rmteam="'+i+'">Remove</button>'
+            + "</div></div>";
+        }).join("");
+      }
+      function rosterSheetUrl(){
+        return state.source.url || lsGetRaw(LS_KEY) || $("sheetUrl").value.trim();
+      }
+      function reloadRosterAfterChange(doneMsg){
+        var su = rosterSheetUrl();
+        if(su){
+          loadRoster(su, function(){
+            renderTeam();
+            if(doneMsg) setTeamStatus(doneMsg, "ok");
+          });
+        }else{
+          renderTeam();
+          if(doneMsg) setTeamStatus(doneMsg, "ok");
+        }
+      }
+      function addTeamMember(){
+        if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
+        var name = $("teamName").value.trim();
+        var mobile = digits($("teamMobile").value);
+        var role = $("teamRole").value === "Admin" ? "Admin" : "Member";
+        if(!name){ setTeamStatus("Type the member's name first.", "err"); return; }
+        if(mobile.length < 4){ setTeamStatus("Mobile number must have at least 4 digits.", "err"); return; }
+        if(roster && findMember(name)){
+          setTeamStatus("A member named “"+name+"” is already in the team list — names must be unique. Use a different name.", "err");
+          return;
+        }
+        if(!hookUrl()){
+          setTeamStatus("No webhook set — add a row to the Team tab in the sheet directly (Name | Mobile | Role)", "err");
+          return;
+        }
+        var payload = { action:"addMember", name:name, mobile:mobile, role:role, author:currentUser.name, time:new Date().toISOString() };
+        setTeamStatus("Saving…");
+        postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+          var data = null;
+          try{ data = JSON.parse(txt); }catch(e){}
+          if(!data || data.ok !== true){
+            setTeamStatus("Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup).", "err");
+            return;
+          }
+          if(!roster) roster = [];
+          if(!findMember(name)) roster.push({ name:name, mobile:mobile, role:role });
+          $("teamName").value = "";
+          $("teamMobile").value = "";
+          $("teamRole").value = "Member";
+          renderTeam();
+          reloadRosterAfterChange(name+" added to the team list — they can log in now with the last 4 digits of their mobile number.");
+        }).catch(function(){
+          setTeamStatus("Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup).", "err");
+        });
+      }
+      function removeTeamMember(name){
+        if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
+        var member = findMember(name);
+        if(!member) return;
+        if(memberIsAdmin(member)){
+          var admins = roster.filter(function(m){ return memberIsAdmin(m); }).length;
+          if(admins <= 1){ setTeamStatus("Cannot remove the last admin.", "err"); return; }
+        }
+        if(!hookUrl()){
+          setTeamStatus("No webhook set — remove the row from the Team tab in the sheet directly (Name | Mobile | Role)", "err");
+          return;
+        }
+        var payload = { action:"removeMember", name:member.name, author:currentUser.name, time:new Date().toISOString() };
+        setTeamStatus("Removing…");
+        postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+          var data = null;
+          try{ data = JSON.parse(txt); }catch(e){}
+          if(!data || data.ok !== true){
+            setTeamStatus("Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup).", "err");
+            return;
+          }
+          roster = roster.filter(function(m){ return norm(m.name) !== norm(member.name); });
+          if(!roster.length) roster = null;
+          renderTeam();
+          reloadRosterAfterChange(member.name+" removed from the team list.");
+        }).catch(function(){
+          setTeamStatus("Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup).", "err");
+        });
+      }
+      $("teamAddBtn").addEventListener("click", addTeamMember);
+      $("teamList").addEventListener("click", function(e){
+        var t = e.target;
+        var i = (t && t.getAttribute) ? t.getAttribute("data-rmteam") : null;
+        if(i===null || i===undefined || !hasRoster() || !roster[+i]) return;
+        var member = roster[+i];
+        if(memberIsAdmin(member) && roster.filter(function(m){ return memberIsAdmin(m); }).length <= 1){
+          setTeamStatus("Cannot remove the last admin.", "err");
+          return;
+        }
+        pendingRemoveName = member.name;
+        $("teamConfirmText").textContent = "Remove "+member.name+" from the team list? They will no longer be able to log in.";
+        $("teamConfirmBar").style.display = "";
+      });
+      $("teamConfirmNo").addEventListener("click", function(){
+        pendingRemoveName = null;
+        $("teamConfirmBar").style.display = "none";
+      });
+      $("teamConfirmYes").addEventListener("click", function(){
+        var n = pendingRemoveName;
+        pendingRemoveName = null;
+        $("teamConfirmBar").style.display = "none";
+        if(n) removeTeamMember(n);
       });
 
       function copyText(text, okMsg){
@@ -1527,21 +1841,56 @@ function setLocation_(data) {
         if(hookParam) setHook(hookParam);
         else $("hookInput").value = hookUrl();
 
-        var users = loadUsers();
-        var sess = lsGetRaw(LS_SESSION);
-        if(sess && users[sess]) startSession(users[sess]);
-        else showLogin();
-        updateUserbar();
-        fetchRemarks(true);
-
         var sheetParam = params ? params.get("sheet") : null;
         var saved = lsGetRaw(LS_KEY);
         var url = sheetParam || saved;
         updateBanner();
-        if(url){
-          $("sheetUrl").value = url;
-          loadFromUrl(url, true, false);
+        if(url) $("sheetUrl").value = url;
+
+        /* Re-validate any remembered session. With a roster, the stored name
+           must still be in the team list AND the stored PIN must still equal
+           the last 4 digits of that member's mobile — otherwise the session is
+           cleared and the login screen shows. With no roster, only the admin
+           fallback session is kept. */
+        function restoreSession(){
+          var users = loadUsers();
+          var sess = lsGetRaw(LS_SESSION);
+          var rec = (sess && users[sess]) ? users[sess] : null;
+          if(!rec){ showLogin(); updateUserbar(); return; }
+          if(hasRoster()){
+            var v = validateRosterLogin(rec.name, rec.pin);
+            if(!v.ok){
+              lsDel(LS_SESSION);
+              currentUser = null;
+              showLogin();
+              updateUserbar();
+              return;
+            }
+            startSession({ name: v.member.name, pin: rec.pin });
+          }else{
+            if(!isAdminName(rec.name)){
+              lsDel(LS_SESSION);
+              currentUser = null;
+              showLogin();
+              updateUserbar();
+              return;
+            }
+            startSession(rec);
+          }
+          updateUserbar();
         }
+
+        if(url){
+          /* Load the team roster first, then decide the session, so a stale
+             remembered login is caught before the tool opens. */
+          loadRoster(url, function(){ restoreSession(); });
+          loadFromUrl(url, true, false);
+        }else{
+          roster = null;
+          updateLoginNote();
+          restoreSession();
+        }
+        fetchRemarks(true);
         render();
       })();
     })();
