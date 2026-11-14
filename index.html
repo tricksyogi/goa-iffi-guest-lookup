@@ -507,6 +507,7 @@ Pickup Time: {Time}
 Hotel: {Hotel}
 Remark: {Remark}
 Pickup Point: {Pickup Point}</div>
+          <p style="font-size:.92rem;color:var(--ink2);margin:8px 0 0"><strong>Copy Full Details is for members only:</strong> it copies the raw field dump of the guest's row, including the guest's phone number and flight number — never paste it to a driver. For anything a driver receives, use the driver message above (Copy for Driver / WhatsApp Driver), which leaves those out.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to guest (line-wise)</h3>
@@ -2752,8 +2753,9 @@ function setVehicleStatus_(data) {
           if(y <= homeTop() + 4){ toFlow(); lastY = y; return; }
           if(mode==="flow"){
             /* Bar's home slot is above the viewport: pin it, starting
-               hidden if the member is still moving down the list. */
-            toPinned(y <= lastY);
+               hidden if the member is still moving down the list — but
+               never hidden while a control inside it has focus. */
+            toPinned(barHasFocus() || y <= lastY);
             lastY = y; return;
           }
           if(barHasFocus()){ if(mode!=="show") toPinned(true); lastY = y; return; }
@@ -2823,6 +2825,8 @@ function setVehicleStatus_(data) {
           if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" · "))+"</b></span>");
           if(g.from) meta.push("<span>Pickup: <b>"+esc(g.from)+"</b></span>");
           if(g.hotel) meta.push("<span>Drop: <b>"+esc(g.hotel)+"</b></span>");
+          var rk = (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark;
+          if(clean(rk)) meta.push("<span>Remark: <b>"+esc(clean(rk))+"</b></span>");
           if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
           if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
           var vsRec = vehicleStatusFor(g);
