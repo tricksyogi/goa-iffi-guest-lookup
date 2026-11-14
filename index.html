@@ -122,6 +122,21 @@
       .count{color:var(--ink2);font-size:.92rem;margin:10px 2px 0}
       .count strong{color:var(--ink)}
 
+      /* ---------- Location search ---------- */
+      .locbar{margin-bottom:10px}
+      .loclabel{display:block;font-weight:700;font-size:1.02rem;margin-bottom:6px}
+      .locwrap{position:relative;display:flex;gap:8px}
+      .locwrap input{flex:1;font-size:1.05rem;padding:12px 14px;border-radius:11px;border:2px solid var(--accent);background:var(--surface)}
+      .locmenu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);max-height:300px;overflow-y:auto;display:none;z-index:30;padding:6px}
+      .locmenu.open{display:block}
+      .locopt{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:none;border-radius:8px;padding:10px 12px;font-weight:600;color:var(--ink)}
+      .locopt:hover,.locopt:active{background:var(--surface2)}
+      .locopt .cnt{color:var(--ink2);font-weight:600;font-size:.88rem;white-space:nowrap}
+      .locopt.sel{background:var(--accent-soft);color:var(--accent)}
+      .locopt.locclear{color:#dc2626}
+      @media (prefers-color-scheme: dark){.locopt.locclear{color:#f28b82}}
+      .locempty{padding:10px 12px;color:var(--ink2);font-size:.92rem}
+
       /* ---------- Result cards ---------- */
       .results{display:grid;gap:10px;margin-top:10px}
       @media(min-width:760px){.results{grid-template-columns:1fr 1fr}}
@@ -225,7 +240,7 @@
         <span id="dataBannerText">NO DATA LOADED</span>
         <span class="upd" id="lastUpdated"></span>
         <span class="spacer"></span>
-        <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh sheet</button>
+        <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh now</button>
       </div>
 
       <!-- ============ PRIVACY WARNING ============ -->
@@ -282,7 +297,7 @@
       <!-- ============ LOAD DATA ============ -->
       <section class="panel" aria-labelledby="load-h">
         <h2 id="load-h">1 · Load the guest sheet</h2>
-        <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 2 minutes on its own, and Refresh in the banner above pulls the latest version any time.</p>
+        <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 30 seconds on its own, and Refresh now in the banner above pulls the latest version any time.</p>
         <p class="hint" id="loadEventHint" style="margin-top:-6px">You are loading data for <strong id="loadEventName">CMOT</strong>. Each event keeps its own data — to load the other event's sheet or file, switch events at the top first.</p>
         <div class="steps">
           <div class="step">
@@ -318,6 +333,14 @@
 
       <!-- ============ SEARCH ============ -->
       <div class="searchbar">
+        <div class="locbar">
+          <label class="loclabel" for="locInput">Search by location</label>
+          <div class="locwrap">
+            <input type="text" id="locInput" placeholder="Hotel, venue, pickup, drop point or airport…" autocomplete="off" aria-label="Search by location" />
+            <button class="btn" id="locClearBtn" type="button" style="display:none">Clear location</button>
+            <div class="locmenu" id="locMenu" role="listbox" aria-label="Locations in the loaded data"></div>
+          </div>
+        </div>
         <div class="searchrow">
           <input type="search" id="q" placeholder="Search name / phone / flight / vehicle no / hotel…" autocomplete="off" aria-label="Search guests" />
           <button class="btn" id="clearBtn" type="button">Clear</button>
@@ -347,7 +370,8 @@
             <ul>
               <li>Share this page's link with your team and coordinators. Each person logs in with their <strong>mobile number</strong> and their <strong>year of birth as the password</strong> — the admin adds every member first (see “Team list &amp; passwords” below), and a mobile number that is not in the team list, or a wrong year of birth, cannot log in.</li>
               <li>Keep ONE master Google Sheet. Share it as “Anyone with the link can view” and give the team that sheet link too.</li>
-              <li>When the sheet changes (new flight, new vehicle), the open page picks it up by itself within 2 minutes — or tap Refresh. No new file to forward.</li>
+              <li>When the sheet changes (new flight, new vehicle), the open page picks it up by itself within 30 seconds — or tap Refresh now. No new file to forward.</li>
+              <li><strong>Sheet updates:</strong> the tool re-checks the sheet every 30 seconds while the page is open, and whenever you tap <strong>Refresh now</strong>. The sheet cannot push updates to the page, so 30 seconds plus Refresh now is the closest to real time.</li>
               <li>Only you and Puneet ji should have edit access on the sheet; the team only views.</li>
             </ul>
           </div>
@@ -777,7 +801,7 @@ function setLocation_(data) {
       var FIELD_BY_KEY = {};
       FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
 
-      var state = { guests:[], typeFilter:"all", current:null, currentKey:"", detailOpen:false, adminOpen:false,
+      var state = { guests:[], typeFilter:"all", locationFilter:"", current:null, currentKey:"", detailOpen:false, adminOpen:false,
                     source:{kind:"none", label:"", url:""}, lastUpdated:"" };
       var LS_KEY = "iffi-guest-lookup-sheet-url";
       var LS_HOOK = "iffi-remarks-hook-url";
@@ -785,7 +809,7 @@ function setLocation_(data) {
       var LS_SESSION = "iffi-team-session";
       var LS_LOCAL_REMARKS = "iffi-local-remarks";
       var LS_LOCAL_LOCATIONS = "iffi-local-locations";
-      var REFRESH_MS = 120000;
+      var REFRESH_MS = 30000;
 
       /* ================= EVENTS (CMOT / IFFI) =================
          Two events, planned separately. Each event keeps its OWN sheet link
@@ -863,6 +887,9 @@ function setLocation_(data) {
         var h=d.getHours(), m=d.getMinutes(), ap = h>=12 ? "PM":"AM";
         h = h%12 || 12;
         return h+":"+("0"+m).slice(-2)+" "+ap;
+      }
+      function hhmmss(d){
+        return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2);
       }
       /* Build an international number for wa.me / tel: / sms:.
          Strip one leading 0; only prepend the country code (guest's Country Code
@@ -1221,12 +1248,17 @@ function setLocation_(data) {
         roster = nb.roster;
         state.current = null; state.currentKey = "";
         $("q").value = "";
+        state.locationFilter = "";
+        var liEl = $("locInput"); if(liEl) liEl.value = "";
+        var lcEl = $("locClearBtn"); if(lcEl) lcEl.style.display = "none";
+        var lmEl = $("locMenu"); if(lmEl) lmEl.classList.remove("open");
         setType("all");
         $("sheetUrl").value = sheetUrlFor(newEv);
         setStatus("");
         updateLoginNote();
         setActiveEventUI();
         buildFilters();
+        buildLocations();
         $("hotelFilter").value = ""; $("dateFilter").value = "";
         render();
         updateBanner();
@@ -1516,7 +1548,7 @@ function setLocation_(data) {
               return;
             }
             applyLocationToRows(vehicleNo, link);
-            state.lastUpdated = hhmm(new Date());
+            state.lastUpdated = hhmmss(new Date());
             updateBanner();
             render();
             renderLiveLoc();
@@ -1529,7 +1561,7 @@ function setLocation_(data) {
         }else{
           saveLocalLocation(vehicleNo, link);
           applyLocationToRows(vehicleNo, link);
-          state.lastUpdated = hhmm(new Date());
+          state.lastUpdated = hhmmss(new Date());
           updateBanner();
           render();
           renderLiveLoc();
@@ -1613,6 +1645,7 @@ function setLocation_(data) {
         state.guests = guests;
         state.source = source || {kind:"real", label:"loaded data", url:""};
         buildFilters();
+        buildLocations();
         render();
         updateBanner();
         /* If a guest detail is open, refresh it in place with the new data
@@ -1659,11 +1692,11 @@ function setLocation_(data) {
             var bk = eventBuckets[forEvent];
             bk.guests = guests;
             bk.source = {kind:"real", label:"the Google Sheet", url:url};
-            bk.lastUpdated = hhmm(new Date());
+            bk.lastUpdated = hhmmss(new Date());
             bk.touched = true;
             return;
           }
-          state.lastUpdated = hhmm(new Date());
+          state.lastUpdated = hhmmss(new Date());
           loadGuests(guests, {kind:"real", label:"the Google Sheet", url:url});
           loadRoster(url);
         }).catch(function(){
@@ -1677,11 +1710,14 @@ function setLocation_(data) {
         loadFromUrl(url, false, false);
       });
       $("refreshBtn").addEventListener("click", function(){
-        if(state.source.url) loadFromUrl(state.source.url, false, false);
+        if(state.source.url){
+          loadFromUrl(state.source.url, false, false);
+          loadRoster(state.source.url);
+        }
         fetchRemarks(true);
       });
 
-      /* ---------- Live auto-refresh: every 2 minutes while the page is visible ---------- */
+      /* ---------- Live auto-refresh: every 30 seconds while the page is visible ---------- */
       function autoRefresh(){
         if(typeof document!=="undefined" && document.hidden) return;
         if(state.source.url) loadFromUrl(state.source.url, true, true);
@@ -1794,18 +1830,147 @@ function setLocation_(data) {
         return tokens.every(function(tok){ return hn.indexOf(tok)>-1; });
       }
 
+      /* ---------- Location search (all users) ----------
+         The location list is every distinct value found in the Hotel, Venue,
+         Pickup Point, Drop Point and Airport fields of the currently loaded
+         event data — deduplicated, no blanks, sorted alphabetically. It is
+         rebuilt on every data load (buildLocations), so a location added in
+         the sheet appears by itself on the next refresh. Picking a location
+         filters the results to every guest at that location; it composes
+         with the search box, the type chips and the hotel/date filters. */
+      var LOC_FIELDS = ["hotel","venue","from","to","airport"];
+      function guestLocations(g){
+        var out=[], seen={};
+        LOC_FIELDS.forEach(function(k){
+          var v = clean(g[k]);
+          if(v && !seen[norm(v)]){ seen[norm(v)]=1; out.push(v); }
+        });
+        return out;
+      }
+      function allLocations(){
+        var seen={}, out=[];
+        state.guests.forEach(function(g){
+          guestLocations(g).forEach(function(v){
+            if(!seen[norm(v)]){ seen[norm(v)]=1; out.push(v); }
+          });
+        });
+        out.sort(function(a,b){ var x=norm(a), y=norm(b); return x<y ? -1 : (x>y ? 1 : 0); });
+        return out;
+      }
+      function guestAtLocation(g, loc){
+        var t = norm(loc);
+        if(!t) return false;
+        return LOC_FIELDS.some(function(k){ return norm(clean(g[k]))===t; });
+      }
+      function locationCount(loc){
+        var n=0;
+        state.guests.forEach(function(g){ if(guestAtLocation(g, loc)) n++; });
+        return n;
+      }
+      function renderLocMenu(){
+        var menu = $("locMenu"); if(!menu) return;
+        var input = $("locInput");
+        var term = norm(input ? input.value : "");
+        /* When the box simply shows the already-selected location, list all. */
+        if(state.locationFilter && term===norm(state.locationFilter)) term = "";
+        var locs = allLocations().filter(function(l){ return !term || norm(l).indexOf(term)>-1; });
+        var html = "";
+        if(state.locationFilter){
+          html += '<button class="locopt locclear" type="button" data-locclear="1">✕ Clear location — show all guests</button>';
+        }
+        if(!state.guests.length){
+          html += '<div class="locempty">No locations yet — load the guest sheet first.</div>';
+        }else if(!locs.length){
+          html += '<div class="locempty">No location matches that name.</div>';
+        }else{
+          html += locs.map(function(l){
+            var n = locationCount(l);
+            var sel = state.locationFilter && norm(l)===norm(state.locationFilter);
+            return '<button class="locopt'+(sel ? " sel" : "")+'" type="button" data-loc="'+esc(l)+'" role="option"><span>'+esc(l)+'</span><span class="cnt">'+n+" guest"+(n===1?"":"s")+"</span></button>";
+          }).join("");
+        }
+        menu.innerHTML = html;
+      }
+      function openLocMenu(){ renderLocMenu(); var m=$("locMenu"); if(m) m.classList.add("open"); }
+      function closeLocMenu(){ var m=$("locMenu"); if(m) m.classList.remove("open"); }
+      function selectLocation(loc){
+        state.locationFilter = loc;
+        $("locInput").value = loc;
+        $("locClearBtn").style.display = "";
+        closeLocMenu();
+        render();
+      }
+      function clearLocation(){
+        state.locationFilter = "";
+        $("locInput").value = "";
+        $("locClearBtn").style.display = "none";
+        closeLocMenu();
+        render();
+      }
+      function buildLocations(){
+        if(state.locationFilter){
+          var stillThere = allLocations().some(function(l){ return norm(l)===norm(state.locationFilter); });
+          if(!stillThere){
+            state.locationFilter = "";
+            $("locInput").value = "";
+            $("locClearBtn").style.display = "none";
+          }
+        }
+        renderLocMenu();
+      }
+      $("locInput").addEventListener("focus", openLocMenu);
+      $("locInput").addEventListener("click", openLocMenu);
+      $("locInput").addEventListener("input", function(){
+        var v = $("locInput").value;
+        if(v.trim()===""){
+          if(state.locationFilter){
+            state.locationFilter = "";
+            $("locClearBtn").style.display = "none";
+            render();
+          }
+          openLocMenu();
+          return;
+        }
+        var exact = allLocations().filter(function(l){ return norm(l)===norm(v); });
+        if(exact.length){ selectLocation(exact[0]); return; }
+        openLocMenu();
+      });
+      $("locInput").addEventListener("keydown", function(e){ if(e.key==="Escape") closeLocMenu(); });
+      $("locMenu").addEventListener("click", function(e){
+        var t = e.target, menu = $("locMenu");
+        while(t && t!==menu && !(t.getAttribute && (t.getAttribute("data-loc") || t.getAttribute("data-locclear")))) t = t.parentNode;
+        if(!t || t===menu) return;
+        if(t.getAttribute("data-locclear")){ clearLocation(); return; }
+        var loc = t.getAttribute("data-loc");
+        if(loc) selectLocation(loc);
+      });
+      $("locClearBtn").addEventListener("click", clearLocation);
+      document.addEventListener("click", function(e){
+        var w = document.querySelector(".locwrap");
+        if(w && !w.contains(e.target)) closeLocMenu();
+      });
+
       /* ---------- Render results ---------- */
       function render(){
         var q=$("q").value, hf=$("hotelFilter").value, df=$("dateFilter").value;
+        var loc = state.locationFilter;
         var list = state.guests.filter(function(g){
           return typeMatches(g) && matchesQuery(g,q)
+            && (!loc || guestAtLocation(g, loc))
             && (!hf || g.hotel===hf) && (!df || g.date===df);
         });
         var box=$("results");
         $("emptyState").style.display = state.guests.length ? "none":"block";
-        $("countLine").innerHTML = state.guests.length
-          ? "Showing <strong>"+list.length+"</strong> of <strong>"+state.guests.length+"</strong> guests — tap a card for full details and send options."
-          : "";
+        if(!state.guests.length){
+          $("countLine").innerHTML = "";
+        }else if(loc){
+          var atLoc = locationCount(loc);
+          $("countLine").innerHTML = "<strong>"+atLoc+"</strong> guest"+(atLoc===1?"":"s")+" at <strong>"+esc(loc)+"</strong>"
+            + (list.length!==atLoc ? " — showing <strong>"+list.length+"</strong> with the search & filters above" : "")
+            + " — tap a card for full details and send options.";
+        }else{
+          $("countLine").innerHTML = "Showing <strong>"+list.length+"</strong> of <strong>"+state.guests.length+"</strong> guests — tap a card for full details and send options.";
+        }
         box.innerHTML = list.map(function(g){
           var idx = state.guests.indexOf(g);
           var meta=[];
