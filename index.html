@@ -91,7 +91,7 @@
       .step h3{margin:0 0 6px;font-size:.95rem}
       .step p{margin:0 0 10px;font-size:.88rem;color:var(--ink2)}
       .rowflex{display:flex;gap:8px;flex-wrap:wrap}
-      input[type="text"],input[type="url"],input[type="search"],input[type="password"],select,textarea{
+      input[type="text"],input[type="url"],input[type="search"],input[type="password"],input[type="time"],select,textarea{
         font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);
         border-radius:9px;padding:10px 12px;width:100%;
       }
@@ -119,6 +119,9 @@
       .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       .selrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
       .selrow select{flex:1;min-width:150px}
+      .selrow label.flabel{flex:1;min-width:140px;display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.9rem}
+      .selrow label.flabel select,.selrow label.flabel input{width:100%}
+      .rangehead{flex:1 1 100%;font-weight:700;font-size:.95rem}
       .count{color:var(--ink2);font-size:.92rem;margin:10px 2px 0}
       .count strong{color:var(--ink)}
 
@@ -362,7 +365,26 @@
         </div>
         <div class="selrow">
           <select id="hotelFilter" aria-label="Filter by hotel"><option value="">All hotels</option></select>
+          <select id="airportFilter" aria-label="Filter by airport"><option value="">All airports</option></select>
           <select id="dateFilter" aria-label="Filter by date"><option value="">All dates</option></select>
+        </div>
+        <div class="selrow">
+          <label class="flabel" for="sortSelect">Sort guests
+            <select id="sortSelect" aria-label="Sort guests">
+              <option value="timeAsc" selected>Pickup time: earliest first</option>
+              <option value="timeDesc">Pickup time: latest first</option>
+              <option value="nameAsc">Guest name: A–Z</option>
+            </select>
+          </label>
+        </div>
+        <div class="selrow" role="group" aria-label="Filter by pickup time range">
+          <span class="rangehead">Pickup time range — filters by the pickup time in the sheet (not the driver’s 1-hour-early time)</span>
+          <label class="flabel" for="timeFrom">From
+            <input type="time" id="timeFrom" aria-label="Pickup time from" />
+          </label>
+          <label class="flabel" for="timeTo">To
+            <input type="time" id="timeTo" aria-label="Pickup time to" />
+          </label>
         </div>
         <p class="count" id="countLine"></p>
       </div>
@@ -427,6 +449,14 @@
               <li>In this tool, search the vehicle no., open that vehicle, paste the link in the Live Location box and tap <strong>Save</strong> — the link attaches to every row with that vehicle number.</li>
               <li>Repeat this the next day — the old link expires after 24 hours, so a fresh link has to be saved each day.</li>
               <li>After drop, confirm in the group as usual: “Dropped + Returned”.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Sorting &amp; filters</h3>
+            <ul>
+              <li><strong>Sort</strong> (above the guest list): <strong>“Pickup time: earliest first”</strong> is the default — guests are ordered chronologically by <strong>date + pickup time together</strong>, so a 10:00 AM pickup on 18 Nov comes before a 09:00 AM pickup on 19 Nov. <strong>“Pickup time: latest first”</strong> reverses that order, and <strong>“Guest name: A–Z”</strong> sorts alphabetically by name (case-insensitive). Guests with a blank or unreadable pickup time always sort <strong>last</strong> in the time sorts — they are never dropped by sorting alone.</li>
+              <li><strong>Pickup time range:</strong> set <strong>From</strong> and/or <strong>To</strong> (24-hour times) to keep only guests whose <strong>pickup time in the sheet</strong> falls in the range — both ends are included. This is the sheet pickup time, <strong>not</strong> the driver's 1-hour-early time. If <strong>To is earlier than From, the range wraps past midnight</strong> (for example 10:00 PM–02:00 AM keeps late-night and early-morning pickups). Setting only one end makes it an open-ended bound (From only = from that time onwards; To only = up to that time). Guests with a blank or unreadable pickup time are <strong>hidden while a range is set</strong> and come back when the range is cleared.</li>
+              <li><strong>Hotel and Airport filters:</strong> each dropdown lists <strong>every hotel / airport present in the currently loaded data</strong> (plus “All hotels” / “All airports”), and is rebuilt on every reload, so a new hotel or airport added in the sheet appears by itself. All filters <strong>compose</strong> — search, location, type, date, hotel, airport, time range and sort all narrow the same list, the count above the list always shows how many guests match, and your filters and sort stay in place across the 30-second auto-refresh and Refresh now. <strong>Clear</strong> resets everything — search, location, type, date, hotel, airport, time range and sort — back to the defaults.</li>
             </ul>
           </div>
         </div>
@@ -1398,6 +1428,10 @@ function setLocation_(data) {
         buildFilters();
         buildLocations();
         $("hotelFilter").value = ""; $("dateFilter").value = "";
+        var swAf=$("airportFilter"); if(swAf) swAf.value="";
+        var swTf=$("timeFrom"); if(swTf) swTf.value="";
+        var swTt=$("timeTo"); if(swTt) swTt.value="";
+        var swSs=$("sortSelect"); if(swSs) swSs.value="timeAsc";
         render();
         updateBanner();
         var url = sheetUrlFor(newEv);
@@ -1934,24 +1968,44 @@ function setLocation_(data) {
 
       /* ---------- Filters ---------- */
       function buildFilters(){
-        var hotels={}, dates={};
+        var hotels={}, dates={}, airports={};
         state.guests.forEach(function(g){
-          if(g.hotel) hotels[g.hotel]=1;
+          var h=clean(g.hotel); if(h) hotels[h]=1;
+          var a=clean(g.airport); if(a) airports[a]=1;
           if(g.date) dates[g.date]=1;
         });
-        var hf=$("hotelFilter"), df=$("dateFilter");
-        var hv=hf.value, dv=df.value;
-        hf.innerHTML='<option value="">All hotels</option>'+Object.keys(hotels).sort().map(function(h){ return '<option>'+esc(h)+"</option>"; }).join("");
+        function az(list){
+          return list.sort(function(x,y){ var a=norm(x), b=norm(y); return a<b ? -1 : (a>b ? 1 : 0); });
+        }
+        var hf=$("hotelFilter"), df=$("dateFilter"), af=$("airportFilter");
+        var hv=hf.value, dv=df.value, av=af ? af.value : "";
+        hf.innerHTML='<option value="">All hotels</option>'+az(Object.keys(hotels)).map(function(h){ return '<option>'+esc(h)+"</option>"; }).join("");
+        if(af) af.innerHTML='<option value="">All airports</option>'+az(Object.keys(airports)).map(function(a){ return '<option>'+esc(a)+"</option>"; }).join("");
         df.innerHTML='<option value="">All dates</option>'+Object.keys(dates).sort().map(function(d){ return '<option>'+esc(d)+"</option>"; }).join("");
-        hf.value=hv; df.value=dv;
+        hf.value=hv; df.value=dv; if(af) af.value=av;
       }
       $("hotelFilter").addEventListener("change", render);
+      $("airportFilter").addEventListener("change", render);
       $("dateFilter").addEventListener("change", render);
+      $("sortSelect").addEventListener("change", render);
+      $("timeFrom").addEventListener("input", render);
+      $("timeFrom").addEventListener("change", render);
+      $("timeTo").addEventListener("input", render);
+      $("timeTo").addEventListener("change", render);
       $("q").addEventListener("input", render);
-      $("clearBtn").addEventListener("click", function(){
+      function clearAllFilters(){
         $("q").value=""; $("hotelFilter").value=""; $("dateFilter").value="";
+        var af=$("airportFilter"); if(af) af.value="";
+        var tf=$("timeFrom"); if(tf) tf.value="";
+        var tt=$("timeTo"); if(tt) tt.value="";
+        var ss=$("sortSelect"); if(ss) ss.value="timeAsc";
+        state.locationFilter="";
+        var li=$("locInput"); if(li) li.value="";
+        var lc=$("locClearBtn"); if(lc) lc.style.display="none";
+        closeLocMenu();
         setType("all"); render(); $("q").focus();
-      });
+      }
+      $("clearBtn").addEventListener("click", clearAllFilters);
       function setType(t){
         state.typeFilter=t;
         var chips=document.querySelectorAll(".chip");
@@ -2106,26 +2160,138 @@ function setLocation_(data) {
         if(w && !w.contains(e.target)) closeLocMenu();
       });
 
+      /* ---------- Sorting & pickup-time range ----------
+         Pickup times are compared as minutes since midnight, parsed with
+         the same formats as the driver-time rule ("02:15 PM", "2:15 PM",
+         "14:15", "02:15", optional seconds ignored). A blank or
+         unparseable time returns null: such rows sort LAST in both time
+         sorts (never first, never dropped by sorting alone) and do NOT
+         match while a pickup-time range is active. */
+      function parsePickupMinutes(raw){
+        var s = clean(raw);
+        if(!s) return null;
+        var m = s.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*([AaPp][Mm])?$/);
+        if(!m) return null;
+        var h = parseInt(m[1], 10), min = parseInt(m[2], 10), ap = m[3] || null;
+        if(isNaN(h) || isNaN(min) || min < 0 || min > 59) return null;
+        if(ap){
+          if(h < 1 || h > 12) return null;
+          return ((h % 12) + (ap.toUpperCase() === "PM" ? 12 : 0)) * 60 + min;
+        }
+        if(h < 0 || h > 23) return null;
+        return h * 60 + min;
+      }
+      function timeInputMinutes(v){
+        var m = String(v==null?"":v).match(/^(\d{1,2}):(\d{2})/);
+        if(!m) return null;
+        var h = parseInt(m[1], 10), min = parseInt(m[2], 10);
+        if(isNaN(h) || isNaN(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+        return h * 60 + min;
+      }
+      function parseGuestDateDays(raw){
+        var s = clean(raw).toLowerCase();
+        if(!s) return null;
+        function days(y, mo, d){
+          if(mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+          return Math.floor(Date.UTC(y, mo - 1, d) / 86400000);
+        }
+        var m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if(m) return days(+m[1], +m[2], +m[3]);
+        m = s.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+        if(m){ var yy = +m[3]; if(yy < 100) yy += 2000; return days(yy, +m[2], +m[1]); }
+        var MON = {jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12};
+        m = s.match(/(\d{1,2})\s*(?:st|nd|rd|th)?\s+([a-z]+)(?:\s*,?\s*(\d{4}))?/);
+        if(m && MON[m[2].slice(0,3)]) return days(m[3] ? +m[3] : 2026, MON[m[2].slice(0,3)], +m[1]);
+        m = s.match(/([a-z]+)\s+(\d{1,2})\s*(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?/);
+        if(m && MON[m[1].slice(0,3)]) return days(m[3] ? +m[3] : 2026, MON[m[1].slice(0,3)], +m[2]);
+        var t = Date.parse(clean(raw));
+        if(!isNaN(t)){
+          var dt = new Date(t);
+          return Math.floor(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) / 86400000);
+        }
+        return null;
+      }
+      /* Chronological sort key: Date + Pickup Time together, so a 10:00 AM
+         pickup on 18 Nov sorts before a 09:00 AM pickup on 19 Nov. Null
+         when the pickup time is blank or unparseable. */
+      function guestTimeSortValue(g){
+        var mins = parsePickupMinutes(g.time);
+        if(mins === null) return null;
+        var d = parseGuestDateDays(g.date);
+        if(d === null) d = 0;
+        return d * 1440 + mins;
+      }
+      function sortGuestList(list){
+        var sel = $("sortSelect");
+        var mode = sel ? sel.value : "timeAsc";
+        var out = list.slice();
+        if(mode === "nameAsc"){
+          out.sort(function(a, b){
+            var x = String(clean(a.name)).toLowerCase(), y = String(clean(b.name)).toLowerCase();
+            if(x < y) return -1;
+            if(x > y) return 1;
+            var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
+            if(av === null && bv === null) return 0;
+            if(av === null) return 1;
+            if(bv === null) return -1;
+            return av - bv;
+          });
+          return out;
+        }
+        var dir = mode === "timeDesc" ? -1 : 1;
+        out.sort(function(a, b){
+          var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
+          if(av === null && bv === null) return 0;
+          if(av === null) return 1;
+          if(bv === null) return -1;
+          return (av - bv) * dir;
+        });
+        return out;
+      }
+      /* Pickup-time range: From/To are 24-hour HH:MM bounds, inclusive of
+         both ends. When To is earlier than From the range wraps past
+         midnight (matches times >= From OR <= To). One end only is an
+         open-ended bound. Rows with a blank or unparseable pickup time
+         never match while a range is active. */
+      function inPickupRange(g){
+        var fEl = $("timeFrom"), tEl = $("timeTo");
+        var fv = fEl ? fEl.value : "", tv = tEl ? tEl.value : "";
+        if(!fv && !tv) return true;
+        var mins = parsePickupMinutes(g.time);
+        if(mins === null) return false;
+        var fromMin = timeInputMinutes(fv), toMin = timeInputMinutes(tv);
+        if(fromMin !== null && toMin !== null){
+          if(toMin >= fromMin) return mins >= fromMin && mins <= toMin;
+          return mins >= fromMin || mins <= toMin;
+        }
+        if(fromMin !== null) return mins >= fromMin;
+        if(toMin !== null) return mins <= toMin;
+        return true;
+      }
+
       /* ---------- Render results ---------- */
       function render(){
         var q=$("q").value, hf=$("hotelFilter").value, df=$("dateFilter").value;
+        var afEl=$("airportFilter"); var af=afEl ? afEl.value : "";
         var loc = state.locationFilter;
         var list = state.guests.filter(function(g){
           return typeMatches(g) && matchesQuery(g,q)
             && (!loc || guestAtLocation(g, loc))
-            && (!hf || g.hotel===hf) && (!df || g.date===df);
+            && (!hf || g.hotel===hf) && (!df || g.date===df)
+            && (!af || clean(g.airport)===af)
+            && inPickupRange(g);
         });
+        list = sortGuestList(list);
         var box=$("results");
         $("emptyState").style.display = state.guests.length ? "none":"block";
         if(!state.guests.length){
           $("countLine").innerHTML = "";
-        }else if(loc){
-          var atLoc = locationCount(loc);
-          $("countLine").innerHTML = "<strong>"+atLoc+"</strong> guest"+(atLoc===1?"":"s")+" at <strong>"+esc(loc)+"</strong>"
-            + (list.length!==atLoc ? " — showing <strong>"+list.length+"</strong> with the search & filters above" : "")
-            + " — tap a card for full details and send options.";
         }else{
-          $("countLine").innerHTML = "Showing <strong>"+list.length+"</strong> of <strong>"+state.guests.length+"</strong> guests — tap a card for full details and send options.";
+          var cntHtml = "<strong>"+list.length+" guest"+(list.length===1?"":"s")+"</strong>";
+          if(loc) cntHtml += " at <strong>"+esc(loc)+"</strong>";
+          if(list.length!==state.guests.length) cntHtml += " (of "+state.guests.length+" loaded)";
+          cntHtml += " — tap a card for full details and send options.";
+          $("countLine").innerHTML = cntHtml;
         }
         box.innerHTML = list.map(function(g){
           var idx = state.guests.indexOf(g);
