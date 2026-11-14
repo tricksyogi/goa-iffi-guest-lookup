@@ -180,6 +180,11 @@
       .msg-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
       .msg-actions .btn{width:100%;padding-left:8px;padding-right:8px}
       .drivernote{font-size:.85rem;color:var(--ink2);margin:6px 0 0}
+      .msgblur{filter:blur(7px);-webkit-filter:blur(7px);user-select:none;-webkit-user-select:none}
+      .badge.vstatrep{background:var(--warn-soft);color:var(--warn)}
+      .badge.vstatdep{background:var(--ok-soft);color:var(--ok)}
+      .vehstatus{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
+      .vehstatus h3{font-size:1rem;margin:0 0 4px}
 
       /* ---------- Remarks ---------- */
       .remarks{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
@@ -509,8 +514,12 @@ Driver Number: {Driver Contact}</div>
             <li>If the webhook was already deployed for remarks, redeploy the same Apps Script project as a new version so setLocation goes live (Deploy → Manage deployments → edit → new version).</li>
             <li>The same webhook also saves the <strong>team list</strong>: Admin view → “Team members” adds and removes members through it, into the sheet's <strong>Team</strong> tab (columns Name | Mobile | Date of Birth | Role — the script creates the tab with those headers if it does not exist). Team members log in with their <strong>mobile number</strong> and their <strong>year of birth</strong> as the password, read from that tab. If the webhook was deployed before team members (or before the Date of Birth column) were supported, redeploy the current code below as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — the webhook must be running the current code for the addMember / removeMember actions to work, otherwise the old code keeps running and team changes will not save.</li>
             <li>If the webhook was deployed before admin password reset was supported, redeploy the same Apps Script project as a <strong>new version</strong> so the updateMember action goes live (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running and password resets will not save, and the tool will show the redeploy-as-new-version error instead of claiming success. On success updateMember returns <code>{ok:true, updated:1}</code> (updated = number of Team rows changed, 1 on success); if no row matches it returns <code>{ok:false, error:"Member not found"}</code>. The tool only claims success when it receives <code>{ok:true, updated:1}</code>.</li>
+            <li>The same webhook also saves <strong>vehicle status</strong>: in a guest's detail view, once the sheet has a vehicle number for that guest, any logged-in member can tap <strong>Mark Vehicle Reported</strong> when the vehicle reports, and then <strong>Mark Vehicle Departed</strong> once the guest is on board and the vehicle leaves (Departed can only be marked after Reported). The status is saved through the webhook's setVehicleStatus action into a <strong>“Vehicle Status”</strong> tab (columns Vehicle | Status | Time | By — the script creates the tab with those headers if it does not exist), is keyed by vehicle number so every guest row with that vehicle shows the same status, and loads back for all members on page open and on every refresh. On success setVehicleStatus returns <code>{ok:true, updated:1}</code> and the tool only claims success when it receives exactly that. If the webhook was deployed before vehicle status was supported, redeploy the same Apps Script project as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running, vehicle statuses will not save to the sheet, and the tool will show the redeploy-as-new-version error instead of claiming success. Until the webhook is set, a marked status is saved on that member's phone only and is labelled as such.</li>
           </ol>
-          <div class="fmt" id="gasCode" style="margin-top:10px;display:none">function doGet() {
+          <div class="fmt" id="gasCode" style="margin-top:10px;display:none">function doGet(e) {
+  if (e &amp;&amp; e.parameter &amp;&amp; e.parameter.view === "vehicleStatus") {
+    return ContentService.createTextOutput(JSON.stringify(vehicleStatuses_())).setMimeType(ContentService.MimeType.JSON);
+  }
   var sh = remarksSheet_();
   var rows = sh.getDataRange().getValues();
   var out = [];
@@ -533,6 +542,13 @@ function doPost(e) {
   if (data.action === "removeMember") {
     removeMember_(data);
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "setVehicleStatus") {
+    var vsUpdated = setVehicleStatus_(data);
+    if (!vsUpdated) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Vehicle not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "updateMember") {
     var updatedMember = updateMember_(data);
@@ -677,6 +693,49 @@ function setLocation_(data) {
     log.appendRow([dateStr, timeStr, data.vehicleNo, driverName, data.link, data.author]);
   }
   return updated;
+}
+
+function vehicleStatusSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Vehicle Status");
+  if (!sh) {
+    sh = ss.insertSheet("Vehicle Status");
+    sh.appendRow(["Vehicle", "Status", "Time", "By"]);
+  } else if (sh.getLastRow() === 0) {
+    sh.appendRow(["Vehicle", "Status", "Time", "By"]);
+  }
+  return sh;
+}
+
+function vehicleStatuses_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Vehicle Status");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (!String(rows[i][0]).trim()) continue;
+    out.push({ vehicle: rows[i][0], status: rows[i][1], time: rows[i][2], by: rows[i][3] });
+  }
+  return out;
+}
+
+function setVehicleStatus_(data) {
+  var vehicle = String(data.vehicle == null ? "" : data.vehicle).trim();
+  if (!vehicle) return 0;
+  var sh = vehicleStatusSheet_();
+  var rows = sh.getDataRange().getValues();
+  var by = data.by || data.author || "";
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (String(rows[i][0]).trim() === vehicle) {
+      sh.getRange(i + 1, 2).setValue(data.status);
+      sh.getRange(i + 1, 3).setValue(data.time);
+      sh.getRange(i + 1, 4).setValue(by);
+      return 1;
+    }
+  }
+  sh.appendRow([vehicle, data.status, data.time, by]);
+  return 1;
 }</div>
           <div class="rowflex" style="margin-top:8px">
             <button class="btn" id="gasToggleBtn" type="button" aria-expanded="false" aria-controls="gasCode">Show Apps Script code</button>
@@ -714,6 +773,18 @@ function setLocation_(data) {
         <p class="cols-note" id="waDriverNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
         <p class="cols-note" id="waGuestNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
 
+        <div class="vehstatus" id="vehicleStatusSection" style="display:none">
+          <h3>Vehicle status</h3>
+          <div id="vstatCurrent"></div>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn" id="vstatReportedBtn" type="button">Mark Vehicle Reported</button>
+            <button class="btn primary" id="vstatDepartedBtn" type="button">Mark Vehicle Departed</button>
+          </div>
+          <div class="status err" id="vstatError" role="alert"></div>
+          <p class="cols-note" id="vstatLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</p>
+          <div class="practice-note" id="vstatPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
+        </div>
+
         <div class="liveloc" id="liveLocSection">
           <h3>Live Location</h3>
           <div id="liveLocCurrent"></div>
@@ -742,6 +813,7 @@ function setLocation_(data) {
         <div class="msgbox">
           <h3>Message for guest (preview)</h3>
           <pre id="guestMsg"></pre>
+          <p class="cols-note" id="guestNoDriverNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">Driver details not assigned yet — add the vehicle in the sheet first</p>
           <div class="msg-actions" aria-label="Guest message actions">
             <button class="btn" id="previewCopyGuestBtn" type="button" aria-label="Copy guest message">Copy</button>
             <a class="btn" id="previewCallGuestBtn" href="#" aria-label="Call guest">Call</a>
@@ -888,6 +960,7 @@ function setLocation_(data) {
       var LS_SESSION = "iffi-team-session";
       var LS_LOCAL_REMARKS = "iffi-local-remarks";
       var LS_LOCAL_LOCATIONS = "iffi-local-locations";
+      var LS_LOCAL_VSTAT = "iffi-local-vehicle-status";
       var LS_ROSTER = "iffi-team-roster-url";
       var REFRESH_MS = 30000;
 
@@ -902,7 +975,7 @@ function setLocation_(data) {
       var EVENTS = ["CMOT","IFFI"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
-      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false }; }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{} }; }
       var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
@@ -1434,12 +1507,14 @@ function setLocation_(data) {
         if(newEv===activeEvent){ setActiveEventUI(); return; }
         var b = eventBuckets[activeEvent];
         b.guests = state.guests; b.source = state.source; b.lastUpdated = state.lastUpdated; b.roster = roster; b.touched = true;
+        b.vstat = vehicleStatusMap;
         closeDetail();
         closeAdmin();
         activeEvent = newEv;
         var nb = eventBuckets[newEv];
         state.guests = nb.guests; state.source = nb.source; state.lastUpdated = nb.lastUpdated;
         roster = nb.roster;
+        vehicleStatusMap = nb.vstat || {};
         state.current = null; state.currentKey = "";
         $("q").value = "";
         state.locationFilter = "";
@@ -1473,6 +1548,7 @@ function setLocation_(data) {
           restoreSession();
         }
         fetchRemarks(true);
+        fetchVehicleStatuses(true);
       }
       $("evBtnCmot").addEventListener("click", function(){ switchEvent("CMOT"); });
       $("evBtnIffi").addEventListener("click", function(){ switchEvent("IFFI"); });
@@ -1550,7 +1626,20 @@ function setLocation_(data) {
           if(state.adminOpen) renderAdmin();
           return;
         }
-        fetch(freshUrl(hook), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(list){
+        fetch(freshUrl(hook), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(data){
+          var list = data;
+          if(data && !Array.isArray(data) && Array.isArray(data.remarks)){
+            list = data.remarks;
+            if(Array.isArray(data.vehicleStatuses)){
+              data.vehicleStatuses.forEach(function(r){
+                var vrec = normalizeVehicleStatus(r);
+                if(vrec) vehicleStatusMap[vrec.vehicle] = vrec;
+              });
+              syncVehicleStatusesToGuests(state.guests);
+              render();
+              if(state.detailOpen) renderVehicleStatus();
+            }
+          }
           if(Array.isArray(list)) allRemarks = list.map(normalizeRemark);
           if(state.detailOpen) renderRemarks();
           if(state.adminOpen) renderAdmin();
@@ -1639,6 +1728,7 @@ function setLocation_(data) {
           updateRemarkChrome();
           if(state.detailOpen) renderLiveLoc();
           fetchRemarks(true);
+          fetchVehicleStatuses(true);
         }
       }
       function saveSheetForEvent(ev){
@@ -1785,6 +1875,190 @@ function setLocation_(data) {
       $("liveLocInput").addEventListener("keydown", function(e){ if(e.key==="Enter") saveLiveLocation(); });
       $("liveLocInput").addEventListener("input", updateLiveLocWarn);
 
+      /* ================= VEHICLE STATUS =================
+         Per-VEHICLE status (REPORTED, then DEPARTED), keyed by the vehicle
+         number exactly like the live-location attach: every guest row with
+         the same vehicle number shows the same status, with who marked it
+         and when. The marking controls only appear for a row that has a
+         vehicle number in the sheet (the assignment is confirmed there).
+         Departed can only be marked after Reported. With a webhook set,
+         statuses save through it (the setVehicleStatus action) and load
+         back for all members on page load, on the 30-second auto-refresh
+         and on Refresh now; without a webhook they are saved on this
+         phone only and labelled as such. */
+      var vehicleStatusMap = {};
+      function vehKey(v){ return String(v==null?"":v).trim(); }
+      function localVStatKey(){ return LS_LOCAL_VSTAT+"-"+evLc(activeEvent); }
+      function normalizeVehicleStatus(r){
+        if(!r) return null;
+        var vehicle = vehKey(r.vehicle!=null ? r.vehicle : r.vehicleNo);
+        if(!vehicle) return null;
+        var status = String(r.status==null?"":r.status).trim().toUpperCase();
+        if(status!=="REPORTED" && status!=="DEPARTED") return null;
+        return { vehicle:vehicle, status:status, time:String(r.time==null?"":r.time), by:String(r.by!=null ? r.by : (r.author||"")) };
+      }
+      function localVehicleStatuses(){
+        var m = lsGetJSON(localVStatKey(), {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var rec = normalizeVehicleStatus({ vehicle:k, status:m[k] && m[k].status, time:m[k] && m[k].time, by:m[k] && m[k].by });
+          if(rec) out[rec.vehicle] = rec;
+        });
+        return out;
+      }
+      function saveLocalVehicleStatus(vehicle, rec){
+        var m = localVehicleStatuses();
+        m[vehicle] = rec;
+        lsSetJSON(localVStatKey(), m);
+      }
+      function vehicleStatusFor(g){
+        if(!g) return null;
+        var k = vehKey(g.vehNo);
+        if(!k) return null;
+        return g._vstat || vehicleStatusMap[k] || null;
+      }
+      function vehicleStatusLabel(rec){
+        if(!rec) return "";
+        var label = rec.status==="DEPARTED" ? "Departed" : "Reported";
+        var d = new Date(rec.time);
+        if(rec.time && !isNaN(d.getTime())) label += " "+hhmm(d);
+        else if(rec.time) label += " "+rec.time;
+        if(rec.by) label += " · "+rec.by;
+        return label;
+      }
+      function syncVehicleStatusesToGuests(guests){
+        (guests||[]).forEach(function(g){
+          var k = vehKey(g.vehNo);
+          if(k && vehicleStatusMap[k]) g._vstat = vehicleStatusMap[k];
+          else if(g._vstat) delete g._vstat;
+        });
+      }
+      function applyKnownVehicleStatuses(guests){
+        if(!hookUrl()) vehicleStatusMap = localVehicleStatuses();
+        syncVehicleStatusesToGuests(guests);
+      }
+      function applyVehicleStatusToRows(vehicle, rec){
+        state.guests.forEach(function(g){ if(vehKey(g.vehNo)===vehicle) g._vstat = rec; });
+        if(state.current && vehKey(state.current.vehNo)===vehicle) state.current._vstat = rec;
+      }
+      function renderVehicleStatus(){
+        var sec = $("vehicleStatusSection");
+        if(!sec) return;
+        var g = state.current;
+        if(!g || !vehKey(g.vehNo)){ sec.style.display = "none"; return; }
+        sec.style.display = "";
+        var rec = vehicleStatusFor(g);
+        var cur = $("vstatCurrent");
+        if(rec){
+          cur.innerHTML = '<span class="badge '+(rec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(rec))+"</span>";
+        }else{
+          cur.innerHTML = '<p class="cols-note" style="margin:6px 0">Not marked yet.</p>';
+        }
+        var isSample = !!g._sample;
+        setSendable($("vstatReportedBtn"), !isSample && !rec);
+        setSendable($("vstatDepartedBtn"), !isSample && !!rec && rec.status==="REPORTED");
+        $("vstatPracticeNote").style.display = isSample ? "" : "none";
+        $("vstatLocalNote").style.display = (!isSample && !hookUrl()) ? "" : "none";
+      }
+      function markVehicleStatus(status){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var vehicle = vehKey(g.vehNo);
+        if(!vehicle) return;
+        var rec = vehicleStatusFor(g);
+        if(status==="REPORTED" && rec) return;
+        if(status==="DEPARTED" && (!rec || rec.status!=="REPORTED")){ toast("Mark Vehicle Reported first"); return; }
+        var errBox = $("vstatError");
+        if(errBox) errBox.textContent = "";
+        var newRec = { vehicle:vehicle, status:status, time:new Date().toISOString(), by:currentUser.name };
+        if(hookUrl()){
+          postToHook({ action:"setVehicleStatus", vehicle:vehicle, status:status, time:newRec.time, by:currentUser.name, author:currentUser.name })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+                return;
+              }
+              vehicleStatusMap[vehicle] = newRec;
+              applyVehicleStatusToRows(vehicle, newRec);
+              state.lastUpdated = hhmmss(new Date());
+              updateBanner();
+              render();
+              renderVehicleStatus();
+              toast(status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported");
+            }).catch(function(){
+              if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+            });
+        }else{
+          saveLocalVehicleStatus(vehicle, newRec);
+          vehicleStatusMap[vehicle] = newRec;
+          applyVehicleStatusToRows(vehicle, newRec);
+          render();
+          renderVehicleStatus();
+          toast((status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported")+" — saved on this phone");
+        }
+      }
+      $("vstatReportedBtn").addEventListener("click", function(){ markVehicleStatus("REPORTED"); });
+      $("vstatDepartedBtn").addEventListener("click", function(){ markVehicleStatus("DEPARTED"); });
+      function vehicleStatusFetchUrl(){
+        var hook = hookUrl();
+        if(!hook) return "";
+        return hook + (hook.indexOf("?")>-1 ? "&" : "?") + "view=vehicleStatus";
+      }
+      function fetchVehicleStatuses(quiet){
+        if(!hookUrl()){
+          vehicleStatusMap = localVehicleStatuses();
+          syncVehicleStatusesToGuests(state.guests);
+          if(state.detailOpen) renderVehicleStatus();
+          return;
+        }
+        fetch(freshUrl(vehicleStatusFetchUrl()), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(data){
+          var list = null;
+          if(Array.isArray(data)) list = data;
+          else if(data && Array.isArray(data.vehicleStatuses)) list = data.vehicleStatuses;
+          else if(data && Array.isArray(data.statuses)) list = data.statuses;
+          if(!list) return;
+          list.forEach(function(r){
+            var rec = normalizeVehicleStatus(r);
+            if(rec) vehicleStatusMap[rec.vehicle] = rec;
+          });
+          syncVehicleStatusesToGuests(state.guests);
+          render();
+          if(state.detailOpen) renderVehicleStatus();
+        }).catch(function(){
+          if(!quiet) toast("Could not load vehicle statuses — check the webhook URL in Settings");
+        });
+      }
+      /* ---------- Guest message gate (no driver details) ----------
+         With no vehicle number in the sheet, the guest message carries no
+         driver block and is of no use to send: its preview is blurred and
+         the guest Copy / Share / WhatsApp Guest actions are disabled. The
+         message text itself is unchanged, and the driver message is not
+         affected by this rule. */
+      function applyGuestMessageGate(g){
+        var pre = $("guestMsg");
+        var note = $("guestNoDriverNote");
+        var gated = !!(g && !g._sample && !vehKey(g.vehNo));
+        if(gated){
+          if(pre) pre.classList.add("msgblur");
+          if(note) note.style.display = "";
+          setSendable($("copyGuestBtn"), false);
+          setSendable($("previewCopyGuestBtn"), false);
+          setSendable($("previewShareGuestBtn"), false);
+          killLink($("waGuestBtn"));
+          killLink($("smsGuestBtn"));
+          var wgn = $("waGuestNote");
+          if(wgn) wgn.style.display = "none";
+        }else{
+          if(pre) pre.classList.remove("msgblur");
+          if(note) note.style.display = "none";
+        }
+      }
+
       /* ---------- CSV parser (quotes aware) ---------- */
       function parseCSV(text){
         var rows=[], row=[], cur="", inQ=false, i, c;
@@ -1865,6 +2139,7 @@ function setLocation_(data) {
 
       function loadGuests(guests, source){
         applyLocalLocations(guests);
+        applyKnownVehicleStatuses(guests);
         state.guests = guests;
         state.source = source || {kind:"real", label:"loaded data", url:""};
         buildFilters();
@@ -1940,6 +2215,7 @@ function setLocation_(data) {
           loadRoster("");
         }
         fetchRemarks(true);
+        fetchVehicleStatuses(true);
       });
 
       /* ---------- Live auto-refresh: every 30 seconds while the page is visible ---------- */
@@ -1950,6 +2226,7 @@ function setLocation_(data) {
            added in the roster form appears without any tool change. */
         if(rosterLinkUrl()) loadRoster(state.source.url);
         if(hookUrl()) fetchRemarks(true);
+        if(hookUrl()) fetchVehicleStatuses(true);
       }
       setInterval(autoRefresh, REFRESH_MS);
 
@@ -2339,10 +2616,13 @@ function setLocation_(data) {
           if(g.hotel) meta.push("<span>"+esc(g.hotel)+"</span>");
           if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
           if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
+          var vsRec = vehicleStatusFor(g);
+          var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
           var cardHtml = '<button class="card" type="button" data-idx="'+idx+'">'
             + '<span class="nm">'+esc(g.name||"Unnamed guest")
             + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
             + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
+            + vsBadge
             + "</span>"
             + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
             + '<span class="meta">'+meta.join("")+"</span>"
@@ -2556,7 +2836,10 @@ function setLocation_(data) {
         }
         updateRemarkChrome();
         renderLiveLoc();
+        renderVehicleStatus();
+        applyGuestMessageGate(g);
         $("liveLocError").textContent = "";
+        $("vstatError").textContent = "";
         if($("liveLocWarn")) $("liveLocWarn").style.display = "none";
         renderRemarks();
         $("overlay").classList.add("open");
@@ -2969,6 +3252,7 @@ function setLocation_(data) {
           restoreSession();
         }
         fetchRemarks(true);
+        fetchVehicleStatuses(true);
         render();
       })();
     })();
