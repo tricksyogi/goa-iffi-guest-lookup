@@ -358,6 +358,9 @@
               <li>There is no separate password to set or share: each member logs in with their <strong>mobile number</strong>, and their <strong>password is their year of birth</strong> taken from the Date of Birth in that list. Login is checked against the list every time.</li>
               <li>Enter the Date of Birth with a <strong>full 4-digit year</strong> (e.g. 15-08-1992 or 1992) — a two-digit year like “15-08-92”, or a blank or unreadable Date of Birth, means that member cannot log in until it is corrected to a full 4-digit year.</li>
               <li>The <strong>admin manages the team list</strong> — from Admin view → “Team members” (needs the webhook below), or by adding rows directly in the sheet's Team tab. Mobile numbers must be unique — the mobile number is the login key (names may repeat).</li>
+              <li><strong>Reset a member's password (admin):</strong> open Admin view → Team members → tap <strong>Reset password</strong> on that member's row, enter their new Date of Birth (full date or a bare 4-digit year — a 2-digit year, blank or unreadable value is rejected with “Enter a full 4-digit birth year”), and confirm. On success the tool shows the member's new password (the birth year from the new Date of Birth) and reloads the roster. If no webhook is set, edit the Date of Birth in the sheet's Team tab directly instead.</li>
+              <li><strong>Forgot the PIN / stuck on the login screen:</strong> tap <strong>Reset login on this phone</strong> below the login form and confirm — this clears the saved login and any PIN set on this phone for both events (CMOT and IFFI), then shows the fresh login form. It does not clear either event's sheet link, webhook URL, or loaded guest data.</li>
+              <li>Resetting a password does not change the light-login limit — anyone who knows a member's mobile number and birth year can still log in as them; the reset only changes which year works.</li>
               <li>If there is no Team tab yet, only the admin (Yogesh) can log in, with the PIN set on first login on that phone. Once a team list exists, the roster rule applies to everyone, including Yogesh.</li>
             </ul>
           </div>
@@ -386,7 +389,7 @@
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Your sheet data stays as you gave it</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, and deleting exactly the one Team row the admin removes. Everything else in the sheet is only read, never changed.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, and updating only the Date of Birth cell of the one Team row whose password the admin resets. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver</h3>
@@ -407,6 +410,7 @@
             <li>If you ever change the code, deploy again as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version), otherwise the old code keeps running.</li>
             <li>If the webhook was already deployed for remarks, redeploy the same Apps Script project as a new version so setLocation goes live (Deploy → Manage deployments → edit → new version).</li>
             <li>The same webhook also saves the <strong>team list</strong>: Admin view → “Team members” adds and removes members through it, into the sheet's <strong>Team</strong> tab (columns Name | Mobile | Date of Birth | Role — the script creates the tab with those headers if it does not exist). Team members log in with their <strong>mobile number</strong> and their <strong>year of birth</strong> as the password, read from that tab. If the webhook was deployed before team members (or before the Date of Birth column) were supported, redeploy the current code below as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — the webhook must be running the current code for the addMember / removeMember actions to work, otherwise the old code keeps running and team changes will not save.</li>
+            <li>If the webhook was deployed before admin password reset was supported, redeploy the same Apps Script project as a <strong>new version</strong> so the updateMember action goes live (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running and password resets will not save, and the tool will show the redeploy-as-new-version error instead of claiming success. On success updateMember returns <code>{ok:true, updated:1}</code> (updated = number of Team rows changed, 1 on success); if no row matches it returns <code>{ok:false, error:"Member not found"}</code>. The tool only claims success when it receives <code>{ok:true, updated:1}</code>.</li>
           </ol>
           <div class="fmt" id="gasCode" style="margin-top:10px">function doGet() {
   var sh = remarksSheet_();
@@ -431,6 +435,13 @@ function doPost(e) {
   if (data.action === "removeMember") {
     removeMember_(data);
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "updateMember") {
+    var updatedMember = updateMember_(data);
+    if (!updatedMember) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Member not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   if (data.action === "add") {
@@ -496,6 +507,27 @@ function removeMember_(data) {
       break;
     }
   }
+}
+
+function updateMember_(data) {
+  var sh = teamSheet_();
+  var rows = sh.getDataRange().getValues();
+  if (rows.length &lt; 2) return false;
+  var headers = rows[0];
+  var dobCol = 3;
+  for (var c = 0; c &lt; headers.length; c++) {
+    var h = String(headers[c]).trim().toLowerCase();
+    if (h === "date of birth" || h === "dob") dobCol = c + 1;
+  }
+  var target = normMobile_(data.mobile);
+  if (!target) return false;
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (normMobile_(rows[i][1]) === target) {
+      sh.getRange(i + 1, dobCol).setValue(data.dob);
+      return true;
+    }
+  }
+  return false;
 }
 
 function setLocation_(data) {
@@ -651,6 +683,16 @@ function setLocation_(data) {
               <button class="btn small ghost" id="teamConfirmNo" type="button">Cancel</button>
             </div>
           </div>
+          <div id="teamResetBar" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
+            <span id="teamResetText" style="font-weight:600"></span>
+            <div class="remark-add" style="margin-top:8px">
+              <input type="text" id="teamResetDob" placeholder="New Date of Birth (full date or 4-digit year)" autocomplete="off" aria-label="New date of birth for password reset" style="flex:1;min-width:200px" />
+            </div>
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn small primary" id="teamResetYes" type="button">Confirm reset</button>
+              <button class="btn small ghost" id="teamResetNo" type="button">Cancel</button>
+            </div>
+          </div>
           <h4 style="font-size:.95rem;margin:16px 0 6px">Add member</h4>
           <div class="remark-add" style="margin-top:0">
             <input type="text" id="teamName" placeholder="Member name" autocomplete="off" aria-label="New member name" style="flex:1;min-width:160px" />
@@ -688,6 +730,14 @@ function setLocation_(data) {
         <p style="margin-top:14px">Type the mobile number the admin added for you in the team list, and your password is your year of birth. You stay logged in on this phone — and your login is checked against the team list again each time the page opens, so a removed member or a changed date of birth means logging in again.</p>
         <div class="status err" id="loginErr" role="alert"></div>
         <button class="btn primary" id="loginBtn" type="button" style="width:100%;margin-top:10px">Log in</button>
+        <button class="btn ghost small" id="resetLoginLink" type="button" style="width:100%;margin-top:8px">Reset login on this phone</button>
+        <div id="resetLoginConfirm" style="display:none;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
+          <span style="font-weight:600">This clears the saved login and any PIN set on this phone for both events. You will need to log in again.</span>
+          <div class="rowflex" style="margin-top:8px">
+            <button class="btn small" id="resetLoginYes" type="button" style="color:#dc2626;border-color:#dc2626">Confirm reset</button>
+            <button class="btn small ghost" id="resetLoginNo" type="button">Cancel</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -989,6 +1039,7 @@ function setLocation_(data) {
         if(!state.detailOpen && !state.adminOpen) document.body.style.overflow="";
         $("loginErr").textContent="";
         updateUserbar();
+        if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
       }
       function updateUserbar(){
         if(currentUser){
@@ -1052,6 +1103,52 @@ function setLocation_(data) {
         updateUserbar();
         showLogin();
       });
+      /* ---------- Reset login on this phone ----------
+         Clears the remembered session AND the stored device fallback PIN
+         for BOTH events (the shared keys plus every per-event session/PIN
+         key). It must NOT clear the per-event sheet links, webhook URLs,
+         or loaded guest data. */
+      function clearLoginStorage(){
+        lsDel(LS_SESSION);
+        lsDel(LS_USERS);
+        EVENTS.forEach(function(ev){
+          lsDel(LS_SESSION+"-"+evLc(ev));
+          lsDel(LS_USERS+"-"+evLc(ev));
+          lsDel(LS_SESSION+"_"+evLc(ev));
+          lsDel(LS_USERS+"_"+evLc(ev));
+        });
+        try{
+          var keys = [];
+          for(var ki=0; ki<localStorage.length; ki++){ var kk = localStorage.key(ki); if(kk) keys.push(kk); }
+          keys.forEach(function(k){
+            if(k===LS_KEY || k===LS_HOOK) return;
+            if(k.indexOf("sheet")>-1 || k.indexOf("hook")>-1) return;
+            if(k.indexOf(LS_SESSION)===0 || k.indexOf(LS_USERS)===0) lsDel(k);
+            else if(k.indexOf("iffi")===0 && (k.toLowerCase().indexOf("session")>-1 || k.toLowerCase().indexOf("pin")>-1)) lsDel(k);
+          });
+        }catch(e){}
+      }
+      function resetLoginOnThisPhone(){
+        clearLoginStorage();
+        currentUser = null;
+        closeAdmin();
+        closeDetail();
+        $("loginMobile").value=""; $("loginPassword").value=""; $("loginErr").textContent="";
+        var rc = $("resetLoginConfirm"); if(rc) rc.style.display="none";
+        updateUserbar();
+        if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
+        showLogin();
+      }
+      var resetLoginLinkEl = $("resetLoginLink");
+      if(resetLoginLinkEl) resetLoginLinkEl.addEventListener("click", function(){
+        var rc = $("resetLoginConfirm"); if(rc) rc.style.display="";
+      });
+      var resetLoginNoEl = $("resetLoginNo");
+      if(resetLoginNoEl) resetLoginNoEl.addEventListener("click", function(){
+        var rc = $("resetLoginConfirm"); if(rc) rc.style.display="none";
+      });
+      var resetLoginYesEl = $("resetLoginYes");
+      if(resetLoginYesEl) resetLoginYesEl.addEventListener("click", resetLoginOnThisPhone);
       $("settingsBtn").addEventListener("click", function(){
         var p=$("settingsPanel");
         p.style.display = (p.style.display==="none" || !p.style.display) ? "" : "none";
@@ -1927,6 +2024,8 @@ function setLocation_(data) {
 
       /* ---------- Admin — team members ---------- */
       var pendingRemoveMobile = null;
+      var pendingResetMobile = null;
+      var pendingResetName = "";
       function setTeamStatus(msg, cls){
         var s = $("teamStatus");
         if(!s) return;
@@ -1944,6 +2043,7 @@ function setLocation_(data) {
           return '<div class="remark">'
             + '<div class="rguest">'+esc(m.name)+' <span class="badge">'+esc(m.role||"Member")+"</span></div>"
             + '<div class="rmeta"><span>'+esc(m.mobile)+" · Date of Birth: "+esc(m.dob||"—")+" · Password: "+esc(yearOfBirth(m.dob))+"</span>"
+            + (currentUser && currentUser.isAdmin ? '<button class="btn small" type="button" data-resetteam="'+i+'">Reset password</button>' : "")
             + '<button class="btn rdel" type="button" data-rmteam="'+i+'">Remove</button>'
             + "</div></div>";
         }).join("");
@@ -1962,6 +2062,55 @@ function setLocation_(data) {
           renderTeam();
           if(doneMsg) setTeamStatus(doneMsg, "ok");
         }
+      }
+      function openResetPassword(member){
+        if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
+        if(!member) return;
+        if(!hookUrl()){
+          setTeamStatus("No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
+          return;
+        }
+        pendingResetMobile = normalizeMobile(member.mobile);
+        pendingResetName = member.name || "";
+        var rt = $("teamResetText");
+        if(rt) rt.textContent = "Reset password for "+pendingResetName+" — enter their new Date of Birth. Their new password will be the birth year from it.";
+        var inp = $("teamResetDob"); if(inp) inp.value = "";
+        var bar = $("teamResetBar"); if(bar) bar.style.display = "";
+      }
+      function confirmResetPassword(){
+        if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
+        if(!pendingResetMobile) return;
+        var member = findMemberByMobile(pendingResetMobile);
+        if(!member){ setTeamStatus("Member not found", "err"); return; }
+        var dobInput = $("teamResetDob");
+        var dob = dobInput ? dobInput.value.trim() : "";
+        var yob = yearOfBirth(dob);
+        if(!yob){ setTeamStatus("Enter a full 4-digit birth year", "err"); return; }
+        if(!hookUrl()){
+          setTeamStatus("No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
+          return;
+        }
+        var payload = { action:"updateMember", mobile:normalizeMobile(member.mobile), dob:dob, author:currentUser.name, time:new Date().toISOString() };
+        setTeamStatus("Resetting password…");
+        postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+          var data = null;
+          try{ data = JSON.parse(txt); }catch(e){}
+          if(!data || data.ok !== true || !(data.updated >= 1)){
+            setTeamStatus("Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version", "err");
+            return;
+          }
+          var nm = member.name;
+          member.dob = dob;
+          var successMsg = "Password reset — "+nm+"'s new password is the birth year "+yob;
+          pendingResetMobile = null;
+          pendingResetName = "";
+          var bar = $("teamResetBar"); if(bar) bar.style.display = "none";
+          if(dobInput) dobInput.value = "";
+          renderTeam();
+          reloadRosterAfterChange(successMsg);
+        }).catch(function(){
+          setTeamStatus("Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version", "err");
+        });
       }
       function addTeamMember(){
         if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
@@ -2034,7 +2183,13 @@ function setLocation_(data) {
       $("teamAddBtn").addEventListener("click", addTeamMember);
       $("teamList").addEventListener("click", function(e){
         var t = e.target;
-        var i = (t && t.getAttribute) ? t.getAttribute("data-rmteam") : null;
+        if(!t || !t.getAttribute) return;
+        var ri = t.getAttribute("data-resetteam");
+        if(ri!==null && ri!==undefined && hasRoster() && roster[+ri]){
+          openResetPassword(roster[+ri]);
+          return;
+        }
+        var i = t.getAttribute("data-rmteam");
         if(i===null || i===undefined || !hasRoster() || !roster[+i]) return;
         var member = roster[+i];
         if(memberIsAdmin(member) && roster.filter(function(m){ return memberIsAdmin(m); }).length <= 1){
@@ -2054,6 +2209,14 @@ function setLocation_(data) {
         pendingRemoveMobile = null;
         $("teamConfirmBar").style.display = "none";
         if(n) removeTeamMember(n);
+      });
+      var teamResetYesEl = $("teamResetYes");
+      if(teamResetYesEl) teamResetYesEl.addEventListener("click", confirmResetPassword);
+      var teamResetNoEl = $("teamResetNo");
+      if(teamResetNoEl) teamResetNoEl.addEventListener("click", function(){
+        pendingResetMobile = null;
+        pendingResetName = "";
+        var bar = $("teamResetBar"); if(bar) bar.style.display = "none";
       });
 
       function copyText(text, okMsg){
