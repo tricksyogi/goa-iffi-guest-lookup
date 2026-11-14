@@ -175,6 +175,7 @@
       .msgbox pre{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;margin:0}
       .msg-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
       .msg-actions .btn{width:100%;padding-left:8px;padding-right:8px}
+      .drivernote{font-size:.85rem;color:var(--ink2);margin:6px 0 0}
 
       /* ---------- Remarks ---------- */
       .remarks{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
@@ -435,7 +436,7 @@
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”. A line is omitted when its value is blank (for example, no flight for a shuttle, or no remark). The preview, Copy and Share all use this same line-wise text. Department comes from the Designation column (the CMOT “Department” column), and Remark comes from the Remark column.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”. A line is omitted when its value is blank (for example, no flight for a shuttle, or no remark). The preview, Copy and Share all use this same line-wise text. Department comes from the Designation column (the CMOT “Department” column), and Remark comes from the Remark column. <strong>Pickup Time in the driver message is shown one hour before the time in the sheet</strong> — the driver is told to report one hour early. Everywhere else in the tool (the guest message, the detail view, search cards and location lists) you, the member, always see the actual sheet time, unchanged. Under the driver message preview in the detail view, a small note shows both times so you can see exactly what the driver was told; that note is never part of the message sent, copied or shared to the driver.</p>
           <div class="fmt">Guest Name: {Guest Name}
 Department: {Designation}
 Contact Number: {Phone}
@@ -694,6 +695,7 @@ function setLocation_(data) {
         <div class="msgbox">
           <h3>Message for driver (preview)</h3>
           <pre id="driverMsg"></pre>
+          <p class="drivernote" id="driverTimeNote" style="display:none"></p>
           <div class="msg-actions" aria-label="Driver message actions">
             <button class="btn" id="previewCopyDriverBtn" type="button" aria-label="Copy driver message">Copy</button>
             <a class="btn" id="previewCallDriverBtn" href="#" aria-label="Call driver">Call</a>
@@ -2184,6 +2186,54 @@ function setLocation_(data) {
         else if(d.length===11 && d.charAt(0)==="0") d = d.slice(1);
         return d.length===10 ? d : null;
       }
+      /* Driver pickup time: the sheet time MINUS 60 minutes, so the driver
+         is told to report one hour before the guest's pickup time. Parses
+         the common sheet formats ("02:15 PM", "2:15 PM", "14:15", "02:15",
+         optional seconds ignored) and formats the result back in the SAME
+         style as the input (12-hour with AM/PM stays 12-hour with AM/PM;
+         24-hour stays 24-hour, keeping the input's hour padding). If
+         subtracting crosses midnight, " (prev. night)" is appended.
+         Returns {blank:true} for a blank time, null when the value cannot
+         be parsed (the raw value is then kept as-is and no note is shown),
+         otherwise {text, original, adjusted} where text carries any
+         " (prev. night)" suffix. Only the DRIVER message uses this — the
+         guest message and every other place in the tool keep the actual
+         sheet time. */
+      function driverTimeInfo(raw){
+        var s = clean(raw);
+        if(!s) return { blank:true };
+        var m = s.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*([AaPp][Mm])?$/);
+        if(!m) return null;
+        var hourStr = m[1], ap = m[3] || null;
+        var h = parseInt(hourStr, 10), min = parseInt(m[2], 10);
+        if(isNaN(h) || isNaN(min) || min < 0 || min > 59) return null;
+        var total;
+        if(ap){
+          if(h < 1 || h > 12) return null;
+          total = ((h % 12) + (ap.toUpperCase() === "PM" ? 12 : 0)) * 60 + min;
+        }else{
+          if(h < 0 || h > 23) return null;
+          total = h * 60 + min;
+        }
+        var crossed = total < 60;
+        var adj = total - 60; if(adj < 0) adj += 1440;
+        var adjH = Math.floor(adj / 60), adjM = adj % 60;
+        var mm = ("0" + adjM).slice(-2);
+        var out;
+        if(ap){
+          var h12 = adjH % 12 || 12;
+          var apAdj = adjH >= 12 ? "PM" : "AM";
+          if(ap === ap.toLowerCase()) apAdj = apAdj.toLowerCase();
+          var hh12 = hourStr.length === 2 ? ("0" + h12).slice(-2) : String(h12);
+          out = hh12 + ":" + mm + " " + apAdj;
+        }else{
+          var hh24 = hourStr.length === 2 ? ("0" + adjH).slice(-2) : String(adjH);
+          out = hh24 + ":" + mm;
+        }
+        var adjusted = out;
+        if(crossed) out += " (prev. night)";
+        return { text: out, original: s, adjusted: adjusted };
+      }
       function driverMsg(g){
         var lines = [];
         function add(label, value){ var v = clean(value); if(v) lines.push(label+": "+v); }
@@ -2191,7 +2241,8 @@ function setLocation_(data) {
         add("Department", g.designation || g.department);
         add("Contact Number", g.phone);
         add("Date", g.date);
-        add("Pickup Time", g.time);
+        var dti = driverTimeInfo(g.time);
+        add("Pickup Time", dti ? (dti.blank ? "" : dti.text) : g.time);
         add("Flight No.", g.flight);
         add("Hotel", g.hotel);
         add("Remark", (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark);
@@ -2257,6 +2308,21 @@ function setLocation_(data) {
         var dm = driverMsg(g), gm = guestMsg(g);
         $("driverMsg").textContent = dm;
         $("guestMsg").textContent = gm;
+        /* Member-only transparency note under the driver preview: shows
+           both times. It lives outside the message text, so it is never
+           part of what is copied, shared or sent to the driver. Shown only
+           when the sheet time could be parsed and adjusted. */
+        var dtNote = $("driverTimeNote");
+        if(dtNote){
+          var dti2 = driverTimeInfo(g.time);
+          if(dti2 && !dti2.blank){
+            dtNote.textContent = "Driver is told "+dti2.text+" \u2014 1 hour before the sheet time "+dti2.original+".";
+            dtNote.style.display = "";
+          }else{
+            dtNote.textContent = "";
+            dtNote.style.display = "none";
+          }
+        }
         var isSample = !!g._sample;
         $("practiceNote").style.display = isSample ? "" : "none";
         var driverOk = !isSample;
