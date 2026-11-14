@@ -285,6 +285,14 @@
         <div class="rowflex" style="margin-top:8px">
           <button class="btn primary" id="hookSaveIffi" type="button">Save IFFI webhook URL</button>
         </div>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Team roster sheet (shared — both events)</h3>
+        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Team Member Allocation</strong> sheet — holds the login list for the whole team, for <strong>both CMOT and IFFI</strong>. Paste its link here once; the tool reads <strong>Name, Mobile and Date of birth</strong> from it live, and each member's password is their <strong>year of birth</strong>. A new form response in that sheet appears automatically on the next refresh — no tool change needed. The sheet must stay shared as “Anyone with the link can view”. The admin can also share one team link carrying it: the tool link with <code>?roster=…</code> added. Saving this link never changes either event's sheet link or webhook URL.</p>
+        <label class="setlabel" for="rosterInput">Team roster sheet link
+          <input type="url" id="rosterInput" placeholder="Paste the Team Member Allocation sheet link…" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="rosterSaveBtn" type="button">Save roster sheet link</button>
+        </div>
         <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
         <p class="hint" style="margin-bottom:8px">When the team list is active, your password is your <strong>year of birth</strong> and cannot be changed here — ask the admin to correct your date of birth in the Team list if it is wrong. This change only applies to the admin fallback login (no team list), where it changes the admin PIN on this phone.</p>
         <div class="rowflex">
@@ -386,6 +394,16 @@
               <li><strong>Forgot the PIN / stuck on the login screen:</strong> tap <strong>Reset login on this phone</strong> below the login form and confirm — this clears the saved login and any PIN set on this phone for both events (CMOT and IFFI), then shows the fresh login form. It does not clear either event's sheet link, webhook URL, or loaded guest data.</li>
               <li>Resetting a password does not change the light-login limit — anyone who knows a member's mobile number and birth year can still log in as them; the reset only changes which year works.</li>
               <li>If there is no Team tab yet, only the admin (Yogesh) can log in, with the PIN set on first login on that phone. Once a team list exists, the roster rule applies to everyone, including Yogesh.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Team roster sheet</h3>
+            <ul>
+              <li>The whole team's login list lives in ONE shared sheet — the <strong>Team Member Allocation</strong> sheet — used for <strong>both CMOT and IFFI</strong>. Paste its link in <strong>Settings → Team roster sheet link</strong>, or open the tool through a team link carrying <code>?roster=…</code>.</li>
+              <li>The tool reads <strong>Name, Mobile and Date of birth</strong> from that sheet live. A new form response appears automatically on the next refresh (every 30 seconds, or tap Refresh now) — nobody has to change the tool.</li>
+              <li>Each member logs in with their mobile number; the password is their <strong>year of birth</strong>.</li>
+              <li>The roster sheet must stay shared as <strong>“Anyone with the link can view”</strong> — if it cannot be read, the login screen says so and nobody can log in until it is fixed.</li>
+              <li>While a roster link is set, <strong>Add / Reset password / Remove in the Admin panel are disabled</strong> — members are managed in the roster sheet, and the tool reads it live.</li>
             </ul>
           </div>
           <div>
@@ -698,7 +716,8 @@ function setLocation_(data) {
         <p class="cols-note" id="adminUpdated" style="margin-top:6px"></p>
         <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
           <h3 style="font-size:1rem;margin:0 0 4px">Team members</h3>
-          <p class="cols-note" style="margin:0 0 10px">The team list lives in the sheet's <strong>Team</strong> tab (Name | Mobile | Date of Birth | Role). Each member logs in with their <strong>mobile number</strong>, and their password is their <strong>year of birth</strong> — there is no separate password to set. Only the admin manages this list.</p>
+          <p class="cols-note" id="teamIntro" style="margin:0 0 10px">The team list lives in the sheet's <strong>Team</strong> tab (Name | Mobile | Date of Birth | Role). Each member logs in with their <strong>mobile number</strong>, and their password is their <strong>year of birth</strong> — there is no separate password to set. Only the admin manages this list.</p>
+          <p class="cols-note" id="teamRosterManagedNote" style="display:none;margin:0 0 10px;font-weight:600">Members are managed in the Team Member Allocation sheet — add/remove/edit rows there; the tool reads it live.</p>
           <div id="teamList"></div>
           <div id="teamConfirmBar" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
             <span id="teamConfirmText" style="font-weight:600"></span>
@@ -717,8 +736,8 @@ function setLocation_(data) {
               <button class="btn small ghost" id="teamResetNo" type="button">Cancel</button>
             </div>
           </div>
-          <h4 style="font-size:.95rem;margin:16px 0 6px">Add member</h4>
-          <div class="remark-add" style="margin-top:0">
+          <h4 id="teamAddHeading" style="font-size:.95rem;margin:16px 0 6px">Add member</h4>
+          <div class="remark-add" id="teamAddForm" style="margin-top:0">
             <input type="text" id="teamName" placeholder="Member name" autocomplete="off" aria-label="New member name" style="flex:1;min-width:160px" />
             <input type="text" id="teamMobile" placeholder="Mobile number" inputmode="numeric" autocomplete="off" aria-label="New member mobile number" style="flex:1;min-width:160px" />
             <input type="text" id="teamDob" placeholder="Date of Birth (or just year, e.g. 1995)" autocomplete="off" aria-label="New member date of birth" style="flex:1;min-width:160px" />
@@ -809,6 +828,7 @@ function setLocation_(data) {
       var LS_SESSION = "iffi-team-session";
       var LS_LOCAL_REMARKS = "iffi-local-remarks";
       var LS_LOCAL_LOCATIONS = "iffi-local-locations";
+      var LS_ROSTER = "iffi-team-roster-url";
       var REFRESH_MS = 30000;
 
       /* ================= EVENTS (CMOT / IFFI) =================
@@ -927,6 +947,8 @@ function setLocation_(data) {
          otherwise an array of {name, mobile, dob, role}. The mobile number is the
          login username and a member's password is their year of birth. */
       var roster = null;
+      var rosterLoadFailed = false;
+      var LOGIN_NOTE_DEFAULT = null;
       var ADMIN_MOBILE = "9261201083";
       function normalizeMobile(mobile){
         var d = digits(mobile);
@@ -969,15 +991,48 @@ function setLocation_(data) {
         if(!id) return null;
         return "https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?tqx=out:csv&sheet=Team";
       }
+      /* ---------- Shared team roster sheet link ----------
+         ONE roster sheet (the "Team Member Allocation" form-responses sheet)
+         holds the login list for the WHOLE team, shared by BOTH events.
+         Stored under its own localStorage key; saving it never touches the
+         per-event guest sheet links or webhook URLs. When a roster link is
+         set it is THE roster source — the guest sheet's Team tab is not
+         consulted for login. When no roster link is set, the old behaviour
+         applies exactly (Team tab of the active event's guest sheet, then
+         the admin-only device-PIN fallback). */
+      function rosterLinkUrl(){
+        return String(lsGetRaw(LS_ROSTER) || "").trim();
+      }
+      function setRosterLinkUrl(u){
+        u = String(u==null?"":u).trim();
+        if(u) lsSetRaw(LS_ROSTER, u);
+        else{ lsDel(LS_ROSTER); rosterLoadFailed = false; }
+        var inp = $("rosterInput");
+        if(inp) inp.value = u;
+      }
       function parseRoster(text){
         var table = parseCSV(text);
         if(!table.length) return null;
         var headers = table[0].map(function(h){ return norm(h); });
-        var nameIdx = headers.indexOf("name");
-        var mobileIdx = headers.indexOf("mobile");
-        var dobIdx = headers.indexOf("date of birth");
-        if(dobIdx<0) dobIdx = headers.indexOf("dob");
-        var roleIdx = headers.indexOf("role");
+        /* Columns are matched BY HEADER (case-insensitive, trimmed): Name;
+           Mobile by "contains" — the roster sheet's real header is "Mobile
+           ( Do not enter country code)" (with a line break in it), so an
+           exact match would fail; Date of Birth by "contains" ("date of
+           birth" or "dob"); Role if a Role column exists, otherwise every
+           member is a Member. All other columns (Timestamp, Email Address,
+           Home Address, Email, Allocation, …) are ignored. */
+        function colExact(n){ return headers.indexOf(n); }
+        function colContains(sub){
+          for(var ci=0;ci<headers.length;ci++){ if(headers[ci].indexOf(sub)>-1) return ci; }
+          return -1;
+        }
+        var nameIdx = colExact("name");
+        if(nameIdx<0) nameIdx = colContains("name");
+        var mobileIdx = colContains("mobile");
+        var dobIdx = colContains("date of birth");
+        if(dobIdx<0) dobIdx = colContains("dob");
+        var roleIdx = colExact("role");
+        if(roleIdx<0) roleIdx = colContains("role");
         if(nameIdx<0 || mobileIdx<0) return null;
         var out = [];
         for(var r=1;r<table.length;r++){
@@ -995,10 +1050,55 @@ function setLocation_(data) {
       function updateLoginNote(){
         var note = $("loginRosterNote");
         if(!note) return;
+        if(LOGIN_NOTE_DEFAULT===null) LOGIN_NOTE_DEFAULT = note.textContent;
+        if(rosterLinkUrl() && rosterLoadFailed && !hasRoster()){
+          /* Roster link is set but the roster sheet could not be read — say
+             so plainly on the login screen; never silently fall back to the
+             device PIN. */
+          note.textContent = "The team roster sheet could not be read. Check the roster sheet link in Settings, and that the roster sheet is shared as \u201Canyone with the link can view\u201D — then reopen this page.";
+          note.style.display = "";
+          return;
+        }
+        note.textContent = LOGIN_NOTE_DEFAULT;
         note.style.display = hasRoster() ? "none" : "";
+      }
+      /* Shared-roster loading: read the roster sheet via the gviz CSV
+         endpoint BY SHEET NAME — tab "Form Responses 1" first (the form
+         responses tab of the Team Member Allocation sheet), then tab "Team"
+         as fallback. */
+      var ROSTER_TABS = ["Form Responses 1", "Team"];
+      function finishRosterLoad(forEvent, parsed, failed, cb){
+        if(forEvent!==activeEvent){ eventBuckets[forEvent].roster = parsed; return; }
+        roster = parsed;
+        rosterLoadFailed = !!failed;
+        updateLoginNote();
+        if(state.adminOpen && typeof renderTeam==="function") renderTeam();
+        if(cb) cb();
+      }
+      function fetchRosterTab(id, idx, forEvent, cb){
+        if(idx>=ROSTER_TABS.length){ finishRosterLoad(forEvent, null, true, cb); return; }
+        var csvUrl = "https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(ROSTER_TABS[idx]);
+        fetch(csvUrl).then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        }).then(function(text){
+          var parsed = /^\s*</.test(text) ? null : parseRoster(text);
+          if(parsed) finishRosterLoad(forEvent, parsed, false, cb);
+          else fetchRosterTab(id, idx+1, forEvent, cb);
+        }).catch(function(){
+          fetchRosterTab(id, idx+1, forEvent, cb);
+        });
       }
       function loadRoster(sheetUrl, cb){
         var forEvent = activeEvent;
+        var link = rosterLinkUrl();
+        if(link){
+          var rid = sheetIdFromUrl(link);
+          if(!rid){ finishRosterLoad(forEvent, null, true, cb); return; }
+          fetchRosterTab(rid, 0, forEvent, cb);
+          return;
+        }
+        rosterLoadFailed = false;
         var csvUrl = teamCsvUrl(sheetUrl);
         if(!csvUrl){
           if(forEvent===activeEvent){
@@ -1083,6 +1183,14 @@ function setLocation_(data) {
         var pin = $("loginPassword").value.trim();
         var err = $("loginErr");
         if(!mob){ err.textContent="Type your mobile number first."; return; }
+        if(rosterLinkUrl() && !hasRoster()){
+          /* A roster sheet link is set, so the roster sheet is the only login
+             source — never fall back to the device PIN while it is unread. */
+          err.textContent = rosterLoadFailed
+            ? "The team roster sheet could not be read. Check the roster sheet link in Settings \u2014 the sheet must be shared as \u201Canyone with the link can view\u201D \u2014 then reopen this page and try again."
+            : "The team roster is still loading \u2014 wait a moment and try again.";
+          return;
+        }
         if(hasRoster()){
           /* Roster rules: the mobile must be in the team list and the password
              must be that member's year of birth. A wrong year is rejected. */
@@ -1205,6 +1313,13 @@ function setLocation_(data) {
         var sess = lsGetRaw(LS_SESSION);
         var rec = (sess && users[sess]) ? users[sess] : null;
         if(!rec){ showLogin(); updateUserbar(); return; }
+        if(rosterLinkUrl() && !hasRoster()){
+          /* The roster sheet is the login source but could not be read —
+             do not fall back to the device PIN; show the login screen. */
+          showLogin();
+          updateUserbar();
+          return;
+        }
         if(hasRoster()){
           var v = validateRosterLogin(rec.mobile, rec.pin);
           if(!v.ok){
@@ -1269,6 +1384,8 @@ function setLocation_(data) {
         }else if(state.source.url){
           loadRoster(state.source.url, function(){ restoreSession(); });
           loadFromUrl(state.source.url, true, true);
+        }else if(rosterLinkUrl()){
+          loadRoster("", function(){ restoreSession(); });
         }else{
           restoreSession();
         }
@@ -1458,6 +1575,17 @@ function setLocation_(data) {
       $("hookSaveIffi").addEventListener("click", function(){ saveHookForEvent("IFFI"); });
       $("sheetSaveCmot").addEventListener("click", function(){ saveSheetForEvent("CMOT"); });
       $("sheetSaveIffi").addEventListener("click", function(){ saveSheetForEvent("IFFI"); });
+      /* Save the ONE shared roster sheet link. This writes only the roster
+         key — it never touches either event's sheet link or webhook URL. */
+      $("rosterSaveBtn").addEventListener("click", function(){
+        var u = $("rosterInput").value.trim();
+        setRosterLinkUrl(u);
+        setSettingsStatus(u
+          ? "Team roster sheet link saved \u2014 it is shared by both CMOT and IFFI. Loading the roster now."
+          : "Team roster sheet link cleared \u2014 logins use the active event sheet's Team tab again.", "ok");
+        if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
+        loadRoster("", function(){ restoreSession(); if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} } });
+      });
 
       /* ================= LIVE LOCATION ================= */
       function localLocationsKey(){ return LS_LOCAL_LOCATIONS+"-"+evLc(activeEvent); }
@@ -1713,6 +1841,8 @@ function setLocation_(data) {
         if(state.source.url){
           loadFromUrl(state.source.url, false, false);
           loadRoster(state.source.url);
+        }else if(rosterLinkUrl()){
+          loadRoster("");
         }
         fetchRemarks(true);
       });
@@ -1721,6 +1851,9 @@ function setLocation_(data) {
       function autoRefresh(){
         if(typeof document!=="undefined" && document.hidden) return;
         if(state.source.url) loadFromUrl(state.source.url, true, true);
+        /* The shared roster re-loads on every refresh cycle too, so a member
+           added in the roster form appears without any tool change. */
+        if(rosterLinkUrl()) loadRoster(state.source.url);
         if(hookUrl()) fetchRemarks(true);
       }
       setInterval(autoRefresh, REFRESH_MS);
@@ -2197,19 +2330,57 @@ function setLocation_(data) {
         s.textContent = msg;
         s.className = "status"+(cls ? " "+cls : "");
       }
+      var ROSTER_MANAGED_MSG = "Members are managed in the Team Member Allocation sheet — add/remove/edit rows there; the tool reads it live.";
+      var TEAM_INTRO_DEFAULT = null;
+      function rosterManaged(){ return !!rosterLinkUrl(); }
+      function syncTeamAdminUI(){
+        var managed = rosterManaged();
+        var note = $("teamRosterManagedNote");
+        if(note) note.style.display = managed ? "" : "none";
+        var intro = $("teamIntro");
+        if(intro){
+          if(TEAM_INTRO_DEFAULT===null) TEAM_INTRO_DEFAULT = intro.innerHTML;
+          if(managed){
+            intro.innerHTML = "The team list lives in the <strong>Team Member Allocation</strong> sheet (Name | Mobile | Date of Birth). Each member logs in with their <strong>mobile number</strong>, and their password is their <strong>year of birth</strong> — there is no separate password to set.";
+          }else{
+            intro.innerHTML = TEAM_INTRO_DEFAULT;
+          }
+        }
+        ["teamName","teamMobile","teamDob","teamRole","teamAddBtn"].forEach(function(id){
+          var el = $(id);
+          if(el) el.disabled = managed;
+        });
+        var form = $("teamAddForm");
+        if(form) form.style.opacity = managed ? ".5" : "";
+        var heading = $("teamAddHeading");
+        if(heading) heading.style.opacity = managed ? ".5" : "";
+        if(managed){
+          pendingRemoveMobile = null;
+          pendingResetMobile = null;
+          pendingResetName = "";
+          var cb = $("teamConfirmBar"); if(cb) cb.style.display = "none";
+          var rb = $("teamResetBar"); if(rb) rb.style.display = "none";
+        }
+      }
       function renderTeam(){
         var box = $("teamList");
         if(!box) return;
+        syncTeamAdminUI();
         if(!hasRoster()){
-          box.innerHTML = '<p class="cols-note" style="margin:6px 0">No team list loaded yet. Add a member below (saved into the sheet\'s Team tab through the webhook), or add rows to the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role), then reload the sheet.</p>';
+          if(rosterManaged()){
+            box.innerHTML = '<p class="cols-note" style="margin:6px 0">No team list loaded yet from the Team Member Allocation sheet. Members are managed in the Team Member Allocation sheet — add rows there (Name | Mobile | Date of Birth); the tool reads it live, then tap Refresh now.</p>';
+          }else{
+            box.innerHTML = '<p class="cols-note" style="margin:6px 0">No team list loaded yet. Add a member below (saved into the sheet\'s Team tab through the webhook), or add rows to the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role), then reload the sheet.</p>';
+          }
           return;
         }
+        var managed = rosterManaged();
         box.innerHTML = roster.map(function(m, i){
           return '<div class="remark">'
             + '<div class="rguest">'+esc(m.name)+' <span class="badge">'+esc(m.role||"Member")+"</span></div>"
             + '<div class="rmeta"><span>'+esc(m.mobile)+" · Date of Birth: "+esc(m.dob||"—")+" · Password: "+esc(yearOfBirth(m.dob))+"</span>"
-            + (currentUser && currentUser.isAdmin ? '<button class="btn small" type="button" data-resetteam="'+i+'">Reset password</button>' : "")
-            + '<button class="btn rdel" type="button" data-rmteam="'+i+'">Remove</button>'
+            + (!managed && currentUser && currentUser.isAdmin ? '<button class="btn small" type="button" data-resetteam="'+i+'">Reset password</button>' : "")
+            + (!managed ? '<button class="btn rdel" type="button" data-rmteam="'+i+'">Remove</button>' : '')
             + "</div></div>";
         }).join("");
       }
@@ -2229,10 +2400,11 @@ function setLocation_(data) {
         }
       }
       function openResetPassword(member){
+        if(rosterManaged()){ setTeamStatus(ROSTER_MANAGED_MSG, "err"); syncTeamAdminUI(); return; }
         if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
         if(!member) return;
         if(!hookUrl()){
-          setTeamStatus("No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
+          setTeamStatus(rosterManaged() ? ROSTER_MANAGED_MSG : "No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
           return;
         }
         pendingResetMobile = normalizeMobile(member.mobile);
@@ -2243,6 +2415,7 @@ function setLocation_(data) {
         var bar = $("teamResetBar"); if(bar) bar.style.display = "";
       }
       function confirmResetPassword(){
+        if(rosterManaged()){ setTeamStatus(ROSTER_MANAGED_MSG, "err"); syncTeamAdminUI(); return; }
         if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
         if(!pendingResetMobile) return;
         var member = findMemberByMobile(pendingResetMobile);
@@ -2252,7 +2425,7 @@ function setLocation_(data) {
         var yob = yearOfBirth(dob);
         if(!yob){ setTeamStatus("Enter a full 4-digit birth year", "err"); return; }
         if(!hookUrl()){
-          setTeamStatus("No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
+          setTeamStatus(rosterManaged() ? ROSTER_MANAGED_MSG : "No webhook set — edit the Date of Birth in the sheet's Team tab directly.", "err");
           return;
         }
         var payload = { action:"updateMember", mobile:normalizeMobile(member.mobile), dob:dob, author:currentUser.name, time:new Date().toISOString() };
@@ -2278,6 +2451,7 @@ function setLocation_(data) {
         });
       }
       function addTeamMember(){
+        if(rosterManaged()){ setTeamStatus(ROSTER_MANAGED_MSG, "err"); syncTeamAdminUI(); return; }
         if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
         var name = $("teamName").value.trim();
         var mobile = normalizeMobile($("teamMobile").value);
@@ -2291,7 +2465,7 @@ function setLocation_(data) {
           return;
         }
         if(!hookUrl()){
-          setTeamStatus("No webhook set — add a row to the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role)", "err");
+          setTeamStatus(rosterManaged() ? ROSTER_MANAGED_MSG : "No webhook set — add a row to the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role)", "err");
           return;
         }
         var payload = { action:"addMember", name:name, mobile:mobile, dob:dob, role:role, author:currentUser.name, time:new Date().toISOString() };
@@ -2316,6 +2490,7 @@ function setLocation_(data) {
         });
       }
       function removeTeamMember(mobile){
+        if(rosterManaged()){ setTeamStatus(ROSTER_MANAGED_MSG, "err"); syncTeamAdminUI(); return; }
         if(!currentUser || !currentUser.isAdmin){ toast("Admin only"); return; }
         var member = findMemberByMobile(mobile);
         if(!member) return;
@@ -2325,7 +2500,7 @@ function setLocation_(data) {
           if(admins <= 1){ setTeamStatus("Cannot remove the last admin.", "err"); return; }
         }
         if(!hookUrl()){
-          setTeamStatus("No webhook set — remove the row from the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role)", "err");
+          setTeamStatus(rosterManaged() ? ROSTER_MANAGED_MSG : "No webhook set — remove the row from the Team tab in the sheet directly (Name | Mobile | Date of Birth | Role)", "err");
           return;
         }
         var payload = { action:"removeMember", mobile:mob, author:currentUser.name, time:new Date().toISOString() };
@@ -2347,6 +2522,7 @@ function setLocation_(data) {
       }
       $("teamAddBtn").addEventListener("click", addTeamMember);
       $("teamList").addEventListener("click", function(e){
+        if(rosterManaged()){ setTeamStatus(ROSTER_MANAGED_MSG, "err"); syncTeamAdminUI(); return; }
         var t = e.target;
         if(!t || !t.getAttribute) return;
         var ri = t.getAttribute("data-resetteam");
@@ -2444,21 +2620,27 @@ function setLocation_(data) {
         if(hookParam) setHookFor(activeEvent, hookParam);
         var sheetParam = params ? params.get("sheet") : null;
         if(sheetParam) setSheetUrlFor(activeEvent, sheetParam);
+        var rosterParam = params ? params.get("roster") : null;
+        if(rosterParam) setRosterLinkUrl(rosterParam);
         $("sheetInputCmot").value = sheetUrlFor("CMOT");
         $("sheetInputIffi").value = sheetUrlFor("IFFI");
         $("hookInputCmot").value = hookUrlFor("CMOT");
         $("hookInputIffi").value = hookUrlFor("IFFI");
+        $("rosterInput").value = rosterLinkUrl();
+        if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
         setActiveEventUI();
 
         var url = sheetUrlFor(activeEvent);
         updateBanner();
         if(url) $("sheetUrl").value = url;
 
-        if(url){
+        if(url || rosterLinkUrl()){
           /* Load the team roster first, then decide the session, so a stale
-             remembered login is caught before the tool opens. */
+             remembered login is caught before the tool opens. A roster sheet
+             link loads the shared roster even when this event has no guest
+             sheet link of its own. */
           loadRoster(url, function(){ restoreSession(); });
-          loadFromUrl(url, true, false);
+          if(url) loadFromUrl(url, true, false);
         }else{
           roster = null;
           updateLoginNote();
