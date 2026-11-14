@@ -434,12 +434,31 @@
           <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, and updating only the Date of Birth cell of the one Team row whose password the admin resets. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
-          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver</h3>
-          <div class="fmt">Pickup: {Guest Name} ({Designation}, {Phone}). Flight {Flight No}, {Date} {Time}. From: {Pickup Point} To: {Drop Point}. Vehicle: {Vehicle Type} {Vehicle No}. Please confirm. - Fox India</div>
+          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”. A line is omitted when its value is blank (for example, no flight for a shuttle, or no remark). The preview, Copy and Share all use this same line-wise text. Department comes from the Designation column (the CMOT “Department” column), and Remark comes from the Remark column.</p>
+          <div class="fmt">Guest Name: {Guest Name}
+Department: {Designation}
+Contact Number: {Phone}
+Date: {Date}
+Pickup Time: {Time}
+Flight No.: {Flight No}
+Hotel: {Hotel}
+Remark: {Remark}
+Pickup Point: {Pickup Point}</div>
         </div>
         <div style="margin-top:14px">
-          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to guest</h3>
-          <div class="fmt">Welcome to IFFI Goa, {Guest Name}. Your {Arrival/Departure/Shuttle} is confirmed. Flight {Flight No} on {Date} at {Time}. Vehicle: {Vehicle Type} {Vehicle No} (Driver: {Driver Name}, {Driver Contact}). Pickup: {Pickup Point} at {Time}. Drop: {Drop Point}. Need help? Call Fox India transport desk: 9261201083. - Fox India Transport Team</div>
+          <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to guest (line-wise)</h3>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”, after the welcome line. The first line is the event-aware welcome: “Welcome to Goa for IFFI 2026!” for IFFI, or “Welcome to Goa for CMOT 2026!” for CMOT. A line is omitted when its value is blank; with no vehicle assigned, the Vehicle Number, Driver Name and Driver Number lines are omitted entirely. The preview, Copy and Share all use this same line-wise text.</p>
+          <div class="fmt">Welcome to Goa for IFFI 2026!
+Guest Name: {Guest Name}
+Contact Number: {Phone}
+Pickup Time: {Time}
+Flight No.: {Flight No}
+Hotel: {Hotel}
+Vehicle Number: {Vehicle No}
+Driver Name: {Driver Name}
+Driver Number: {Driver Contact}</div>
+          <p style="font-size:.92rem;color:var(--ink2);margin:8px 0 0"><strong>WhatsApp number check:</strong> before a WhatsApp Guest or WhatsApp Driver link is built, the number is normalised — non-digits are stripped, a leading 91 is stripped if the number has 12 digits, and a leading 0 is stripped if it has 11 digits — and it must then be exactly 10 digits. Only then is the link built as wa.me/91 plus those 10 digits, with the line-wise message as the text. If the number is missing or invalid (too few digits, too many digits, or not a number), no WhatsApp link is built from the bad value: the WhatsApp button is disabled and the detail shows “No valid WhatsApp number — check the contact number in the sheet.” The message preview and Copy still work for such a guest — only the WhatsApp link is gated. The same check applies to the driver number for the WhatsApp Driver button.</p>
         </div>
         <div style="margin-top:18px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Remarks setup — admin, one time (about 2 minutes)</h3>
@@ -654,6 +673,8 @@ function setLocation_(data) {
           <a class="btn" id="smsDriverBtn" href="#">SMS Driver</a>
         </div>
         <div class="practice-note" id="practiceNote" style="display:none">Practice data — load the real sheet to send</div>
+        <p class="cols-note" id="waDriverNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
+        <p class="cols-note" id="waGuestNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
 
         <div class="liveloc" id="liveLocSection">
           <h3>Live Location</h3>
@@ -811,10 +832,10 @@ function setLocation_(data) {
         {key:"vehNo",       label:"Vehicle No",   syn:["vehicle no","vehicle number","car no","car number","cab no","reg no","registration"]},
         {key:"vehType",     label:"Vehicle Type", syn:["vehicle type","car type","vehicle","car","cab type"]},
         {key:"driver",      label:"Driver Name",  syn:["driver name","driver","chauffeur"]},
-        {key:"driverPhone", label:"Driver Contact", syn:["driver contact","driver phone","driver mobile","driver no"]},
+        {key:"driverPhone", label:"Driver Contact", syn:["driver contact","driver phone","driver mobile","driver no","driver number","driver contact no"]},
         {key:"status",      label:"Status",       syn:["status","trip status","movement status"]},
         {key:"pax",         label:"Pax",          syn:["pax","guests","no of guests","persons","passengers"]},
-        {key:"remarks",     label:"Remarks",      syn:["remarks","notes","note","special instructions","comments"]},
+        {key:"remarks",     label:"Remarks",      syn:["remarks","remark","notes","note","special instructions","comments"]},
         {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]}
       ];
       var FIELD_BY_KEY = {};
@@ -2152,38 +2173,48 @@ function setLocation_(data) {
         if(clean(g.type)) return clean(g.type);
         return clean(g.flight) ? "Arrival" : "Shuttle";
       }
+      function welcomeLine(g){
+        var ev = clean(g && g.event).toUpperCase();
+        if(ev!=="CMOT" && ev!=="IFFI") ev = activeEvent;
+        return "Welcome to Goa for "+ev+" 2026!";
+      }
+      function validWaNumber(phone){
+        var d = digits(phone);
+        if(d.length===12 && d.indexOf("91")===0) d = d.slice(2);
+        else if(d.length===11 && d.charAt(0)==="0") d = d.slice(1);
+        return d.length===10 ? d : null;
+      }
       function driverMsg(g){
-        var parts = [];
-        var head = "Pickup: "+val(g,"name");
-        var meta = [clean(g.designation), clean(g.phone)].filter(Boolean).join(", ");
-        if(meta) head += " ("+meta+")";
-        parts.push(head+".");
-        if(clean(g.flight)){
-          parts.push("Flight "+clean(g.flight)+", "+[clean(g.date), clean(g.time)].filter(Boolean).join(" ")+".");
-        }
-        parts.push("From: "+val(g,"from")+" To: "+dropPoint(g)+".");
-        if(vehicleStr(g)) parts.push("Vehicle: "+vehicleStr(g)+".");
-        parts.push("Please confirm. - Fox India");
-        return parts.join(" ");
+        var lines = [];
+        function add(label, value){ var v = clean(value); if(v) lines.push(label+": "+v); }
+        add("Guest Name", g.name);
+        add("Department", g.designation || g.department);
+        add("Contact Number", g.phone);
+        add("Date", g.date);
+        add("Pickup Time", g.time);
+        add("Flight No.", g.flight);
+        add("Hotel", g.hotel);
+        add("Remark", (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark);
+        add("Pickup Point", g.from || g.pickupPoint);
+        return lines.join("\n");
       }
       function guestMsg(g){
-        var parts = [];
-        parts.push("Welcome to IFFI Goa, "+val(g,"name")+".");
-        parts.push("Your "+typeWord(g)+" is confirmed.");
-        if(clean(g.flight)){
-          parts.push("Flight "+clean(g.flight)+" on "+clean(g.date)+" at "+clean(g.time)+".");
+        var lines = [];
+        lines.push(welcomeLine(g));
+        function add(label, value){ var v = clean(value); if(v) lines.push(label+": "+v); }
+        add("Guest Name", g.name);
+        add("Contact Number", g.phone);
+        add("Pickup Time", g.time);
+        add("Flight No.", g.flight);
+        add("Hotel", g.hotel);
+        /* No vehicle assigned yet: omit the Vehicle Number, Driver Name and
+           Driver Number lines entirely — never print empty vehicle lines. */
+        if(clean(g.vehNo || g.vehicleNo || g.vehicleNumber)){
+          add("Vehicle Number", g.vehNo || g.vehicleNo || g.vehicleNumber);
+          add("Driver Name", g.driver);
+          add("Driver Number", g.driverPhone || g.driverContact || g.driverNumber);
         }
-        var veh = vehicleStr(g);
-        var drv = [clean(g.driver), clean(g.driverPhone)].filter(Boolean).join(", ");
-        /* No vehicle assigned yet (e.g. the CMOT sheet has no vehicle columns):
-           omit the vehicle clause entirely — never print an empty "Vehicle: ()". */
-        if(veh){
-          parts.push("Vehicle: "+veh+(drv ? " (Driver: "+drv+")" : "")+".");
-        }
-        parts.push("Pickup: "+val(g,"from")+" at "+val(g,"time")+".");
-        parts.push("Drop: "+dropPoint(g)+".");
-        parts.push("Need help? Call Fox India transport desk: 9261201083. - Fox India Transport Team");
-        return parts.join(" ");
+        return lines.join("\n");
       }
       function fullText(g){
         var lines=["IFFI GOA — GUEST DETAILS"];
@@ -2194,9 +2225,9 @@ function setLocation_(data) {
         return lines.join("\n");
       }
       function waLink(phone, cc, text){
-        var n = intlNumber(phone, cc);
+        var n = validWaNumber(phone);
         if(!n) return null;
-        return "https://wa.me/"+n+"?text="+encodeURIComponent(text);
+        return "https://wa.me/91"+n+"?text="+encodeURIComponent(text);
       }
 
       /* ---------- Detail (full screen) ---------- */
@@ -2224,12 +2255,11 @@ function setLocation_(data) {
         });
         $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
         var dm = driverMsg(g), gm = guestMsg(g);
-        var noVehicle = !vehicleStr(g);
-        $("driverMsg").textContent = noVehicle ? "No vehicle assigned yet" : dm;
+        $("driverMsg").textContent = dm;
         $("guestMsg").textContent = gm;
         var isSample = !!g._sample;
         $("practiceNote").style.display = isSample ? "" : "none";
-        var driverOk = !isSample && !noVehicle;
+        var driverOk = !isSample;
         setSendable($("copyDriverBtn"), driverOk);
         setSendable($("copyGuestBtn"), !isSample);
         setSendable($("copyAllBtn"), !isSample);
@@ -2242,16 +2272,11 @@ function setLocation_(data) {
           killLink($("callGuestBtn")); killLink($("callDriverBtn"));
           killLink($("smsGuestBtn")); killLink($("smsDriverBtn"));
           killLink($("previewCallGuestBtn")); killLink($("previewCallDriverBtn"));
-        }else if(noVehicle){
-          killLink($("waDriverBtn")); killLink($("callDriverBtn"));
-          killLink($("smsDriverBtn")); killLink($("previewCallDriverBtn"));
-          setWa($("waGuestBtn"), g.phone, g.cc, gm);
-          setTel($("callGuestBtn"), g.phone, g.cc);
-          setSms($("smsGuestBtn"), g.phone, g.cc, gm);
-          setTel($("previewCallGuestBtn"), g.phone, g.cc);
+          var snd = $("waDriverNote"); if(snd) snd.style.display = "none";
+          var sng = $("waGuestNote"); if(sng) sng.style.display = "none";
         }else{
-          setWa($("waDriverBtn"), g.driverPhone, "", dm);
-          setWa($("waGuestBtn"), g.phone, g.cc, gm);
+          setWa($("waDriverBtn"), g.driverPhone, "", dm, $("waDriverNote"));
+          setWa($("waGuestBtn"), g.phone, g.cc, gm, $("waGuestNote"));
           setTel($("callGuestBtn"), g.phone, g.cc);
           setTel($("callDriverBtn"), g.driverPhone, "");
           setSms($("smsGuestBtn"), g.phone, g.cc, gm);
@@ -2275,10 +2300,20 @@ function setLocation_(data) {
       function killLink(a){
         a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none";
       }
-      function setWa(a, phone, cc, text){
+      function setWa(a, phone, cc, text, noteEl){
         var link = waLink(phone, cc, text);
-        if(link){ a.href=link; a.style.opacity=""; a.style.pointerEvents=""; }
-        else{ a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none"; }
+        if(link){
+          a.href=link; a.style.opacity=""; a.style.pointerEvents="";
+          a.removeAttribute("aria-disabled");
+          if(noteEl) noteEl.style.display = "none";
+        }else{
+          a.removeAttribute("href"); a.style.opacity=".45"; a.style.pointerEvents="none";
+          a.setAttribute("aria-disabled","true");
+          if(noteEl){
+            noteEl.textContent = "No valid WhatsApp number \u2014 check the contact number in the sheet.";
+            noteEl.style.display = "";
+          }
+        }
       }
       function setTel(a, phone, cc){
         var n=intlNumber(phone, cc);
