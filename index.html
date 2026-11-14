@@ -4,6 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14120e" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Guest Lookup" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="icon" href="data:," />
     <title>Goa IFFI Guest Lookup</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -231,6 +239,35 @@
       .help ul,.help ol{margin:0;padding-left:18px}
       .help ol li{font-size:.92rem;color:var(--ink2);margin-bottom:4px}
       .fmt{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.83rem;white-space:pre-wrap;word-break:break-word}
+      /* ---------- v29: view tabs, drawer, bell, vehicles, drivers ---------- */
+      .viewtabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+      .vtab{flex:1 1 42%;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:12px 10px;font-weight:700;font-size:1rem;min-height:3.4rem}
+      .vtab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+      @media(min-width:760px){.vtab{flex:1 1 20%}}
+      .badge.usage{background:var(--surface2);color:var(--ink);border:1px solid var(--line);text-transform:none;letter-spacing:0}
+      .bellcount{background:#dc2626;color:#fff;border-radius:999px;padding:1px 8px;font-weight:700;font-size:.82rem;margin-left:2px}
+      .scrim{position:fixed;inset:0;background:rgba(10,8,5,.5);z-index:80;display:none}
+      .scrim.open{display:block}
+      .drawer{position:fixed;top:0;left:0;bottom:0;width:min(440px,94vw);background:var(--bg);z-index:90;transform:translateX(-106%);transition:transform .25s ease;overflow-y:auto;padding:14px 14px 44px;box-shadow:var(--shadow)}
+      .drawer.open{transform:none}
+      .drawerhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+      .drawerhead h2{font-family:"Barlow Condensed",sans-serif;font-size:1.7rem;margin:0;line-height:1}
+      .notif{padding:10px 0;border-bottom:1px dashed var(--line)}
+      .notif .ntext{font-weight:600;white-space:pre-wrap;word-break:break-word}
+      .notif.unread .ntext::before{content:"\25CF  ";color:#dc2626}
+      .notif .nmeta{font-size:.82rem;color:var(--ink2);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .notif.read{opacity:.62}
+      .vehcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
+      .vehcard .vno{font-weight:700;font-size:1.1rem}
+      .vehcard .vmeta{font-size:.92rem;color:var(--ink2);margin-top:3px}
+      .vehcard .vguests{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+      .gchip{border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:999px;padding:7px 12px;font-weight:600;font-size:.88rem;min-height:2.75rem}
+      .drvrow{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
+      .drvrow .dname{font-weight:700;font-size:1.05rem}
+      .viewhead{font-weight:700;font-size:1.05rem;margin:14px 2px 4px}
+      .viewsub{color:var(--ink2);font-size:.92rem;margin:0 2px 10px}
+      .legdest{display:block;font-weight:600;font-size:.95rem;margin-top:12px}
+      .legdest select{margin-top:5px}
       footer{margin-top:26px;color:var(--ink2);font-size:.85rem;text-align:center}
       @media (prefers-reduced-motion: reduce){*{transition:none!important}}
     </style>
@@ -251,8 +288,10 @@
 
       <!-- ============ USER BAR ============ -->
       <div class="userbar" id="userbar">
+        <button class="btn small" id="menuBtn" type="button" aria-label="Open menu — filters, load data, settings and help">&#9776; Menu</button>
         <span class="who" id="userInfo">Not logged in</span>
         <span class="spacer"></span>
+        <button class="btn small" id="bellBtn" type="button" aria-label="Notifications — what changed">&#128276;<span class="bellcount" id="bellCount" style="display:none">0</span></button>
         <button class="btn small" id="adminBtn" type="button" style="display:none">Admin — all remarks</button>
         <button class="btn small" id="settingsBtn" type="button">Settings</button>
         <button class="btn small ghost" id="switchBtn" type="button">Switch user</button>
@@ -269,6 +308,14 @@
 
       <!-- ============ UPLOADED-FILE WARNING ============ -->
       <div class="uploadwarn" id="uploadWarn" role="alert" style="display:none">Loaded from an uploaded file — edits in Drive won’t appear here until you re-upload the file. For live updates, link the Google Sheet instead.</div>
+
+      <!-- ============ VIEW TABS (v29) ============ -->
+      <div class="viewtabs" role="group" aria-label="Choose what to see">
+        <button type="button" class="vtab" id="tabGuests" aria-pressed="true">Guests</button>
+        <button type="button" class="vtab" id="tabToday" aria-pressed="false">Aaj ke arrivals</button>
+        <button type="button" class="vtab" id="tabVehicles" aria-pressed="false">Vehicles</button>
+        <button type="button" class="vtab" id="tabDrivers" aria-pressed="false">Today's drivers</button>
+      </div>
 
       <!-- ============ PRIVACY WARNING ============ -->
       <details class="privacy" id="privacyBox" open aria-labelledby="privacy-h">
@@ -330,7 +377,7 @@
       </section>
 
       <!-- ============ LOAD DATA ============ -->
-      <section class="panel" aria-labelledby="load-h">
+      <section class="panel" id="loadPanel" aria-labelledby="load-h">
         <h2 id="load-h">1 · Load the guest sheet</h2>
         <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 30 seconds on its own, and Refresh now in the banner above pulls the latest version any time.</p>
         <p class="hint" id="loadEventHint" style="margin-top:-6px">You are loading data for <strong id="loadEventName">CMOT</strong>. Each event keeps its own data — to load the other event's sheet or file, switch events at the top first.</p>
@@ -366,6 +413,7 @@
           <code>Guest ID</code> <code>Guest Name</code> <code>Phone</code> <code>Country Code</code> <code>Designation</code> <code>Type</code> <code>Date</code> <code>Time</code>
           <code>Flight No</code> <code>Airport</code> <code>Hotel</code> <code>Venue</code> <code>Pickup Point</code> <code>Drop Point</code> <code>Vehicle No</code> <code>Vehicle Type</code>
           <code>Driver Name</code> <code>Driver Contact</code> <code>Status</code> <code>Live Location Link</code>
+          <code>Usage Type</code> (Dedicated / Rotation / Shuttle) <code>Start Date</code> <code>End Date</code> (for dedicated vehicles)
         </p>
       </section>
 
@@ -423,8 +471,12 @@
       <div class="results" id="results"></div>
       <div class="empty" id="emptyState">No guest data loaded for CMOT. Open the team link shared by the admin — it carries the CMOT sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.</div>
 
+      <div id="todayView" style="display:none"></div>
+      <div id="vehiclesView" style="display:none"></div>
+      <div id="driversView" style="display:none"></div>
+
       <!-- ============ HELP ============ -->
-      <section class="panel" aria-labelledby="help-h">
+      <section class="panel" id="helpPanel" aria-labelledby="help-h">
         <h2 id="help-h">How the team uses this</h2>
         <div class="help" style="margin-top:10px">
           <div>
@@ -495,7 +547,7 @@
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Your sheet data stays as you gave it</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, and updating only the Date of Birth cell of the one Team row whose password the admin resets. Everything else in the sheet is only read, never changed.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
@@ -524,6 +576,51 @@ Driver Number: {Driver Contact}</div>
           <p style="font-size:.92rem;color:var(--ink2);margin:8px 0 0"><strong>WhatsApp number check:</strong> before a WhatsApp Guest or WhatsApp Driver link is built, the number is normalised — non-digits are stripped, a leading 91 is stripped if the number has 12 digits, and a leading 0 is stripped if it has 11 digits — and it must then be exactly 10 digits. Only then is the link built as wa.me/91 plus those 10 digits, with the line-wise message as the text. If the number is missing or invalid (too few digits, too many digits, or not a number), no WhatsApp link is built from the bad value: the WhatsApp button is disabled and the detail shows “No valid WhatsApp number — check the contact number in the sheet.” The message preview and Copy still work for such a guest — only the WhatsApp link is gated. The same check applies to the driver number for the WhatsApp Driver button.</p>
         </div>
         <div style="margin-top:18px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Install this tool like an app (one time, per phone)</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li><strong>Android:</strong> open this link in <strong>Chrome</strong> → tap the &#8942; menu → <strong>Add to Home Screen</strong> (or “Install app”). An icon appears on the home screen and the tool opens full-screen, like an app.</li>
+            <li><strong>iPhone:</strong> open this link in <strong>Safari</strong> → tap <strong>Share</strong> → <strong>Add to Home Screen</strong>.</li>
+            <li>Installing does <strong>not</strong> freeze the data: the installed tool stays connected to the same live sheet — it refreshes every 30 seconds and saves through the same webhook, exactly like the browser link. Updates arrive by themselves; nobody ever has to reinstall.</li>
+          </ul>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">The four views (tabs above the guest list)</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li><strong>Guests</strong> — the full list with search. All filters (location, type, hotel, airport, date, sort, pickup-time range) are in the <strong>Menu</strong> (&#9776; Menu &#8594; Filters) — the main page stays just search + list.</li>
+            <li><strong>Aaj ke arrivals</strong> — only today's guests (IST), in time order, with vehicle and driver status.</li>
+            <li><strong>Vehicles</strong> — every vehicle of the selected event in one place: driver, phone, its guests, hotel, usage type, current status and latest trip. Filter by status: on arrival duty / with guest / on shuttle / idle.</li>
+            <li><strong>Today's drivers</strong> — every driver on duty today in one list: one tap to <strong>Call</strong>, one tap to send the ready-made <strong>WhatsApp</strong> day message, and a <strong>Called &#10003;</strong> tick once you have spoken to them. The tick saves with your name and the time (in the sheet when the webhook is set, otherwise on this phone — labelled as such). Calls cannot be auto-dialled for free — the tap <em>is</em> the call button.</li>
+          </ul>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Bell — notifications</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li>The &#128276; bell at the top shows what changed: a vehicle changed in the sheet, a new entry added, an entry removed, and everything the team does in the tool (marking a vehicle, a remark, a live-location link, a driver call tick) — with <strong>who did it and when</strong>.</li>
+            <li>Opening the list does not clear it — tap <strong>Dismiss</strong> on items you have seen. The number on the bell is the count of not-yet-dismissed items.</li>
+            <li>With the webhook set, the history is also kept in the sheet's <strong>“Notifications”</strong> tab so the whole team sees the same history. Without a webhook, notifications are saved on each phone only and the bell says so.</li>
+            <li>Sheet-side changes (vehicle changed / entry added / entry removed) are detected by comparing the sheet on every 30-second refresh — that needs the data loaded from a <strong>linked Google Sheet</strong>. Data loaded from an <strong>uploaded file</strong> cannot be diffed, and the bell says so.</li>
+            <li>The bell cannot ring while the tool is closed — a web page cannot send phone push notifications. Open the tool and the bell shows everything.</li>
+          </ul>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Usage Type — Dedicated / Rotation / Shuttle (sheet columns)</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li>Add a column named <strong>Usage Type</strong> to the sheet with values <strong>Dedicated</strong>, <strong>Rotation</strong> or <strong>Shuttle</strong> (the tool also understands “vehicle usage”, “user type”, “usage”, “rotational”, “one-way” and “pick-and-drop”). The type shows as a chip on every guest card and in the Vehicles view.</li>
+            <li>For a <strong>dedicated</strong> vehicle, also fill <strong>Start Date</strong> and <strong>End Date</strong> (also understood: From Date / To Date / Till Date). The card then shows the date range with the Pickup Point and Hotel, and a dedicated assignment <strong>ending today or tomorrow is flagged</strong> so the vehicle can be re-pooled in time.</li>
+            <li><strong>Rotation</strong> vehicles run trip after trip: in the guest's detail, under <strong>Vehicle reporting — trips</strong>, pick the destination in <strong>“Departed for:”</strong> (the guest's hotel / drop point, Dabolim or Mopa airport, Kala Academy, ESG Maquinez Palace, Taj Cidade) and tap <strong>Mark Departed</strong>; on reaching, tap <strong>Mark Arrived</strong>. Every trip — from, to, times, and who marked it — is listed in that vehicle's timeline and in the Vehicles view.</li>
+            <li><strong>Dedicated</strong> vehicles keep the simple <strong>Reported / Departed</strong> marking as before, with their date range shown.</li>
+          </ul>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Admin — activity &amp; today's summary</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li>Only the admin sees the <strong>Activity</strong> section (in Admin view): who is using the tool and who changed or updated what — markings, remarks, live-location links, driver call ticks, and team-member add / remove / password reset — newest first, with date, time and the member's name.</li>
+            <li>With the webhook set, every write is also logged in the sheet's <strong>“Activity”</strong> tab (Date | Time | By | Action | Vehicle/Guest | Details), so the record survives even if a phone is lost. Without a webhook, the activity is kept on each phone only and the section says so.</li>
+            <li>The <strong>Today's summary</strong> in Admin view shows: guests arriving today, pickups done, pickups still pending, vehicles currently out, and driver calls made today.</li>
+            <li>After this update, redeploy the Apps Script as a <strong>new version</strong> once (Deploy → Manage deployments → Edit → Version: New version) so the Activity log, Notifications, trips and call ticks save to the sheet.</li>
+          </ul>
+        </div>
+        <div style="margin-top:18px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Remarks setup — admin, one time (about 2 minutes)</h3>
           <p style="font-size:.92rem;color:var(--ink2);margin:0 0 8px">Remarks are saved into the master Google Sheet itself (a “Remarks” tab), so the sheet stays the record and the admin sees who wrote what, and when. Until this is set up, remarks still work — they are saved on each phone only.</p>
           <ol style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
@@ -538,8 +635,21 @@ Driver Number: {Driver Contact}</div>
             <li>The same webhook also saves <strong>vehicle status</strong>: in a guest's detail view, once the sheet has a vehicle number for that guest, any logged-in member can tap <strong>Mark Vehicle Reported</strong> when the vehicle reports, and then <strong>Mark Vehicle Departed</strong> once the guest is on board and the vehicle leaves (Departed can only be marked after Reported). The status is saved through the webhook's setVehicleStatus action into a <strong>“Vehicle Status”</strong> tab (columns Vehicle | Status | Time | By — the script creates the tab with those headers if it does not exist), is keyed by vehicle number so every guest row with that vehicle shows the same status, and loads back for all members on page open and on every refresh. On success setVehicleStatus returns <code>{ok:true, updated:1}</code> and the tool only claims success when it receives exactly that. If the webhook was deployed before vehicle status was supported, redeploy the same Apps Script project as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running, vehicle statuses will not save to the sheet, and the tool will show the redeploy-as-new-version error instead of claiming success. Until the webhook is set, a marked status is saved on that member's phone only and is labelled as such.</li>
           </ol>
           <div class="fmt" id="gasCode" style="margin-top:10px;display:none">function doGet(e) {
-  if (e &amp;&amp; e.parameter &amp;&amp; e.parameter.view === "vehicleStatus") {
+  var view = e &amp;&amp; e.parameter &amp;&amp; e.parameter.view;
+  if (view === "vehicleStatus") {
     return ContentService.createTextOutput(JSON.stringify(vehicleStatuses_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "activity") {
+    return ContentService.createTextOutput(JSON.stringify(activityRows_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "notifications") {
+    return ContentService.createTextOutput(JSON.stringify(notificationRows_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "legs") {
+    return ContentService.createTextOutput(JSON.stringify(legRows_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "callTicks") {
+    return ContentService.createTextOutput(JSON.stringify(callTickRows_())).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   var rows = sh.getDataRange().getValues();
@@ -554,14 +664,17 @@ function doPost(e) {
   var data = JSON.parse(e.postData.contents);
   if (data.action === "setLocation") {
     var updatedCount = setLocation_(data);
+    if (updatedCount &gt; 0) logActivity_(data.author || data.by || "", "Live location saved", data.vehicleNo || "", data.link || "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: updatedCount })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "addMember") {
     teamSheet_().appendRow([data.name, data.mobile, data.dob, data.role]);
+    logActivity_(data.author || "", "Member added", data.name || "", data.mobile || "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "removeMember") {
     removeMember_(data);
+    logActivity_(data.author || "", "Member removed", data.mobile || "", "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "setVehicleStatus") {
@@ -569,6 +682,7 @@ function doPost(e) {
     if (!vsUpdated) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Vehicle not found" })).setMimeType(ContentService.MimeType.JSON);
     }
+    logActivity_(data.by || data.author || "", data.status === "DEPARTED" ? "Vehicle departed" : "Vehicle reported", data.vehicle || "", data.status || "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "updateMember") {
@@ -576,11 +690,38 @@ function doPost(e) {
     if (!updatedMember) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Member not found" })).setMimeType(ContentService.MimeType.JSON);
     }
+    logActivity_(data.author || "", "Password reset", data.mobile || "", "", data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "notify") {
+    notificationsSheet_().appendRow([data.time, data.by || data.author || "", data.text || "", data.kind || ""]);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "addLeg") {
+    var legUpdated = addLeg_(data);
+    if (!legUpdated) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Vehicle not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    logActivity_(data.by || data.author || "", "Vehicle departed (trip)", data.vehicle || "", (data.from || "") + " to " + (data.to || ""), data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "arriveLeg") {
+    var arrUpdated = arriveLeg_(data);
+    if (!arrUpdated) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "No open trip for this vehicle" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    logActivity_(data.by || data.author || "", "Vehicle arrived (trip)", data.vehicle || "", data.to || "", data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "setCallTick") {
+    setCallTick_(data);
+    logActivity_(data.by || data.author || "", "Driver called", data.driverName || "", data.vehicle || "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   if (data.action === "add") {
     sh.appendRow([data.time, data.guestId, data.guestName, data.remark, data.author]);
+    logActivity_(data.author || "", "Remark added", data.guestName || "", data.remark || "", data.time);
   } else if (data.action === "delete") {
     var rows = sh.getDataRange().getValues();
     for (var i = rows.length - 1; i &gt;= 1; i--) {
@@ -592,6 +733,7 @@ function doPost(e) {
         break;
       }
     }
+    logActivity_(data.author || "", "Remark deleted", data.guestName || "", data.remark || "", data.time);
   }
   return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -699,7 +841,7 @@ function setLocation_(data) {
       }
     }
   }
-  if (updated > 0) {
+  if (updated &gt; 0) {
     var log = ss.getSheetByName("Live Locations");
     if (!log) {
       log = ss.insertSheet("Live Locations");
@@ -757,7 +899,115 @@ function setVehicleStatus_(data) {
   }
   sh.appendRow([vehicle, data.status, data.time, by]);
   return 1;
-}</div>
+}
+
+function tabSheet_(name, headers) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+  } else if (sh.getLastRow() === 0) {
+    sh.appendRow(headers);
+  }
+  return sh;
+}
+
+function notificationsSheet_() { return tabSheet_("Notifications", ["Time", "By", "Text", "Kind"]); }
+function activitySheet_() { return tabSheet_("Activity", ["Date", "Time", "By", "Action", "Vehicle/Guest", "Details"]); }
+function legsSheet_() { return tabSheet_("Vehicle Legs", ["Vehicle", "From", "To", "Departed Time", "Departed By", "Arrived Time", "Arrived By"]); }
+function callsSheet_() { return tabSheet_("Driver Calls", ["Date", "Time", "Driver Name", "Phone", "Vehicle", "By"]); }
+
+function istParts_(timeVal) {
+  var dt = new Date(timeVal);
+  if (isNaN(dt.getTime())) return { date: String(timeVal || ""), time: "" };
+  var ist = new Date(dt.getTime() + (5 * 60 + 30) * 60 * 1000);
+  return { date: ist.toISOString().slice(0, 10), time: ist.toISOString().slice(11, 19) };
+}
+
+function logActivity_(by, action, target, details, timeVal) {
+  try {
+    var p = istParts_(timeVal || new Date().toISOString());
+    activitySheet_().appendRow([p.date, p.time, by || "", action || "", target || "", details || ""]);
+  } catch (err) {}
+}
+
+function activityRows_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Activity");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ date: rows[i][0], time: rows[i][1], by: rows[i][2], action: rows[i][3], target: rows[i][4], details: rows[i][5] });
+  }
+  return out;
+}
+
+function notificationRows_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Notifications");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ time: rows[i][0], by: rows[i][1], text: rows[i][2], kind: rows[i][3] });
+  }
+  return out;
+}
+
+function legRows_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Vehicle Legs");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (!String(rows[i][0]).trim()) continue;
+    out.push({ vehicle: rows[i][0], from: rows[i][1], to: rows[i][2], departTime: rows[i][3], departBy: rows[i][4], arriveTime: rows[i][5], arriveBy: rows[i][6] });
+  }
+  return out;
+}
+
+function addLeg_(data) {
+  var vehicle = String(data.vehicle == null ? "" : data.vehicle).trim();
+  if (!vehicle) return 0;
+  legsSheet_().appendRow([vehicle, data.from || "", data.to || "", data.time || "", data.by || data.author || "", "", ""]);
+  return 1;
+}
+
+function arriveLeg_(data) {
+  var vehicle = String(data.vehicle == null ? "" : data.vehicle).trim();
+  if (!vehicle) return 0;
+  var sh = legsSheet_();
+  var rows = sh.getDataRange().getValues();
+  for (var i = rows.length - 1; i &gt;= 1; i--) {
+    if (String(rows[i][0]).trim() === vehicle &amp;&amp; !String(rows[i][5]).trim()) {
+      sh.getRange(i + 1, 6).setValue(data.time || "");
+      sh.getRange(i + 1, 7).setValue(data.by || data.author || "");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+function callTickRows_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Driver Calls");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ date: rows[i][0], time: rows[i][1], driverName: rows[i][2], phone: rows[i][3], vehicle: rows[i][4], by: rows[i][5] });
+  }
+  return out;
+}
+
+function setCallTick_(data) {
+  var p = istParts_(data.time || new Date().toISOString());
+  callsSheet_().appendRow([data.date || p.date, p.time, data.driverName || "", data.driverPhone || "", data.vehicle || "", data.by || data.author || ""]);
+}
+</div>
           <div class="rowflex" style="margin-top:8px">
             <button class="btn" id="gasToggleBtn" type="button" aria-expanded="false" aria-controls="gasCode">Show Apps Script code</button>
             <button class="btn" id="gasCopyBtn" type="button">Copy the Apps Script code</button>
@@ -766,6 +1016,35 @@ function setVehicleStatus_(data) {
       </section>
 
       <footer>Fox India · IFFI Goa transport desk · Hotels in scope: Cidade de Goa Horizon &amp; Heritage, Taj Vivanta Panjim, Fortune Miramar, Novotel Goa Panjim · Venues: Taj Cidade, Kala Academy, ESG Maquinez Palace</footer>
+    </div>
+
+    <!-- ============ SIDE PANE / DRAWER (v29) ============ -->
+    <div class="scrim" id="drawerScrim"></div>
+    <aside class="drawer" id="sideDrawer" aria-label="Menu — load data, settings, privacy and help">
+      <div class="drawerhead">
+        <h2>Menu</h2>
+        <button class="xbtn" id="drawerCloseBtn" type="button" aria-label="Close menu">&#10005;</button>
+      </div>
+      <p class="cols-note" style="margin-top:4px">Filters, load data, Settings, Help and the privacy note live here — the main page stays just search + guest list.</p>
+      <div id="drawerBody"></div>
+    </aside>
+
+    <!-- ============ NOTIFICATIONS / BELL (v29, full screen) ============ -->
+    <div class="overlay" id="bellOverlay" role="dialog" aria-modal="true" aria-labelledby="bell-h">
+      <div class="sheet">
+        <div class="toprow">
+          <button class="btn small" id="bellBackBtn" type="button">&larr; Back</button>
+          <button class="xbtn" id="bellCloseBtn" type="button" aria-label="Close">&#10005;</button>
+        </div>
+        <h2 id="bell-h">Notifications — what changed</h2>
+        <p class="cols-note" style="margin-top:6px">Newest first. Opening this list does <strong>not</strong> mark anything read — tap <strong>Dismiss</strong> on an item (or Dismiss all) when you have seen it. This bell works only while the tool is open — a web page cannot send phone push notifications.</p>
+        <p class="cols-note" id="notifLocalNote" style="display:none;font-weight:600"></p>
+        <p class="cols-note" id="notifSheetNote" style="display:none;font-weight:600"></p>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn small" id="notifDismissAllBtn" type="button">Dismiss all</button>
+        </div>
+        <div id="notifList" style="margin-top:8px"></div>
+      </div>
     </div>
 
     <!-- ============ DETAIL (full screen) ============ -->
@@ -801,6 +1080,22 @@ function setVehicleStatus_(data) {
           </div>
           <div class="status err" id="vstatError" role="alert"></div>
           <div class="practice-note" id="vstatPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
+          <p class="cols-note" id="dedicatedRangeLine" style="display:none;font-weight:600;margin-top:10px"></p>
+
+          <div id="legSection" style="margin-top:16px;border-top:1px dashed var(--line);padding-top:12px">
+            <div class="secthead"><h3 style="font-size:1rem;margin:0">Vehicle reporting — trips</h3><span class="badge phoneonly" id="legLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
+            <p class="cols-note" style="margin:4px 0 0">For <strong>rotation / shuttle</strong> vehicles, mark every trip: when the vehicle leaves, pick where it is going and tap <strong>Mark Departed</strong>; when it reaches, tap <strong>Mark Arrived</strong>. Every trip is listed below with its times and who marked it.</p>
+            <label class="legdest" for="legDestSelect">Departed for:
+              <select id="legDestSelect" aria-label="Departed for — choose the destination"></select>
+            </label>
+            <div class="rowflex" style="margin-top:10px">
+              <button class="btn primary" id="legDepartBtn" type="button">Mark Departed for selected place</button>
+              <button class="btn" id="legArriveBtn" type="button">Mark Arrived at destination</button>
+            </div>
+            <div class="status err" id="legError" role="alert"></div>
+            <div class="practice-note" id="legPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
+            <div id="legTimeline" style="margin-top:6px"></div>
+          </div>
 
           <div class="liveloc" id="liveLocSection">
             <div class="secthead"><h3>Live Location</h3><span class="badge phoneonly" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
@@ -921,6 +1216,15 @@ function setVehicleStatus_(data) {
           </div>
           <div id="adminList"></div>
         </div>
+        <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
+          <h3 style="font-size:1rem;margin:0 0 4px">Today's summary</h3>
+          <div id="adminSummary"></div>
+        </div>
+        <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
+          <h3 style="font-size:1rem;margin:0 0 4px">Activity — who changed what</h3>
+          <p class="cols-note" id="activityLocalNote" style="display:none;font-weight:600;margin:0 0 8px">Saved on this phone only — set the webhook URL to share the activity log with the team (it is then kept in the sheet's “Activity” tab).</p>
+          <div id="activityList"></div>
+        </div>
       </div>
     </div>
 
@@ -970,7 +1274,7 @@ function setVehicleStatus_(data) {
         {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp","contact number & alternative no."]},
         {key:"cc",          label:"Country Code", syn:["country code","cc","dial code","isd code"]},
         {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization","department"]},
-        {key:"type",        label:"Type",         syn:["type","movement","movement type","trip type","arr dep","service"]},
+        {key:"type",        label:"Type",         syn:["type","movement","movement type","arr dep","service"]},
         {key:"event",       label:"Event",        syn:["event","event name"]},
         {key:"date",        label:"Date",         syn:["date","day","travel date","arrival date","departure date"]},
         {key:"time",        label:"Time",         syn:["time","arrival time","departure time","pickup time","pick up time","eta","reporting time","goa arrival time"]},
@@ -981,18 +1285,21 @@ function setVehicleStatus_(data) {
         {key:"from",        label:"Pickup Point", syn:["pickup point","pickup from","pickup","pick up","from","pickup location","origin"]},
         {key:"to",          label:"Drop Point",   syn:["drop point","drop to","drop","to","drop location","destination"]},
         {key:"vehNo",       label:"Vehicle No",   syn:["vehicle no","vehicle number","car no","car number","cab no","reg no","registration"]},
-        {key:"vehType",     label:"Vehicle Type", syn:["vehicle type","car type","vehicle","car","cab type"]},
+        {key:"vehType",     label:"Vehicle Type", syn:["vehicle type","vehicle","car","cab type"]},
         {key:"driver",      label:"Driver Name",  syn:["driver name","driver","chauffeur"]},
         {key:"driverPhone", label:"Driver Contact", syn:["driver contact","driver phone","driver mobile","driver no","driver number","driver contact no"]},
         {key:"status",      label:"Status",       syn:["status","trip status","movement status"]},
         {key:"pax",         label:"Pax",          syn:["pax","guests","no of guests","persons","passengers"]},
         {key:"remarks",     label:"Remarks",      syn:["remarks","remark","notes","note","special instructions","comments"]},
-        {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]}
+        {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]},
+        {key:"usageType",   label:"Usage Type",   syn:["usage type","vehicle usage","user type","usage","car type","trip type"]},
+        {key:"startDate",   label:"Start Date",   syn:["start date","from date"]},
+        {key:"endDate",     label:"End Date",     syn:["end date","to date","till date"]}
       ];
       var FIELD_BY_KEY = {};
       FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
 
-      var state = { guests:[], typeFilter:"all", locationFilter:"", current:null, currentKey:"", detailOpen:false, adminOpen:false,
+      var state = { guests:[], typeFilter:"all", locationFilter:"", current:null, currentKey:"", detailOpen:false, adminOpen:false, view:"guests",
                     source:{kind:"none", label:"", url:""}, lastUpdated:"" };
       var LS_KEY = "iffi-guest-lookup-sheet-url";
       var LS_HOOK = "iffi-remarks-hook-url";
@@ -1002,6 +1309,11 @@ function setVehicleStatus_(data) {
       var LS_LOCAL_LOCATIONS = "iffi-local-locations";
       var LS_LOCAL_VSTAT = "iffi-local-vehicle-status";
       var LS_ROSTER = "iffi-team-roster-url";
+      var LS_LOCAL_LEGS = "iffi-local-legs";
+      var LS_NOTIFS = "iffi-notifs";
+      var LS_NOTIF_DISMISSED = "iffi-notif-dismissed";
+      var LS_LOCAL_ACTIVITY = "iffi-local-activity";
+      var LS_LOCAL_CALLTICKS = "iffi-local-callticks";
       var REFRESH_MS = 30000;
 
       /* ================= EVENTS (CMOT / IFFI) =================
@@ -1479,10 +1791,7 @@ function setVehicleStatus_(data) {
       });
       var resetLoginYesEl = $("resetLoginYes");
       if(resetLoginYesEl) resetLoginYesEl.addEventListener("click", resetLoginOnThisPhone);
-      $("settingsBtn").addEventListener("click", function(){
-        var p=$("settingsPanel");
-        p.style.display = (p.style.display==="none" || !p.style.display) ? "" : "none";
-      });
+      $("settingsBtn").addEventListener("click", function(){ openDrawer(); });
       $("pinSaveBtn").addEventListener("click", function(){
         if(!currentUser){ setSettingsStatus("Log in first.", "err"); return; }
         if(hasRoster()){ setSettingsStatus("Your password is your year of birth — it cannot be changed here. Ask the admin to update your date of birth in the Team list if it is wrong.", "err"); return; }
@@ -1592,6 +1901,12 @@ function setVehicleStatus_(data) {
         }
         fetchRemarks(true);
         fetchVehicleStatuses(true);
+        legsMap = {};
+        fetchLegs(true);
+        fetchCallTicks();
+        fetchNotifications();
+        renderBell();
+        refreshCurrentView();
       }
       $("evBtnCmot").addEventListener("click", function(){ switchEvent("CMOT"); });
       $("evBtnIffi").addEventListener("click", function(){ switchEvent("IFFI"); });
@@ -1717,7 +2032,7 @@ function setVehicleStatus_(data) {
           renderRemarks();
           if(state.adminOpen) renderAdmin();
           postToHook({ action:"add", guestId:r.guestId, guestName:r.guestName, remark:r.remark, author:r.author, time:r.time })
-            .then(function(){ fetchRemarks(true); toast("Remark saved to the sheet", 4000); })
+            .then(function(){ fetchRemarks(true); recordAction("Remark added", r.guestName, r.remark, "Remark added for "+r.guestName+": "+r.remark); toast("Remark saved to the sheet", 4000); })
             .catch(function(){ toast("Remark is shown here, but saving to the sheet failed — check the webhook URL in Settings"); });
         }else{
           var loc = localRemarks();
@@ -1726,6 +2041,7 @@ function setVehicleStatus_(data) {
           allRemarks = loc;
           renderRemarks();
           if(state.adminOpen) renderAdmin();
+          recordAction("Remark added", r.guestName, r.remark, "Remark added for "+r.guestName+": "+r.remark);
           toast("Remark saved on this phone", 4000);
         }
       }
@@ -1751,6 +2067,7 @@ function setVehicleStatus_(data) {
       function deleteRemark(r){
         if(!canDelete(r)){ toast("You can only delete your own remarks"); return; }
         allRemarks = allRemarks.filter(function(x){ return !sameRemark(x, r); });
+        recordAction("Remark deleted", r.guestName, r.remark, "Remark deleted for "+(r.guestName||"a guest")+": "+r.remark);
         if(state.detailOpen) renderRemarks();
         if(state.adminOpen) renderAdmin();
         if(hookUrl()){
@@ -1917,6 +2234,7 @@ function setVehicleStatus_(data) {
               return;
             }
             applyLocationToRows(vehicleNo, link);
+            recordAction("Live location saved", vehicleNo, link, "Live location link saved for vehicle "+vehicleNo);
             state.lastUpdated = hhmmss(new Date());
             updateBanner();
             render();
@@ -1929,6 +2247,7 @@ function setVehicleStatus_(data) {
           });
         }else{
           saveLocalLocation(vehicleNo, link);
+          recordAction("Live location saved", vehicleNo, link, "Live location link saved for vehicle "+vehicleNo);
           applyLocationToRows(vehicleNo, link);
           state.lastUpdated = hhmmss(new Date());
           updateBanner();
@@ -2031,6 +2350,7 @@ function setVehicleStatus_(data) {
         setSendable($("vstatDepartedBtn"), !isSample && !!rec && rec.status==="REPORTED");
         $("vstatPracticeNote").style.display = isSample ? "" : "none";
         $("vstatLocalNote").style.display = (!isSample && !hookUrl()) ? "" : "none";
+        renderLegs();
       }
       function markVehicleStatus(status){
         var g = state.current;
@@ -2056,6 +2376,7 @@ function setVehicleStatus_(data) {
               }
               vehicleStatusMap[vehicle] = newRec;
               applyVehicleStatusToRows(vehicle, newRec);
+              recordAction(status==="DEPARTED" ? "Vehicle departed" : "Vehicle reported", vehicle, vehicleStatusLabel(newRec), "Vehicle "+vehicle+" marked "+(status==="DEPARTED" ? "Departed" : "Reported"));
               state.lastUpdated = hhmmss(new Date());
               updateBanner();
               render();
@@ -2066,6 +2387,7 @@ function setVehicleStatus_(data) {
             });
         }else{
           saveLocalVehicleStatus(vehicle, newRec);
+          recordAction(status==="DEPARTED" ? "Vehicle departed" : "Vehicle reported", vehicle, vehicleStatusLabel(newRec), "Vehicle "+vehicle+" marked "+(status==="DEPARTED" ? "Departed" : "Reported"));
           vehicleStatusMap[vehicle] = newRec;
           applyVehicleStatusToRows(vehicle, newRec);
           render();
@@ -2210,6 +2532,21 @@ function setVehicleStatus_(data) {
       }
 
       function loadGuests(guests, source){
+        /* Bell: diff the freshly loaded sheet against what this phone was
+           already showing — a vehicle changed, an entry added, an entry
+           removed. Only sheet-link loads on both sides can diff (an
+           uploaded file is a frozen snapshot), and never the first load.
+           Diff notifications stay on this phone: every phone detects the
+           same change itself, so posting them would duplicate the shared
+           history. */
+        try{
+          var prevGuests = state.guests;
+          var prevWasSheet = !!(state.source && state.source.kind==="real" && state.source.url);
+          var newIsSheet = !!(source && source.kind==="real" && source.url);
+          if(prevWasSheet && newIsSheet && prevGuests && prevGuests.length && guests && currentUser){
+            diffGuestsForBell(prevGuests, guests);
+          }
+        }catch(e){}
         applyLocalLocations(guests);
         applyKnownVehicleStatuses(guests);
         state.guests = guests;
@@ -2289,6 +2626,11 @@ function setVehicleStatus_(data) {
         }
         fetchRemarks(true);
         fetchVehicleStatuses(true);
+        fetchLegs(true);
+        fetchCallTicks();
+        fetchNotifications();
+        if(state.adminOpen){ renderSummary(); fetchActivity(); }
+        refreshCurrentView();
       });
 
       /* ---------- Live auto-refresh: every 30 seconds while the page is visible ---------- */
@@ -2300,6 +2642,11 @@ function setVehicleStatus_(data) {
         if(rosterLinkUrl()) loadRoster(state.source.url);
         if(hookUrl()) fetchRemarks(true);
         if(hookUrl()) fetchVehicleStatuses(true);
+        fetchLegs(true);
+        fetchCallTicks();
+        fetchNotifications();
+        if(state.adminOpen){ renderSummary(); }
+        if(state.view && state.view!=="guests") refreshCurrentView();
       }
       setInterval(autoRefresh, REFRESH_MS);
 
@@ -2327,7 +2674,7 @@ function setVehicleStatus_(data) {
       });
 
       /* ---------- Option C: template + sample ---------- */
-      var HEADERS = ["Guest ID","Guest Name","Phone","Country Code","Designation","Type","Date","Time","Flight No","Airport","Hotel","Venue","Pickup Point","Drop Point","Vehicle No","Vehicle Type","Driver Name","Driver Contact","Status","Live Location Link"];
+      var HEADERS = ["Guest ID","Guest Name","Phone","Country Code","Designation","Type","Date","Time","Flight No","Airport","Hotel","Venue","Pickup Point","Drop Point","Vehicle No","Vehicle Type","Driver Name","Driver Contact","Status","Live Location Link","Usage Type","Start Date","End Date"];
       $("tplBtn").addEventListener("click", function(){
         var csv = HEADERS.join(",")+"\n";
         var blob = new Blob([csv], {type:"text/csv"});
@@ -2340,9 +2687,9 @@ function setVehicleStatus_(data) {
       });
 
       var SAMPLE = [
-        {guestId:"SAMPLE-1", name:"Aarav Kapoor", designation:"Delegate, Film Bazaar", phone:"9000000001", cc:"91", flight:"6E 531", date:"20 Nov 2026", time:"11:40 AM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Cidade de Goa - Horizon", hotel:"Cidade de Goa - Horizon", vehType:"Innova Crysta", vehNo:"GA 07 S 1001", driver:"Sample Driver Ramesh", driverPhone:"9000000011", pax:"2", status:"Confirmed", remarks:"Sample row — replace with real data"},
-        {guestId:"SAMPLE-2", name:"Meera Nair", designation:"Jury Member", phone:"9000000002", cc:"91", flight:"AI 867", date:"20 Nov 2026", time:"1:15 PM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Taj Vivanta Panjim", hotel:"Taj Vivanta Panjim", vehType:"Innova Crysta", vehNo:"GA 07 S 1002", driver:"Sample Driver Suresh", driverPhone:"9000000012", pax:"1", status:"Confirmed", remarks:"Sample row — replace with real data"},
-        {guestId:"SAMPLE-3", name:"Daniel D'Souza", designation:"Media", phone:"9000000003", cc:"91", flight:"", date:"21 Nov 2026", time:"9:00 AM", type:"Shuttle", from:"Fortune Miramar", to:"ESG Maquinez Palace", hotel:"Fortune Miramar", venue:"ESG Maquinez Palace", vehType:"Sedan", vehNo:"GA 07 S 1003", driver:"Sample Driver Prakash", driverPhone:"9000000013", pax:"3", status:"Confirmed", remarks:"Sample row — replace with real data"},
+        {guestId:"SAMPLE-1", name:"Aarav Kapoor", designation:"Delegate, Film Bazaar", phone:"9000000001", cc:"91", flight:"6E 531", date:"20 Nov 2026", time:"11:40 AM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Cidade de Goa - Horizon", hotel:"Cidade de Goa - Horizon", vehType:"Innova Crysta", vehNo:"GA 07 S 1001", driver:"Sample Driver Ramesh", driverPhone:"9000000011", pax:"2", status:"Confirmed", remarks:"Sample row — replace with real data", usageType:"Dedicated", startDate:"20 Nov 2026", endDate:"24 Nov 2026"},
+        {guestId:"SAMPLE-2", name:"Meera Nair", designation:"Jury Member", phone:"9000000002", cc:"91", flight:"AI 867", date:"20 Nov 2026", time:"1:15 PM", type:"Arrival", airport:"Dabolim Airport (GOI)", from:"Dabolim Airport (GOI)", to:"Taj Vivanta Panjim", hotel:"Taj Vivanta Panjim", vehType:"Innova Crysta", vehNo:"GA 07 S 1002", driver:"Sample Driver Suresh", driverPhone:"9000000012", pax:"1", status:"Confirmed", remarks:"Sample row — replace with real data", usageType:"Rotation"},
+        {guestId:"SAMPLE-3", name:"Daniel D'Souza", designation:"Media", phone:"9000000003", cc:"91", flight:"", date:"21 Nov 2026", time:"9:00 AM", type:"Shuttle", from:"Fortune Miramar", to:"ESG Maquinez Palace", hotel:"Fortune Miramar", venue:"ESG Maquinez Palace", vehType:"Sedan", vehNo:"GA 07 S 1003", driver:"Sample Driver Prakash", driverPhone:"9000000013", pax:"3", status:"Confirmed", remarks:"Sample row — replace with real data", usageType:"Shuttle"},
         {guestId:"SAMPLE-4", name:"Kavita Rao", designation:"Speaker, WAVES", phone:"9000000004", cc:"91", flight:"UK 863", date:"24 Nov 2026", time:"6:30 PM", type:"Departure", airport:"Mopa Airport (GOX)", from:"Novotel Goa Panjim", to:"Mopa Airport (GOX)", hotel:"Novotel Goa Panjim", vehType:"Sedan", vehNo:"GA 07 S 1004", driver:"Sample Driver Anil", driverPhone:"9000000014", pax:"1", status:"Confirmed", remarks:"Sample row — replace with real data"}
       ];
       $("sampleBtn").addEventListener("click", function(){
@@ -2592,6 +2939,8 @@ function setVehicleStatus_(data) {
         if(m && MON[m[2].slice(0,3)]) return days(m[3] ? +m[3] : 2026, MON[m[2].slice(0,3)], +m[1]);
         m = s.match(/([a-z]+)\s+(\d{1,2})\s*(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?/);
         if(m && MON[m[1].slice(0,3)]) return days(m[3] ? +m[3] : 2026, MON[m[1].slice(0,3)], +m[2]);
+        m = s.match(/(\d{1,2})[-\s]([a-z]{3})[a-z]*(?:\s*,?\s*(\d{4}))?/);
+        if(m && MON[m[2]]) return days(m[3] ? +m[3] : 2026, MON[m[2]], +m[1]);
         var t = Date.parse(clean(raw));
         if(!isNaN(t)){
           var dt = new Date(t);
@@ -2829,12 +3178,20 @@ function setVehicleStatus_(data) {
           if(clean(rk)) meta.push("<span>Remark: <b>"+esc(clean(rk))+"</b></span>");
           if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
           if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
+          var uTxt = usageForGuest(g);
+          if(uTxt==="Dedicated"){
+            var dStart=startForGuest(g), dEnd=endForGuest(g);
+            if(dStart||dEnd) meta.push("<span>Dedicated: <b>"+esc(dStart||"?")+" \u2192 "+esc(dEnd||"?")+"</b></span>");
+            var endSoon = endingSoonInfo(g);
+            if(endSoon) meta.push("<span><b>Dedicated ending "+endSoon+" \u2014 vehicle can be re-pooled</b></span>");
+          }
           var vsRec = vehicleStatusFor(g);
           var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
           var cardHtml = '<button class="card" type="button" data-idx="'+idx+'">'
             + '<span class="nm">'+esc(g.name||"Unnamed guest")
             + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
             + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
+            + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
             + vsBadge
             + "</span>"
             + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
@@ -3106,6 +3463,9 @@ function setVehicleStatus_(data) {
         if(!currentUser || !currentUser.isAdmin) return;
         state.adminOpen = true;
         renderAdmin();
+        renderSummary();
+        renderActivity();
+        fetchActivity();
         renderTeam();
         $("adminOverlay").classList.add("open");
         $("adminOverlay").scrollTop = 0;
@@ -3120,7 +3480,7 @@ function setVehicleStatus_(data) {
       $("adminCloseBtn").addEventListener("click", closeAdmin);
       $("adminBackBtn").addEventListener("click", closeAdmin);
       document.addEventListener("keydown", function(e){
-        if(e.key==="Escape"){ closeDetail(); closeAdmin(); }
+        if(e.key==="Escape"){ closeDetail(); closeAdmin(); closeBell(); closeDrawer(); }
       });
 
       /* ---------- Admin — team members ---------- */
@@ -3241,6 +3601,7 @@ function setVehicleStatus_(data) {
             return;
           }
           var nm = member.name;
+          recordAction("Password reset", nm, "New password year "+yob, "Password reset for "+nm+" — new password is the birth year "+yob);
           member.dob = dob;
           var successMsg = "Password reset — "+nm+"'s new password is the birth year "+yob;
           pendingResetMobile = null;
@@ -3282,6 +3643,7 @@ function setVehicleStatus_(data) {
           }
           if(!roster) roster = [];
           if(!findMemberByMobile(mobile)) roster.push({ name:name, mobile:mobile, dob:dob, role:role });
+          recordAction("Member added", name, mobile, "Team member added: "+name+" ("+mobile+")");
           $("teamName").value = "";
           $("teamMobile").value = "";
           $("teamDob").value = "";
@@ -3315,6 +3677,7 @@ function setVehicleStatus_(data) {
             setTeamStatus("Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup).", "err");
             return;
           }
+          recordAction("Member removed", member.name, mob, "Team member removed: "+member.name+" ("+mob+")");
           roster = roster.filter(function(m){ return normalizeMobile(m.mobile) !== mob; });
           if(!roster.length) roster = null;
           renderTeam();
@@ -3422,6 +3785,867 @@ function setVehicleStatus_(data) {
         }
       })();
 
+
+      /* ================= v29 — USAGE TYPE, TODAY (IST), VEHICLE AGGREGATES =================
+         Usage Type comes from the sheet (canonical owner columns: "Usage Type"
+         with Dedicated / Rotation / Shuttle, plus "Start Date" / "End Date" for
+         dedicated assignments; header synonyms live in FIELDS). A usage value
+         set on ANY row of a vehicle applies to the whole vehicle. */
+      function usageCanon(raw){
+        var n = norm(raw);
+        if(!n) return "";
+        if(n.indexOf("dedicat")>-1) return "Dedicated";
+        if(n.indexOf("rotat")>-1) return "Rotation";
+        if(n.indexOf("shuttle")>-1) return "Shuttle";
+        if(n.indexOf("one")>-1 || n.indexOf("pick")>-1 || n.indexOf("drop")>-1) return "One-way / Pick-and-drop";
+        return clean(raw);
+      }
+      function istNow(){ return new Date(Date.now() + (5*60 + 30)*60000); }
+      function istTodayDays(){
+        var n = istNow();
+        return Math.floor(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())/86400000);
+      }
+      function istDateStr(){
+        var n = istNow();
+        return n.getUTCFullYear()+"-"+("0"+(n.getUTCMonth()+1)).slice(-2)+"-"+("0"+n.getUTCDate()).slice(-2);
+      }
+      function istTodayLabel(){
+        var n = istNow();
+        return n.getUTCDate()+" "+MONTHS[n.getUTCMonth()]+" "+n.getUTCFullYear();
+      }
+      function isTodayGuest(g){ return !!g && parseGuestDateDays(g.date)===istTodayDays(); }
+      function dedicatedCoversToday(g){
+        if(!g) return false;
+        var s = parseGuestDateDays(g.startDate), e = parseGuestDateDays(g.endDate), td = istTodayDays();
+        if(s===null && e===null) return false;
+        if(s!==null && td<s) return false;
+        if(e!==null && td>e) return false;
+        return true;
+      }
+      function coversToday(g){ return isTodayGuest(g) || dedicatedCoversToday(g); }
+      function vehAggMap(){
+        var m = {};
+        state.guests.forEach(function(g){
+          var k = vehKey(g.vehNo);
+          if(!k) return;
+          if(!m[k]) m[k] = { no:k, usage:"", start:"", end:"", driver:"", driverPhone:"", hotel:"", liveLocation:"", guests:[], hasToday:false };
+          var a = m[k];
+          if(!a.usage) a.usage = usageCanon(g.usageType);
+          if(!a.start) a.start = clean(g.startDate);
+          if(!a.end) a.end = clean(g.endDate);
+          if(!a.driver) a.driver = clean(g.driver);
+          if(!a.driverPhone) a.driverPhone = clean(g.driverPhone);
+          if(!a.hotel) a.hotel = clean(g.hotel);
+          if(!a.liveLocation) a.liveLocation = clean(g.liveLocation);
+          a.guests.push(g);
+          if(coversToday(g)) a.hasToday = true;
+        });
+        return m;
+      }
+      function usageForGuest(g){
+        var u = usageCanon(g && g.usageType);
+        if(u) return u;
+        var a = vehAggMap()[vehKey(g && g.vehNo)];
+        return a ? a.usage : "";
+      }
+      function startForGuest(g){
+        if(clean(g && g.startDate)) return clean(g.startDate);
+        var a = vehAggMap()[vehKey(g && g.vehNo)];
+        return a ? a.start : "";
+      }
+      function endForGuest(g){
+        if(clean(g && g.endDate)) return clean(g.endDate);
+        var a = vehAggMap()[vehKey(g && g.vehNo)];
+        return a ? a.end : "";
+      }
+      function endingSoonInfo(g){
+        if(usageForGuest(g)!=="Dedicated") return "";
+        var e = parseGuestDateDays(endForGuest(g)), td = istTodayDays();
+        if(e===null) return "";
+        if(e===td) return "today";
+        if(e===td+1) return "tomorrow";
+        return "";
+      }
+
+      /* ================= v29 — BELL NOTIFICATIONS =================
+         Two sources: (1) tool actions by any member — recorded here by the
+         acting phone and, with a webhook, appended to the sheet's
+         "Notifications" tab so every member sees the same history;
+         (2) sheet-side changes detected by diffing each fresh sheet load
+         against what this phone was already showing (vehicle changed /
+         entry added / entry removed) — phone-local by design, because
+         every phone detects the same change itself. Without a webhook the
+         history is phone-local and the bell panel says so. Reading the
+         list never clears it; only Dismiss does (per phone). */
+      var sharedNotifs = [];
+      var notifListArr = [];
+      function notifsKey(){ return LS_NOTIFS+"-"+evLc(activeEvent); }
+      function dismissedKey(){ return LS_NOTIF_DISMISSED+"-"+evLc(activeEvent); }
+      function localNotifs(){ var r = lsGetJSON(notifsKey(), []); return Array.isArray(r) ? r : []; }
+      function dismissedIds(){ var r = lsGetJSON(dismissedKey(), []); return Array.isArray(r) ? r : []; }
+      function notifId(n){ return String(n && n.time)+"|"+String(n && n.by||"")+"|"+String(n && n.text||""); }
+      function normalizeNotif(r){
+        r = r || {};
+        var tm = r.time;
+        if(tm && typeof tm!=="string"){ var d = new Date(tm); tm = isNaN(d.getTime()) ? String(tm) : d.toISOString(); }
+        return { time:String(tm==null?"":tm), by:String(r.by!=null?r.by:(r.author||"")), text:String(r.text==null?"":r.text), kind:String(r.kind==null?"":r.kind) };
+      }
+      function mergeNotifs(){
+        var seen = {}, out = [];
+        localNotifs().concat(sharedNotifs).forEach(function(r){
+          var n = normalizeNotif(r), id = notifId(n);
+          if(!n.text || seen[id]) return;
+          seen[id] = 1; out.push(n);
+        });
+        out.sort(function(a,b){ return String(a.time) < String(b.time) ? -1 : (String(a.time) > String(b.time) ? 1 : 0); });
+        notifListArr = out;
+      }
+      function addNotif(kind, text, by, skipPost){
+        var n = { time:new Date().toISOString(), kind:kind||"action", text:String(text||""), by:String(by||(currentUser ? currentUser.name : "")) };
+        if(!n.text) return;
+        var list = localNotifs(), id = notifId(n), dup = false;
+        list.forEach(function(x){ if(notifId(normalizeNotif(x))===id) dup = true; });
+        if(!dup){ list.push(n); lsSetJSON(notifsKey(), list); }
+        mergeNotifs();
+        renderBell();
+        if(!skipPost && hookUrl()){
+          postToHook({ action:"notify", time:n.time, by:n.by, text:n.text, kind:n.kind }).catch(function(){});
+        }
+      }
+      function fetchNotifications(){
+        if(!hookUrl()){ sharedNotifs = []; mergeNotifs(); renderBell(); return; }
+        var hook = hookUrl();
+        fetch(freshUrl(hook + (hook.indexOf("?")>-1 ? "&" : "?") + "view=notifications"), {cache:"no-store"})
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if(Array.isArray(data)) sharedNotifs = data.map(normalizeNotif);
+            mergeNotifs();
+            renderBell();
+          }).catch(function(){});
+      }
+      function unreadNotifCount(){
+        var d = dismissedIds();
+        return notifListArr.filter(function(n){ return d.indexOf(notifId(n))<0; }).length;
+      }
+      function renderBell(){
+        var c = $("bellCount");
+        if(c){
+          var n = unreadNotifCount();
+          c.textContent = String(n);
+          c.style.display = n ? "" : "none";
+        }
+        var ln = $("notifLocalNote");
+        if(ln){
+          if(!hookUrl()){
+            ln.textContent = "Saved on this phone only — set the webhook URL to share notifications with the team.";
+            ln.style.display = "";
+          }else ln.style.display = "none";
+        }
+        var sn = $("notifSheetNote");
+        if(sn){
+          var sheetLinked = !!(state.source && state.source.kind==="real" && state.source.url);
+          if(!sheetLinked && state.guests.length){
+            sn.textContent = "Sheet changes (vehicle changed / entry added / entry removed) can only be detected when the data comes from a linked Google Sheet — this data came from an uploaded file or sample rows, so only team actions in the tool appear here.";
+            sn.style.display = "";
+          }else sn.style.display = "none";
+        }
+        var box = $("notifList");
+        if(box && $("bellOverlay") && $("bellOverlay").classList.contains("open")) renderNotifList();
+      }
+      function renderNotifList(){
+        var box = $("notifList");
+        if(!box) return;
+        var d = dismissedIds();
+        var list = notifListArr.slice().reverse();
+        if(!list.length){
+          box.innerHTML = '<p class="cols-note" style="margin:6px 0">Nothing yet — changes and team actions will appear here.</p>';
+          return;
+        }
+        box.innerHTML = list.map(function(n){
+          var id = notifId(n), read = d.indexOf(id)>=0;
+          return '<div class="notif'+(read ? " read" : " unread")+'">'
+            + '<div class="ntext">'+esc(n.text)+"</div>"
+            + '<div class="nmeta"><span>'+esc(n.by||"")+(n.by ? " · " : "")+esc(fmtDT(n.time))+"</span>"
+            + (read ? "<span>Dismissed</span>" : '<button class="btn small" type="button" data-dismiss="'+esc(id)+'">Dismiss</button>')
+            + "</div></div>";
+        }).join("");
+      }
+      function dismissNotif(id){
+        var d = dismissedIds();
+        if(d.indexOf(id)<0){ d.push(id); lsSetJSON(dismissedKey(), d); }
+        renderBell();
+        renderNotifList();
+      }
+      function openBell(){
+        mergeNotifs();
+        renderBell();
+        renderNotifList();
+        $("bellOverlay").classList.add("open");
+        $("bellOverlay").scrollTop = 0;
+        document.body.style.overflow = "hidden";
+        fetchNotifications();
+      }
+      function closeBell(){
+        var o = $("bellOverlay");
+        if(o) o.classList.remove("open");
+        if(!state.detailOpen && !state.adminOpen && !$("loginGate").classList.contains("open")) document.body.style.overflow = "";
+      }
+
+      /* ================= v29 — ACTIVITY (admin) =================
+         Every tool write is recorded twice over: in this phone's local log
+         (always) and — through the webhook — in the sheet's "Activity" tab
+         by the Apps Script itself (Date | Time | By | Action | Vehicle/Guest
+         | Details), which is the shared record the admin reads back here.
+         Phone-local entries are labelled honestly when no webhook is set. */
+      var sharedActivity = [];
+      function localActivityKey(){ return LS_LOCAL_ACTIVITY+"-"+evLc(activeEvent); }
+      function localActivity(){ var r = lsGetJSON(localActivityKey(), []); return Array.isArray(r) ? r : []; }
+      function recordAction(action, target, details, notifText){
+        try{
+          var list = localActivity();
+          list.push({ date:istDateStr(), time:hhmmss(new Date()), by:currentUser ? currentUser.name : "", action:String(action||""), target:String(target||""), details:String(details||""), ts:new Date().toISOString() });
+          if(list.length>500) list = list.slice(list.length-500);
+          lsSetJSON(localActivityKey(), list);
+        }catch(e){}
+        if(notifText) addNotif("action", notifText, currentUser ? currentUser.name : "", false);
+        if(state.adminOpen) renderActivity();
+      }
+      function activityKeyOf(a){ return [a.date,a.time,a.by,a.action,a.target].join("|"); }
+      function mergedActivity(){
+        var seen = {}, out = [];
+        localActivity().concat(sharedActivity).forEach(function(a){
+          if(!a) return;
+          var n = { date:String(a.date||""), time:String(a.time||""), by:String(a.by||""), action:String(a.action||""), target:String(a.target!=null?a.target:(a["Vehicle/Guest"]||"")), details:String(a.details||""), ts:String(a.ts||"") };
+          var k = activityKeyOf(n);
+          if(seen[k]) return;
+          seen[k] = 1; out.push(n);
+        });
+        out.sort(function(x,y){
+          var kx = x.date+" "+x.time, ky = y.date+" "+y.time;
+          if(kx!==ky) return kx < ky ? 1 : -1;
+          return x.ts < y.ts ? 1 : (x.ts > y.ts ? -1 : 0);
+        });
+        return out;
+      }
+      function fetchActivity(){
+        if(!currentUser || !currentUser.isAdmin) return;
+        if(!hookUrl()){ sharedActivity = []; renderActivity(); return; }
+        var hook = hookUrl();
+        fetch(freshUrl(hook + (hook.indexOf("?")>-1 ? "&" : "?") + "view=activity"), {cache:"no-store"})
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if(Array.isArray(data)) sharedActivity = data;
+            renderActivity();
+          }).catch(function(){});
+      }
+      function renderActivity(){
+        var box = $("activityList");
+        if(!box) return;
+        var note = $("activityLocalNote");
+        if(note) note.style.display = hookUrl() ? "none" : "";
+        var list = mergedActivity();
+        if(!list.length){
+          box.innerHTML = '<p class="cols-note" style="margin:6px 0">No activity yet — markings, remarks, location links, call ticks and team changes will appear here with who did them and when.</p>';
+          return;
+        }
+        box.innerHTML = list.slice(0,200).map(function(a){
+          return '<div class="remark"><div class="rguest">'+esc(a.action||"Update")+(a.target ? ' — <span style="font-weight:600">'+esc(a.target)+"</span>" : "")+"</div>"
+            + (a.details ? '<div class="rtext">'+esc(a.details)+"</div>" : "")
+            + '<div class="rmeta"><span>'+esc(a.by||"")+(a.by ? " · " : "")+esc(a.date||"")+" "+esc(a.time||"")+"</span></div></div>";
+        }).join("");
+      }
+      function renderSummary(){
+        var box = $("adminSummary");
+        if(!box) return;
+        var today = state.guests.filter(function(g){ return coversToday(g); });
+        var done = 0;
+        today.forEach(function(g){
+          var rec = vehicleStatusFor(g);
+          if((rec && rec.status==="DEPARTED") || openLeg(g.vehNo)) done++;
+        });
+        var vehOut = {};
+        Object.keys(vehicleStatusMap).forEach(function(k){ if(vehicleStatusMap[k] && vehicleStatusMap[k].status==="DEPARTED") vehOut[k] = 1; });
+        Object.keys(legsMap).forEach(function(k){ if(openLeg(k)) vehOut[k] = 1; });
+        var calls = 0, tk = istDateStr();
+        Object.keys(callTicksMap).forEach(function(k){ if(k.indexOf(tk+"|")===0) calls++; });
+        box.innerHTML = '<div class="meta" style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.95rem">'
+          + "<span>Arriving today: <b>"+today.length+"</b></span>"
+          + "<span>Pickups done: <b>"+done+"</b></span>"
+          + "<span>Pending pickups: <b>"+(today.length-done)+"</b></span>"
+          + "<span>Vehicles out: <b>"+Object.keys(vehOut).length+"</b></span>"
+          + "<span>Driver calls made today: <b>"+calls+"</b></span>"
+          + "</div>"
+          + '<p class="cols-note" style="margin:6px 0 0">For '+esc(istTodayLabel())+" (IST) · "+esc(activeEvent)+". A pickup counts as done when its vehicle is marked Departed or is on an open trip.</p>";
+      }
+
+      /* ================= v29 — SHEET DIFF FOR THE BELL ================= */
+      function diffGuestsForBell(oldList, newList){
+        /* Rows are grouped by remarkKey (name|phone), but a group can hold
+           more than one real row (duplicate name+phone, e.g. the same guest
+           on two vehicles). Within a group, rows are matched as a multiset
+           by vehicle number, so removing or re-vehicling ONE row of a
+           duplicate pair still fires a notification instead of collapsing
+           into the surviving row. */
+        function groupByKey(list){
+          var m = {};
+          list.forEach(function(g){ var k = remarkKey(g); (m[k] = m[k] || []).push(g); });
+          return m;
+        }
+        function newEntryText(n){ return "New entry added: "+(clean(n.name)||"Unnamed guest")+(clean(n.flight) ? " · Flight "+clean(n.flight) : "")+(clean(n.date) ? " · "+clean(n.date) : ""); }
+        function removedText(o){ return "Entry removed: "+(clean(o.name)||"Unnamed guest")+(clean(o.flight) ? " · Flight "+clean(o.flight) : ""); }
+        var oldMap = groupByKey(oldList), newMap = groupByKey(newList);
+        Object.keys(newMap).forEach(function(k){
+          var news = newMap[k], olds = oldMap[k];
+          if(!olds){
+            news.forEach(function(n){ addNotif("sheet", newEntryText(n), "Sheet", true); });
+            return;
+          }
+          var oldCounts = {};
+          olds.forEach(function(o){ var v = vehKey(o.vehNo); oldCounts[v] = (oldCounts[v]||0)+1; });
+          var addedRows = [];
+          news.forEach(function(n){
+            var v = vehKey(n.vehNo);
+            if(oldCounts[v] > 0) oldCounts[v]--;
+            else addedRows.push(n);
+          });
+          var removedRows = [];
+          olds.forEach(function(o){
+            var v = vehKey(o.vehNo);
+            if(oldCounts[v] > 0){ oldCounts[v]--; removedRows.push(o); }
+          });
+          if(olds.length===news.length && removedRows.length && removedRows.length===addedRows.length){
+            for(var i=0;i<removedRows.length;i++){
+              addNotif("sheet", "Vehicle changed for "+(clean(addedRows[i].name)||"a guest")+": "+(vehKey(removedRows[i].vehNo)||"none")+" \u2192 "+(vehKey(addedRows[i].vehNo)||"none"), "Sheet", true);
+            }
+          }else{
+            removedRows.forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
+            addedRows.forEach(function(n){ addNotif("sheet", newEntryText(n), "Sheet", true); });
+          }
+        });
+        Object.keys(oldMap).forEach(function(k){
+          if(!newMap[k]){
+            oldMap[k].forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
+          }
+        });
+      }
+
+      /* ================= v29 — VEHICLE LEGS (rotation / shuttle trips) =================
+         A leg is one trip of one vehicle: from \u2192 to, with departed and
+         arrived times and who marked each. With a webhook, legs save through
+         the addLeg / arriveLeg actions into the "Vehicle Legs" tab and load
+         back for everyone; without one they are phone-local and labelled.
+         The stale-webhook rule applies exactly as for vehicle status: the
+         tool only claims success on {ok:true, updated:1}. */
+      var legsMap = {};
+      function localLegsKey(){ return LS_LOCAL_LEGS+"-"+evLc(activeEvent); }
+      function normalizeLeg(r){
+        if(!r) return null;
+        var vehicle = vehKey(r.vehicle!=null ? r.vehicle : r.vehicleNo);
+        if(!vehicle) return null;
+        return { vehicle:vehicle, from:String(r.from==null?"":r.from), to:String(r.to==null?"":r.to),
+                 departTime:String(r.departTime==null?"":r.departTime), departBy:String(r.departBy==null?"":r.departBy),
+                 arriveTime:String(r.arriveTime==null?"":r.arriveTime), arriveBy:String(r.arriveBy==null?"":r.arriveBy) };
+      }
+      function localLegs(){
+        var m = lsGetJSON(localLegsKey(), {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var arr = Array.isArray(m[k]) ? m[k] : [];
+          out[k] = arr.map(normalizeLeg).filter(Boolean);
+        });
+        return out;
+      }
+      function saveLocalLegs(){ lsSetJSON(localLegsKey(), legsMap); }
+      function legsFor(vehicle){
+        var arr = (legsMap[vehKey(vehicle)]||[]).slice();
+        arr.sort(function(a,b){ return String(a.departTime) < String(b.departTime) ? -1 : (String(a.departTime) > String(b.departTime) ? 1 : 0); });
+        return arr;
+      }
+      function openLeg(vehicle){
+        var arr = legsFor(vehicle);
+        for(var i=arr.length-1;i>=0;i--){ if(arr[i].departTime && !arr[i].arriveTime) return arr[i]; }
+        return null;
+      }
+      function latestLeg(vehicle){
+        var arr = legsFor(vehicle);
+        return arr.length ? arr[arr.length-1] : null;
+      }
+      function applyLegsList(list){
+        var m = {};
+        (list||[]).forEach(function(r){
+          var leg = normalizeLeg(r);
+          if(!leg) return;
+          if(!m[leg.vehicle]) m[leg.vehicle] = [];
+          m[leg.vehicle].push(leg);
+        });
+        legsMap = m;
+      }
+      function fetchLegs(quiet){
+        if(!hookUrl()){
+          legsMap = localLegs();
+          if(state.detailOpen) renderLegs();
+          if(state.view==="vehicles") renderVehicles();
+          return;
+        }
+        var hook = hookUrl();
+        fetch(freshUrl(hook + (hook.indexOf("?")>-1 ? "&" : "?") + "view=legs"), {cache:"no-store"})
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if(Array.isArray(data)) applyLegsList(data);
+            if(state.detailOpen) renderLegs();
+            if(state.view==="vehicles") renderVehicles();
+            if(state.adminOpen) renderSummary();
+          }).catch(function(){
+            if(!quiet) toast("Could not load vehicle trips — check the webhook URL in Settings");
+          });
+      }
+      function legDestOptions(g){
+        var seen = {}, out = [];
+        function push(v){ v = clean(v); if(v && !seen[v]){ seen[v] = 1; out.push(v); } }
+        push(dropPoint(g));
+        push(g && g.to);
+        push(g && g.hotel);
+        push(g && g.from);
+        push("Dabolim Airport");
+        push("Mopa Airport");
+        push("Kala Academy");
+        push("ESG Maquinez Palace");
+        push("Taj Cidade");
+        return out;
+      }
+      function renderLegs(){
+        var g = state.current;
+        var sec = $("legSection");
+        if(!sec || !g) return;
+        var vehicle = vehKey(g.vehNo);
+        var note = $("legLocalNote");
+        if(note) note.style.display = (!g._sample && !hookUrl()) ? "" : "none";
+        var pn = $("legPracticeNote");
+        if(pn) pn.style.display = g._sample ? "" : "none";
+        var range = $("dedicatedRangeLine");
+        if(range){
+          if(usageForGuest(g)==="Dedicated" && (startForGuest(g) || endForGuest(g))){
+            var es = endingSoonInfo(g);
+            range.textContent = "Dedicated vehicle: "+(startForGuest(g)||"?")+" \u2192 "+(endForGuest(g)||"?")+(es ? " — ending "+es+", vehicle can be re-pooled" : "");
+            range.style.display = "";
+          }else range.style.display = "none";
+        }
+        var sel = $("legDestSelect");
+        if(sel){
+          var prev = sel.value;
+          sel.innerHTML = legDestOptions(g).map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+"</option>"; }).join("");
+          if(prev && legDestOptions(g).indexOf(prev)>-1) sel.value = prev;
+        }
+        var open = vehicle ? openLeg(vehicle) : null;
+        setSendable($("legDepartBtn"), !g._sample && !!vehicle && !open);
+        setSendable($("legArriveBtn"), !g._sample && !!vehicle && !!open);
+        var tl = $("legTimeline");
+        if(tl){
+          if(!vehicle){ tl.innerHTML = '<p class="cols-note" style="margin:6px 0">No vehicle number on this row yet.</p>'; return; }
+          var legs = legsFor(vehicle);
+          if(!legs.length){ tl.innerHTML = '<p class="cols-note" style="margin:6px 0">No trips marked yet for vehicle '+esc(vehicle)+".</p>"; return; }
+          tl.innerHTML = '<p class="cols-note" style="margin:6px 0;font-weight:700">Vehicle reporting — trips of '+esc(vehicle)+"</p>" + legs.map(function(l){
+            return '<div class="remark"><div class="rtext"><b>'+esc(l.from||"\u2014")+" \u2192 "+esc(l.to||"\u2014")+"</b></div>"
+              + '<div class="rmeta"><span>Departed '+esc(fmtDT(l.departTime))+(l.departBy ? " · "+esc(l.departBy) : "")
+              + (l.arriveTime ? " · Arrived "+esc(fmtDT(l.arriveTime))+(l.arriveBy ? " · "+esc(l.arriveBy) : "") : " · On the way")
+              + "</span></div></div>";
+          }).join("");
+        }
+      }
+      function markLegDepart(){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var vehicle = vehKey(g.vehNo);
+        if(!vehicle){ toast("No vehicle number on this row"); return; }
+        if(openLeg(vehicle)){ toast("This vehicle is already on a trip — mark Arrived first"); return; }
+        var sel = $("legDestSelect");
+        var to = sel ? sel.value : "";
+        if(!to){ toast("Choose the destination first"); return; }
+        var last = latestLeg(vehicle);
+        var from = (last && last.to) ? last.to : (clean(g.from) || clean(g.hotel) || "\u2014");
+        var errBox = $("legError");
+        if(errBox) errBox.textContent = "";
+        var leg = { vehicle:vehicle, from:from, to:to, departTime:new Date().toISOString(), departBy:currentUser.name, arriveTime:"", arriveBy:"" };
+        function applied(){
+          if(!legsMap[vehicle]) legsMap[vehicle] = [];
+          legsMap[vehicle].push(leg);
+          recordAction("Vehicle departed (trip)", vehicle, from+" \u2192 "+to, "Vehicle "+vehicle+" departed: "+from+" \u2192 "+to);
+          renderLegs();
+          render();
+          if(state.view==="vehicles") renderVehicles();
+          if(state.adminOpen) renderSummary();
+        }
+        if(hookUrl()){
+          postToHook({ action:"addLeg", vehicle:vehicle, from:from, to:to, time:leg.departTime, by:currentUser.name, author:currentUser.name })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help \u2192 Remarks setup)";
+                return;
+              }
+              applied();
+              toast("Vehicle marked Departed for "+to, 4000);
+            }).catch(function(){
+              if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help \u2192 Remarks setup)";
+            });
+        }else{
+          applied();
+          saveLocalLegs();
+          toast("Vehicle marked Departed for "+to+" — saved on this phone", 4000);
+        }
+      }
+      function markLegArrive(){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var vehicle = vehKey(g.vehNo);
+        var open = vehicle ? openLeg(vehicle) : null;
+        if(!open){ toast("No open trip for this vehicle — mark Departed first"); return; }
+        var errBox = $("legError");
+        if(errBox) errBox.textContent = "";
+        var at = new Date().toISOString(), by = currentUser.name;
+        function applied(){
+          open.arriveTime = at; open.arriveBy = by;
+          recordAction("Vehicle arrived (trip)", vehicle, open.from+" \u2192 "+open.to, "Vehicle "+vehicle+" arrived at "+open.to);
+          renderLegs();
+          render();
+          if(state.view==="vehicles") renderVehicles();
+          if(state.adminOpen) renderSummary();
+        }
+        if(hookUrl()){
+          postToHook({ action:"arriveLeg", vehicle:vehicle, to:open.to, time:at, by:by, author:by })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help \u2192 Remarks setup)";
+                return;
+              }
+              applied();
+              toast("Vehicle marked Arrived at "+open.to, 4000);
+            }).catch(function(){
+              if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help \u2192 Remarks setup)";
+            });
+        }else{
+          applied();
+          saveLocalLegs();
+          toast("Vehicle marked Arrived at "+open.to+" — saved on this phone", 4000);
+        }
+      }
+
+      /* ================= v29 — DAILY DRIVER CALL LIST =================
+         Unique drivers on duty today (guest rows dated today, or dedicated
+         ranges covering today). One tap Call, one tap WhatsApp with a
+         ready-made day message, and a Called tick saved with author + time
+         (sheet "Driver Calls" tab via the webhook; phone-local fallback,
+         labelled). No auto-dialling — the tap is the call. */
+      var callTicksMap = {};
+      function callTickKey(phone){ return istDateStr()+"|"+digits(phone); }
+      function localCallTicksKey(){ return LS_LOCAL_CALLTICKS+"-"+evLc(activeEvent); }
+      function localCallTicks(){
+        var m = lsGetJSON(localCallTicksKey(), {});
+        return (m && typeof m==="object" && !Array.isArray(m)) ? m : {};
+      }
+      function fetchCallTicks(){
+        if(!hookUrl()){
+          callTicksMap = localCallTicks();
+          if(state.view==="drivers") renderDrivers();
+          if(state.adminOpen) renderSummary();
+          return;
+        }
+        var hook = hookUrl();
+        fetch(freshUrl(hook + (hook.indexOf("?")>-1 ? "&" : "?") + "view=callTicks"), {cache:"no-store"})
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if(Array.isArray(data)){
+              var m = localCallTicks();
+              data.forEach(function(r){
+                var phone = digits(r.phone!=null ? r.phone : r.driverPhone);
+                var date = String(r.date||"");
+                var dm = date.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                if(dm) date = dm[1]+"-"+("0"+dm[2]).slice(-2)+"-"+("0"+dm[3]).slice(-2);
+                if(phone && date) m[date+"|"+phone] = { by:String(r.by||""), time:String(r.time||""), driverName:String(r.driverName||""), vehicle:String(r.vehicle||"") };
+              });
+              callTicksMap = m;
+            }
+            if(state.view==="drivers") renderDrivers();
+            if(state.adminOpen) renderSummary();
+          }).catch(function(){});
+      }
+      function todayDrivers(){
+        var map = {}, order = [];
+        state.guests.forEach(function(g){
+          if(!coversToday(g)) return;
+          var phone = digits(g.driverPhone);
+          var name = clean(g.driver);
+          if(!name && !phone) return;
+          var key = phone || norm(name);
+          if(!map[key]){ map[key] = { name:name, phone:clean(g.driverPhone), vehicles:{}, guests:0 }; order.push(key); }
+          var d = map[key];
+          if(!d.name) d.name = name;
+          if(!d.phone) d.phone = clean(g.driverPhone);
+          if(vehKey(g.vehNo)) d.vehicles[vehKey(g.vehNo)] = 1;
+          d.guests++;
+        });
+        return order.map(function(k){ return map[k]; });
+      }
+      function driverDayMsg(d){
+        var vehs = Object.keys(d.vehicles).join(", ");
+        return "Namaste "+(d.name||"")+", aaj ("+istTodayLabel()+") aapki duty hai"+(vehs ? " — gaadi "+vehs : "")+". Kripya time par report karein. Koi dikkat ho to desk ko call karein: 9261201083. — Fox India, IFFI Goa";
+      }
+      function markDriverCalled(idx){
+        var d = todayDrivers()[idx];
+        if(!d) return;
+        if(!currentUser){ toast("Log in first"); return; }
+        var key = callTickKey(d.phone);
+        if(callTicksMap[key]){ toast(d.name+" already marked called today"); return; }
+        var vehs = Object.keys(d.vehicles).join(", ");
+        var rec = { by:currentUser.name, time:new Date().toISOString(), driverName:d.name, vehicle:vehs };
+        function applied(){
+          callTicksMap[key] = rec;
+          var m = localCallTicks(); m[key] = rec; lsSetJSON(localCallTicksKey(), m);
+          recordAction("Driver called", d.name, vehs, "Driver called: "+d.name+(vehs ? " ("+vehs+")" : ""));
+          renderDrivers();
+          if(state.adminOpen) renderSummary();
+        }
+        if(hookUrl()){
+          postToHook({ action:"setCallTick", driverName:d.name, driverPhone:d.phone, vehicle:vehs, date:istDateStr(), time:rec.time, by:currentUser.name, author:currentUser.name })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                toast("Could not save the call tick — the webhook may be the old version. Redeploy the Apps Script as a new version");
+                return;
+              }
+              applied();
+              toast("Marked called: "+d.name, 4000);
+            }).catch(function(){
+              toast("Could not save the call tick — check the webhook URL in Settings");
+            });
+        }else{
+          applied();
+          toast("Marked called: "+d.name+" — saved on this phone", 4000);
+        }
+      }
+
+      /* ================= v29 — VIEWS (Guests / Today / Vehicles / Drivers) ================= */
+      var vehiclesFilter = "all";
+      function guestCardHtml(g){
+        var idx = state.guests.indexOf(g);
+        var meta = [];
+        if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
+        if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" \u00B7 "))+"</b></span>");
+        if(g.from) meta.push("<span>Pickup: <b>"+esc(g.from)+"</b></span>");
+        if(g.hotel) meta.push("<span>Drop: <b>"+esc(g.hotel)+"</b></span>");
+        var rk = (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark;
+        if(clean(rk)) meta.push("<span>Remark: <b>"+esc(clean(rk))+"</b></span>");
+        if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
+        if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
+        var uTxt = usageForGuest(g);
+        if(uTxt==="Dedicated"){
+          var dStart = startForGuest(g), dEnd = endForGuest(g);
+          if(dStart||dEnd) meta.push("<span>Dedicated: <b>"+esc(dStart||"?")+" \u2192 "+esc(dEnd||"?")+"</b></span>");
+          var es2 = endingSoonInfo(g);
+          if(es2) meta.push("<span><b>Dedicated ending "+es2+" \u2014 vehicle can be re-pooled</b></span>");
+        }
+        var vsRec = vehicleStatusFor(g);
+        var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
+        var html = '<button class="card" type="button" data-idx="'+idx+'">'
+          + '<span class="nm">'+esc(g.name||"Unnamed guest")
+          + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
+          + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
+          + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
+          + vsBadge
+          + "</span>"
+          + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
+          + '<span class="meta">'+meta.join("")+"</span>"
+          + "</button>";
+        var trackHtml = clean(g.liveLocation) ? '<div class="card-track"><a class="btn small trackBtn" href="'+esc(clean(g.liveLocation))+'" target="_blank" rel="noopener">Track</a></div>' : "";
+        return '<div class="cardcell">'+html+trackHtml+"</div>";
+      }
+      function wireCardClicks(box){
+        if(!box) return;
+        var cards = box.querySelectorAll(".card");
+        for(var i=0;i<cards.length;i++){
+          cards[i].addEventListener("click", function(){ openDetail(parseInt(this.getAttribute("data-idx"),10)); });
+        }
+        var tb = box.querySelectorAll(".trackBtn");
+        for(var j=0;j<tb.length;j++) tb[j].addEventListener("click", function(e){ e.stopPropagation(); });
+      }
+      function renderToday(){
+        var box = $("todayView");
+        if(!box) return;
+        var list = state.guests.filter(function(g){ return coversToday(g); });
+        list = list.slice().sort(function(a,b){
+          var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
+          if(av===null && bv===null) return 0;
+          if(av===null) return 1;
+          if(bv===null) return -1;
+          return av-bv;
+        });
+        var head = '<p class="viewhead">Aaj ke arrivals — '+esc(istTodayLabel())+'</p>'
+          + '<p class="viewsub">'+list.length+" guest"+(list.length===1?"":"s")+" today (IST), earliest first — vehicle and driver status on every card. Tap a card for full details.</p>";
+        if(!state.guests.length){
+          box.innerHTML = head + '<div class="empty"><strong>No guest data loaded</strong>Load the sheet from the Menu first.</div>';
+          return;
+        }
+        if(!list.length){
+          box.innerHTML = head + '<div class="empty"><strong>No arrivals today</strong>No guest is dated '+esc(istTodayLabel())+" and no dedicated vehicle range covers today.</div>";
+          return;
+        }
+        box.innerHTML = head + '<div class="results" style="margin-top:0">'+list.map(guestCardHtml).join("")+"</div>";
+        wireCardClicks(box);
+      }
+      function vehicleCategory(a){
+        var open = openLeg(a.no);
+        var rec = vehicleStatusMap[a.no];
+        if(open || (rec && rec.status==="DEPARTED")) return "withguest";
+        var u = a.usage;
+        if((u==="Shuttle" || u==="Rotation") && legsFor(a.no).length) return "shuttle";
+        if(a.hasToday || (rec && rec.status==="REPORTED")) return "arrival";
+        return "idle";
+      }
+      var VEH_CAT_LABEL = { arrival:"On arrival duty", withguest:"With guest", shuttle:"On shuttle", idle:"Idle" };
+      function renderVehicles(){
+        var box = $("vehiclesView");
+        if(!box) return;
+        var agg = vehAggMap();
+        var keys = Object.keys(agg).sort();
+        var chips = [["all","All"],["arrival","On arrival duty"],["withguest","With guest"],["shuttle","On shuttle"],["idle","Idle"]].map(function(c){
+          return '<button class="chip" type="button" data-vfilter="'+c[0]+'" aria-pressed="'+(vehiclesFilter===c[0] ? "true" : "false")+'">'+c[1]+"</button>";
+        }).join("");
+        var head = '<p class="viewhead">Vehicles — '+esc(activeEvent)+'</p>'
+          + '<p class="viewsub">Every vehicle of this event in one place: driver, guests, hotel, usage type, status and latest trip.</p>'
+          + '<div class="chips" role="group" aria-label="Filter vehicles by status" style="margin-bottom:10px">'+chips+"</div>";
+        if(!keys.length){
+          box.innerHTML = head + '<div class="empty"><strong>No vehicles yet</strong>Vehicles appear here once the sheet has vehicle numbers.</div>';
+          wireVehicleChips(box);
+          return;
+        }
+        var shown = 0;
+        var cards = keys.map(function(k){
+          var a = agg[k], cat = vehicleCategory(a);
+          if(vehiclesFilter!=="all" && cat!==vehiclesFilter) return "";
+          shown++;
+          var rec = vehicleStatusMap[k];
+          var last = latestLeg(k);
+          var statusLine = rec ? vehicleStatusLabel(rec) : "Not marked";
+          var legLine = last ? ("Latest trip: "+(last.from||"\u2014")+" \u2192 "+(last.to||"\u2014")+" · "+fmtDT(last.departTime)+(last.arriveTime ? " · Arrived "+fmtDT(last.arriveTime) : " · On the way")) : "No trips marked yet";
+          var guestChips = a.guests.map(function(g){
+            return '<button class="gchip" type="button" data-idx="'+state.guests.indexOf(g)+'">'+esc(g.name||"Guest")+"</button>";
+          }).join("");
+          return '<div class="vehcard"><span class="vno">'+esc(k)+"</span>"
+            + (a.usage ? ' <span class="badge usage">'+esc(a.usage)+"</span>" : "")
+            + ' <span class="badge '+(cat==="withguest" ? "vstatdep" : (cat==="idle" ? "" : "vstatrep"))+'">'+esc(VEH_CAT_LABEL[cat])+"</span>"
+            + '<div class="vmeta">Driver: <b>'+esc(a.driver||"\u2014")+"</b>"+(a.driverPhone ? " · "+esc(a.driverPhone) : "")+"</div>"
+            + '<div class="vmeta">Hotel: <b>'+esc(a.hotel||"\u2014")+"</b> · Status: <b>"+esc(statusLine)+"</b></div>"
+            + ((a.start||a.end) ? '<div class="vmeta">Dedicated: <b>'+esc(a.start||"?")+" \u2192 "+esc(a.end||"?")+"</b></div>" : "")
+            + '<div class="vmeta">'+esc(legLine)+"</div>"
+            + (a.liveLocation ? '<div style="margin-top:8px"><a class="btn small trackBtn" href="'+esc(a.liveLocation)+'" target="_blank" rel="noopener">Track</a></div>' : "")
+            + '<div class="vguests">'+guestChips+"</div></div>";
+        }).join("");
+        box.innerHTML = head + (shown ? '<div class="results" style="margin-top:0">'+cards+"</div>" : '<div class="empty"><strong>No vehicles in this status</strong>Try another status filter.</div>');
+        wireVehicleChips(box);
+        var gc = box.querySelectorAll(".gchip");
+        for(var i=0;i<gc.length;i++) gc[i].addEventListener("click", function(){ openDetail(parseInt(this.getAttribute("data-idx"),10)); });
+      }
+      function wireVehicleChips(box){
+        var chips = box.querySelectorAll("[data-vfilter]");
+        for(var i=0;i<chips.length;i++){
+          chips[i].addEventListener("click", function(){ vehiclesFilter = this.getAttribute("data-vfilter"); renderVehicles(); });
+        }
+      }
+      function renderDrivers(){
+        var box = $("driversView");
+        if(!box) return;
+        var list = todayDrivers();
+        var head = '<p class="viewhead">Today\'s drivers — '+esc(istTodayLabel())+'</p>'
+          + '<p class="viewsub">Every driver on duty today. Tap <b>Call</b> to call, <b>WhatsApp</b> for the ready-made day message, and tick <b>Called</b> once you have spoken.'
+          + (hookUrl() ? "" : ' <b>Called ticks are saved on this phone only — set the webhook URL to share them with the team.</b>')
+          + "</p>";
+        if(!list.length){
+          box.innerHTML = head + '<div class="empty"><strong>No drivers on duty today</strong>No guest dated today (and no dedicated range covering today) has a driver yet.</div>';
+          return;
+        }
+        box.innerHTML = head + '<div class="results" style="margin-top:0">' + list.map(function(d, i){
+          var tick = callTicksMap[callTickKey(d.phone)];
+          var vehs = Object.keys(d.vehicles).join(", ");
+          var tel = intlNumber(d.phone, "");
+          var wa = waLink(d.phone, "", driverDayMsg(d));
+          return '<div class="drvrow"><span class="dname">'+esc(d.name||"Driver")+"</span>"
+            + '<div class="vmeta" style="color:var(--ink2);font-size:.92rem;margin-top:3px">'+esc(d.phone||"No number")+(vehs ? " · Vehicle "+esc(vehs) : "")+" · "+d.guests+" guest"+(d.guests===1?"":"s")+" today</div>"
+            + '<div class="rowflex" style="margin-top:10px">'
+            + (tel ? '<a class="btn" href="tel:+'+tel+'">Call</a>' : '<button class="btn" type="button" disabled>Call</button>')
+            + (wa ? '<a class="btn" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp</a>' : '<button class="btn" type="button" disabled>WhatsApp</button>')
+            + (tick
+                ? '<button class="btn" type="button" disabled>Called \u2713 · '+esc(tick.by||"")+" "+esc(tick.time ? fmtDT(tick.time) : "")+"</button>"
+                : '<button class="btn primary" type="button" data-calltick="'+i+'">Mark Called \u2713</button>')
+            + "</div></div>";
+        }).join("") + "</div>";
+        var btns = box.querySelectorAll("[data-calltick]");
+        for(var i=0;i<btns.length;i++) btns[i].addEventListener("click", function(){ markDriverCalled(parseInt(this.getAttribute("data-calltick"),10)); });
+      }
+      function setView(v){
+        state.view = v;
+        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers") };
+        Object.keys(tabs).forEach(function(k){ if(tabs[k]) tabs[k].setAttribute("aria-pressed", k===v ? "true" : "false"); });
+        var sb = $("searchbar"), rs = $("results"), es = $("emptyState");
+        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView");
+        if(sb) sb.style.display = v==="guests" ? "" : "none";
+        if(rs) rs.style.display = v==="guests" ? "" : "none";
+        if(es) es.style.display = v==="guests" ? (state.guests.length ? "none" : "block") : "none";
+        if(tv) tv.style.display = v==="today" ? "" : "none";
+        if(vv) vv.style.display = v==="vehicles" ? "" : "none";
+        if(dv) dv.style.display = v==="drivers" ? "" : "none";
+        if(v==="guests") render();
+        else if(v==="today") renderToday();
+        else if(v==="vehicles"){ fetchLegs(true); renderVehicles(); }
+        else if(v==="drivers"){ fetchCallTicks(); renderDrivers(); }
+      }
+      function refreshCurrentView(){
+        if(state.view==="today") renderToday();
+        else if(state.view==="vehicles") renderVehicles();
+        else if(state.view==="drivers") renderDrivers();
+      }
+
+      /* ================= v29 — SIDE PANE (drawer) =================
+         Filters already live inside the search bar's Filters section; the
+         drawer carries Load data, Settings, the privacy note and Help, so
+         the main page stays just search + views + guest list + bell. The
+         panels are MOVED (same elements, same listeners) — nothing about
+         how they work changes. */
+      function openDrawer(){
+        var d = $("sideDrawer"), s = $("drawerScrim");
+        if(d) d.classList.add("open");
+        if(s) s.classList.add("open");
+      }
+      function closeDrawer(){
+        var d = $("sideDrawer"), s = $("drawerScrim");
+        if(d) d.classList.remove("open");
+        if(s) s.classList.remove("open");
+      }
+      function initDrawer(){
+        var body = $("drawerBody");
+        if(!body) return;
+        ["filtersDetails","loadPanel","settingsPanel","helpPanel","privacyBox"].forEach(function(id){
+          var el = $(id);
+          if(el) body.appendChild(el);
+        });
+        var sp = $("settingsPanel");
+        if(sp) sp.style.display = "";
+        var mb = $("menuBtn");
+        if(mb) mb.addEventListener("click", openDrawer);
+        var cb = $("drawerCloseBtn");
+        if(cb) cb.addEventListener("click", closeDrawer);
+        var sc = $("drawerScrim");
+        if(sc) sc.addEventListener("click", closeDrawer);
+      }
+
       /* ---------- Init: event selection, per-event sheet and hook params
          (legacy ?sheet= / ?hook= apply to the ?event= event, default CMOT),
          login session, saved sheet ---------- */
@@ -3468,6 +4692,53 @@ function setVehicleStatus_(data) {
         }
         fetchRemarks(true);
         fetchVehicleStatuses(true);
+        /* v29 wiring: drawer (panels move, listeners untouched), bell, legs,
+           call ticks, shared notification history, view tabs, PWA. Stored
+           sheet / webhook / roster links and the remembered login are read
+           exactly as before — nothing here clears or renames any key, so a
+           member opening the updated link finds everything as it was. */
+        initDrawer();
+        mergeNotifs();
+        renderBell();
+        fetchNotifications();
+        fetchLegs(true);
+        fetchCallTicks();
+        var bellBtnEl = $("bellBtn"); if(bellBtnEl) bellBtnEl.addEventListener("click", openBell);
+        var bellCloseEl = $("bellCloseBtn"); if(bellCloseEl) bellCloseEl.addEventListener("click", closeBell);
+        var bellBackEl = $("bellBackBtn"); if(bellBackEl) bellBackEl.addEventListener("click", closeBell);
+        var notifListEl = $("notifList");
+        if(notifListEl) notifListEl.addEventListener("click", function(e){
+          var tg = e.target;
+          var id = (tg && tg.getAttribute) ? tg.getAttribute("data-dismiss") : null;
+          if(id) dismissNotif(id);
+        });
+        var disAllEl = $("notifDismissAllBtn");
+        if(disAllEl) disAllEl.addEventListener("click", function(){
+          var d = dismissedIds();
+          notifListArr.forEach(function(n){ var id = notifId(n); if(d.indexOf(id)<0) d.push(id); });
+          lsSetJSON(dismissedKey(), d);
+          renderBell();
+          renderNotifList();
+        });
+        var legDepEl = $("legDepartBtn"); if(legDepEl) legDepEl.addEventListener("click", markLegDepart);
+        var legArrEl = $("legArriveBtn"); if(legArrEl) legArrEl.addEventListener("click", markLegArrive);
+        var tabG = $("tabGuests"); if(tabG) tabG.addEventListener("click", function(){ setView("guests"); });
+        var tabT = $("tabToday"); if(tabT) tabT.addEventListener("click", function(){ setView("today"); });
+        var tabV = $("tabVehicles"); if(tabV) tabV.addEventListener("click", function(){ setView("vehicles"); });
+        var tabD = $("tabDrivers"); if(tabD) tabD.addEventListener("click", function(){ setView("drivers"); });
+        setView("guests");
+        /* PWA: register the app-shell service worker (staged next to this
+           page as sw.js at host time). Fully guarded: if registration is
+           unavailable or fails, the page works exactly as before. The
+           worker caches ONLY the app shell — sheet and webhook fetches are
+           never cached, so the tool stays connected and live. */
+        try{
+          if(typeof navigator!=="undefined" && "serviceWorker" in navigator && typeof window!=="undefined" && window.addEventListener){
+            window.addEventListener("load", function(){
+              try{ navigator.serviceWorker.register("sw.js").then(function(){}, function(){}); }catch(e){}
+            });
+          }
+        }catch(e){}
         render();
       })();
     })();
