@@ -59,6 +59,13 @@
       .sub{color:var(--ink2);max-width:62ch;margin:0}
       .sub strong{color:var(--ink)}
 
+      /* ---------- Event switcher ---------- */
+      .eventswitch{display:flex;gap:8px;margin-top:16px}
+      .evbtn{flex:1;font-family:"Barlow Condensed",sans-serif;font-size:1.3rem;font-weight:700;letter-spacing:.08em;padding:8px 10px;border-radius:11px;border:2px solid var(--line);background:var(--surface);color:var(--ink2)}
+      .evbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+      .setlabel{display:block;margin-top:14px;font-weight:600;font-size:.92rem}
+      .setlabel input{margin-top:5px}
+
       /* ---------- User bar ---------- */
       .userbar{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.95rem}
       .userbar .who{font-weight:600}
@@ -197,6 +204,12 @@
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
 
+      <!-- ============ EVENT SWITCHER ============ -->
+      <div class="eventswitch" role="group" aria-label="Choose event">
+        <button type="button" class="evbtn" id="evBtnCmot" aria-pressed="true">CMOT</button>
+        <button type="button" class="evbtn" id="evBtnIffi" aria-pressed="false">IFFI</button>
+      </div>
+
       <!-- ============ USER BAR ============ -->
       <div class="userbar" id="userbar">
         <span class="who" id="userInfo">Not logged in</span>
@@ -231,11 +244,31 @@
       <section class="panel" id="settingsPanel" style="display:none" aria-labelledby="settings-h">
         <h2 id="settings-h">Settings</h2>
         <p class="hint">These are saved on this phone only.</p>
-        <h3 style="font-size:.95rem;margin:14px 0 6px">Remarks webhook URL</h3>
-        <p class="hint" style="margin-bottom:8px">The Google Apps Script web-app URL that saves remarks into the sheet's “Remarks” tab. Setup steps and the script code are in “Remarks setup” at the bottom of this page. Tip: the admin can share one link carrying both — the tool link with <code>?sheet=…&amp;hook=…</code> added — and the webhook is then set automatically on every phone that opens it.</p>
-        <input type="url" id="hookInput" placeholder="Paste remarks webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        <h3 style="font-size:.95rem;margin:14px 0 6px">Event sheet links &amp; webhook URLs</h3>
+        <p class="hint" style="margin-bottom:8px">Each event (CMOT and IFFI) has its <strong>own sheet link</strong> and its <strong>own remarks webhook URL</strong> — the Google Apps Script web-app URL that saves remarks into that event's sheet (its “Remarks” tab). Setup steps and the script code are in “Remarks setup” at the bottom of this page. Saving one event's link never changes the other event's. Tip: the admin can share one team link per event carrying both — e.g. the tool link with <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> added — and both are then set automatically on every phone that opens it.</p>
+        <label class="setlabel" for="sheetInputCmot">CMOT sheet link
+          <input type="url" id="sheetInputCmot" placeholder="Paste the CMOT Google Sheet link…" autocomplete="off" />
+        </label>
         <div class="rowflex" style="margin-top:8px">
-          <button class="btn primary" id="hookSaveBtn" type="button">Save webhook URL</button>
+          <button class="btn" id="sheetSaveCmot" type="button">Save CMOT sheet link</button>
+        </div>
+        <label class="setlabel" for="hookInputCmot">CMOT webhook URL
+          <input type="url" id="hookInputCmot" placeholder="Paste CMOT remarks webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn primary" id="hookSaveCmot" type="button">Save CMOT webhook URL</button>
+        </div>
+        <label class="setlabel" for="sheetInputIffi">IFFI sheet link
+          <input type="url" id="sheetInputIffi" placeholder="Paste the IFFI Google Sheet link…" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="sheetSaveIffi" type="button">Save IFFI sheet link</button>
+        </div>
+        <label class="setlabel" for="hookInputIffi">IFFI webhook URL
+          <input type="url" id="hookInputIffi" placeholder="Paste IFFI remarks webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn primary" id="hookSaveIffi" type="button">Save IFFI webhook URL</button>
         </div>
         <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
         <p class="hint" style="margin-bottom:8px">When the team list is active, your password is your <strong>year of birth</strong> and cannot be changed here — ask the admin to correct your date of birth in the Team list if it is wrong. This change only applies to the admin fallback login (no team list), where it changes the admin PIN on this phone.</p>
@@ -250,6 +283,7 @@
       <section class="panel" aria-labelledby="load-h">
         <h2 id="load-h">1 · Load the guest sheet</h2>
         <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 2 minutes on its own, and Refresh in the banner above pulls the latest version any time.</p>
+        <p class="hint" id="loadEventHint" style="margin-top:-6px">You are loading data for <strong id="loadEventName">CMOT</strong>. Each event keeps its own data — to load the other event's sheet or file, switch events at the top first.</p>
         <div class="steps">
           <div class="step">
             <h3>Option A — Google Sheet link</h3>
@@ -262,6 +296,7 @@
           <div class="step">
             <h3>Option B — Excel / CSV file</h3>
             <p>Upload the .xlsx or .csv file you received on mail or WhatsApp. The first sheet is read automatically.</p>
+            <p>The file loads into the active event: <strong id="uploadEventName">CMOT</strong>. Switch events at the top first if this file belongs to the other event.</p>
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" aria-label="Upload Excel or CSV guest sheet" />
           </div>
           <div class="step">
@@ -301,7 +336,7 @@
       </div>
 
       <div class="results" id="results"></div>
-      <div class="empty" id="emptyState">No guest data loaded. Open the team link shared by the admin — it carries the guest sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.</div>
+      <div class="empty" id="emptyState">No guest data loaded for CMOT. Open the team link shared by the admin — it carries the CMOT sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.</div>
 
       <!-- ============ HELP ============ -->
       <section class="panel" aria-labelledby="help-h">
@@ -324,6 +359,15 @@
               <li>Enter the Date of Birth with a <strong>full 4-digit year</strong> (e.g. 15-08-1992 or 1992) — a two-digit year like “15-08-92”, or a blank or unreadable Date of Birth, means that member cannot log in until it is corrected to a full 4-digit year.</li>
               <li>The <strong>admin manages the team list</strong> — from Admin view → “Team members” (needs the webhook below), or by adding rows directly in the sheet's Team tab. Mobile numbers must be unique — the mobile number is the login key (names may repeat).</li>
               <li>If there is no Team tab yet, only the admin (Yogesh) can log in, with the PIN set on first login on that phone. Once a team list exists, the roster rule applies to everyone, including Yogesh.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Two events (CMOT / IFFI)</h3>
+            <ul>
+              <li>This tool runs <strong>two events separately</strong>: <strong>CMOT</strong> and <strong>IFFI</strong>. Use the <strong>CMOT / IFFI buttons at the top</strong> to switch — each event shows only its own guests, its own team list and its own remarks, and switching never mixes the two.</li>
+              <li>Each event has its <strong>own sheet link and its own webhook URL</strong> — both are set per event in <strong>Settings</strong> (“CMOT sheet link”, “CMOT webhook URL”, “IFFI sheet link”, “IFFI webhook URL”). Saving one event's link never changes the other event's.</li>
+              <li>Team-link format, one per event: <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> — and the same pattern with <code>iffi</code> for IFFI. The older <code>?sheet=…&amp;hook=…</code> form still works and applies to the event named by <code>?event=</code> (CMOT if none is named).</li>
+              <li>The <strong>CMOT sheet is an Excel file</strong> — for CMOT, if a sheet link is not available, the team can use <strong>Option B (Upload)</strong> in this tool. Upload each event's file while that event's tab is active, so the file loads as that event's data.</li>
             </ul>
           </div>
           <div>
@@ -657,13 +701,14 @@ function setLocation_(data) {
          The first synonym of each field is the exact Goa-IFFI-Guest-Master.xlsx header. */
       var FIELDS = [
         {key:"guestId",     label:"Guest ID",     syn:["guest id","id","guestid"]},
-        {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name"]},
-        {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp"]},
+        {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name","name (as per aadhaar)"]},
+        {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp","contact number & alternative no."]},
         {key:"cc",          label:"Country Code", syn:["country code","cc","dial code","isd code"]},
-        {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization"]},
+        {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization","department"]},
         {key:"type",        label:"Type",         syn:["type","movement","movement type","trip type","arr dep","service"]},
+        {key:"event",       label:"Event",        syn:["event","event name"]},
         {key:"date",        label:"Date",         syn:["date","day","travel date","arrival date","departure date"]},
-        {key:"time",        label:"Time",         syn:["time","arrival time","departure time","pickup time","pick up time","eta","reporting time"]},
+        {key:"time",        label:"Time",         syn:["time","arrival time","departure time","pickup time","pick up time","eta","reporting time","goa arrival time"]},
         {key:"flight",      label:"Flight No",    syn:["flight no","flight","flight number","flt","flt no"]},
         {key:"airport",     label:"Airport",      syn:["airport","airport name"]},
         {key:"hotel",       label:"Hotel",        syn:["hotel","hotel name","stay","property","accommodation"]},
@@ -676,7 +721,7 @@ function setLocation_(data) {
         {key:"driverPhone", label:"Driver Contact", syn:["driver contact","driver phone","driver mobile","driver no"]},
         {key:"status",      label:"Status",       syn:["status","trip status","movement status"]},
         {key:"pax",         label:"Pax",          syn:["pax","guests","no of guests","persons","passengers"]},
-        {key:"remarks",     label:"Remarks",      syn:["remarks","remark","notes","note","special instructions","comments"]},
+        {key:"remarks",     label:"Remarks",      syn:["remarks","notes","note","special instructions","comments"]},
         {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]}
       ];
       var FIELD_BY_KEY = {};
@@ -691,6 +736,54 @@ function setLocation_(data) {
       var LS_LOCAL_REMARKS = "iffi-local-remarks";
       var LS_LOCAL_LOCATIONS = "iffi-local-locations";
       var REFRESH_MS = 120000;
+
+      /* ================= EVENTS (CMOT / IFFI) =================
+         Two events, planned separately. Each event keeps its OWN sheet link
+         and webhook URL in localStorage (namespaced by event), its own loaded
+         dataset + roster in this session (eventBuckets), and its own phone-only
+         remarks / live-location stores. `state`, `roster` and the hook helpers
+         always describe the ACTIVE event; switching swaps them wholesale so
+         the two events' data never mix. The legacy single-event keys
+         (LS_KEY / LS_HOOK) are read as CMOT's stored values for continuity. */
+      var EVENTS = ["CMOT","IFFI"];
+      var activeEvent = "CMOT";
+      function evLc(ev){ return String(ev).toLowerCase(); }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false }; }
+      var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
+      function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
+      function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
+      function sheetUrlFor(ev){
+        var v = lsGetRaw(sheetLsKey(ev));
+        if(v==null && ev==="CMOT") v = lsGetRaw(LS_KEY);
+        return String(v==null?"":v).trim();
+      }
+      function setSheetUrlFor(ev, url){
+        url = String(url==null?"":url).trim();
+        if(url) lsSetRaw(sheetLsKey(ev), url); else lsDel(sheetLsKey(ev));
+      }
+      function hookUrlFor(ev){
+        var v = lsGetRaw(hookLsKey(ev));
+        if(v==null && ev==="CMOT") v = lsGetRaw(LS_HOOK);
+        return String(v==null?"":v).trim();
+      }
+      function setHookFor(ev, u){
+        u = String(u==null?"":u).trim();
+        if(u) lsSetRaw(hookLsKey(ev), u); else lsDel(hookLsKey(ev));
+        var inp = $(ev==="CMOT" ? "hookInputCmot" : "hookInputIffi");
+        if(inp) inp.value = u;
+      }
+      function updateEmptyState(){
+        var el = $("emptyState");
+        if(el) el.textContent = "No guest data loaded for "+activeEvent+". Open the team link shared by the admin — it carries the "+activeEvent+" sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.";
+      }
+      function setActiveEventUI(){
+        var c = $("evBtnCmot"), f = $("evBtnIffi");
+        if(c) c.setAttribute("aria-pressed", activeEvent==="CMOT" ? "true" : "false");
+        if(f) f.setAttribute("aria-pressed", activeEvent==="IFFI" ? "true" : "false");
+        var ln = $("loadEventName"); if(ln) ln.textContent = activeEvent;
+        var un = $("uploadEventName"); if(un) un.textContent = activeEvent;
+        updateEmptyState();
+      }
 
       function $(id){ return document.getElementById(id); }
       function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
@@ -828,23 +921,31 @@ function setLocation_(data) {
         note.style.display = hasRoster() ? "none" : "";
       }
       function loadRoster(sheetUrl, cb){
+        var forEvent = activeEvent;
         var csvUrl = teamCsvUrl(sheetUrl);
         if(!csvUrl){
-          roster = null;
-          updateLoginNote();
-          if(typeof renderTeam==="function") renderTeam();
-          if(cb) cb();
+          if(forEvent===activeEvent){
+            roster = null;
+            updateLoginNote();
+            if(typeof renderTeam==="function") renderTeam();
+            if(cb) cb();
+          }else{
+            eventBuckets[forEvent].roster = null;
+          }
           return;
         }
         fetch(csvUrl).then(function(res){
           if(!res.ok) throw new Error("HTTP "+res.status);
           return res.text();
         }).then(function(text){
-          roster = /^\s*</.test(text) ? null : parseRoster(text);
+          var parsed = /^\s*</.test(text) ? null : parseRoster(text);
+          if(forEvent!==activeEvent){ eventBuckets[forEvent].roster = parsed; return; }
+          roster = parsed;
           updateLoginNote();
           if(state.adminOpen && typeof renderTeam==="function") renderTeam();
           if(cb) cb();
         }).catch(function(){
+          if(forEvent!==activeEvent){ eventBuckets[forEvent].roster = null; return; }
           roster = null;
           updateLoginNote();
           if(cb) cb();
@@ -969,18 +1070,93 @@ function setLocation_(data) {
         setSettingsStatus("PIN changed for "+currentUser.name+" on this phone.", "ok");
       });
 
+      /* Re-validate any remembered session against the CURRENT event's roster.
+         With a roster, the stored mobile must still be in the team list AND the
+         stored password must still equal that member's year of birth — otherwise
+         the session is cleared and the login screen shows. With no roster, only
+         the admin fallback session is kept. Runs on page open and on every
+         event switch, exactly the same way. */
+      function restoreSession(){
+        var users = loadUsers();
+        var sess = lsGetRaw(LS_SESSION);
+        var rec = (sess && users[sess]) ? users[sess] : null;
+        if(!rec){ showLogin(); updateUserbar(); return; }
+        if(hasRoster()){
+          var v = validateRosterLogin(rec.mobile, rec.pin);
+          if(!v.ok){
+            lsDel(LS_SESSION);
+            currentUser = null;
+            showLogin();
+            updateUserbar();
+            return;
+          }
+          startSession({ name: v.member.name, mobile: normalizeMobile(rec.mobile), pin: rec.pin });
+        }else{
+          if(normalizeMobile(rec.mobile) !== ADMIN_MOBILE){
+            lsDel(LS_SESSION);
+            currentUser = null;
+            showLogin();
+            updateUserbar();
+            return;
+          }
+          startSession(rec);
+        }
+        updateUserbar();
+      }
+
+      /* ---------- Event switcher ----------
+         Parks the active event's dataset + roster in its bucket, restores the
+         newly selected event's, resets the search box and filters, then loads
+         that event's sheet + roster + remarks and re-validates the remembered
+         login against the new event's roster exactly as on page open. A dataset
+         loaded from an uploaded file this session is restored as-is; a
+         sheet-link dataset is refreshed from its link. */
+      function switchEvent(newEv){
+        if(newEv!=="CMOT" && newEv!=="IFFI") return;
+        if(newEv===activeEvent){ setActiveEventUI(); return; }
+        var b = eventBuckets[activeEvent];
+        b.guests = state.guests; b.source = state.source; b.lastUpdated = state.lastUpdated; b.roster = roster; b.touched = true;
+        closeDetail();
+        closeAdmin();
+        activeEvent = newEv;
+        var nb = eventBuckets[newEv];
+        state.guests = nb.guests; state.source = nb.source; state.lastUpdated = nb.lastUpdated;
+        roster = nb.roster;
+        state.current = null; state.currentKey = "";
+        $("q").value = "";
+        setType("all");
+        $("sheetUrl").value = sheetUrlFor(newEv);
+        setStatus("");
+        updateLoginNote();
+        setActiveEventUI();
+        buildFilters();
+        $("hotelFilter").value = ""; $("dateFilter").value = "";
+        render();
+        updateBanner();
+        var url = sheetUrlFor(newEv);
+        if(!nb.touched && url){
+          loadRoster(url, function(){ restoreSession(); });
+          loadFromUrl(url, true, false);
+        }else if(state.source.url){
+          loadRoster(state.source.url, function(){ restoreSession(); });
+          loadFromUrl(state.source.url, true, true);
+        }else{
+          restoreSession();
+        }
+        fetchRemarks(true);
+      }
+      $("evBtnCmot").addEventListener("click", function(){ switchEvent("CMOT"); });
+      $("evBtnIffi").addEventListener("click", function(){ switchEvent("IFFI"); });
+
       /* ================= REMARKS ================= */
       var allRemarks = [];
       var threadList = [];
       var adminListArr = [];
 
-      function hookUrl(){ return (lsGetRaw(LS_HOOK) || "").trim(); }
-      function setHook(u){
-        u = (u || "").trim();
-        if(u) lsSetRaw(LS_HOOK, u); else lsDel(LS_HOOK);
-        $("hookInput").value = u;
-      }
-      function localRemarks(){ var r = lsGetJSON(LS_LOCAL_REMARKS, []); return Array.isArray(r) ? r : []; }
+      function hookUrl(){ return hookUrlFor(activeEvent); }
+      function setHook(u){ setHookFor(activeEvent, u); }
+      function localRemarksKey(){ return LS_LOCAL_REMARKS+"-"+evLc(activeEvent); }
+      function localRemarks(){ var r = lsGetJSON(localRemarksKey(), []); return Array.isArray(r) ? r : []; }
       function remarkKey(g){
         if(!g) return "";
         var id = clean(g.guestId);
@@ -1085,7 +1261,7 @@ function setLocation_(data) {
         }else{
           var loc = localRemarks();
           loc.push(r);
-          lsSetJSON(LS_LOCAL_REMARKS, loc);
+          lsSetJSON(localRemarksKey(), loc);
           allRemarks = loc;
           renderRemarks();
           if(state.adminOpen) renderAdmin();
@@ -1102,7 +1278,7 @@ function setLocation_(data) {
             .then(function(){ fetchRemarks(true); toast("Remark deleted"); })
             .catch(function(){ toast("Delete could not reach the sheet — check the webhook URL in Settings"); });
         }else{
-          lsSetJSON(LS_LOCAL_REMARKS, allRemarks);
+          lsSetJSON(localRemarksKey(), allRemarks);
           toast("Remark deleted");
         }
       }
@@ -1125,23 +1301,45 @@ function setLocation_(data) {
           .map(function(r){ return fmtDT(r.time)+" | "+(r.guestName||"")+" | "+r.remark+" | "+(r.author||""); });
         copyText(lines.join("\n"), "All remarks copied — paste them into the sheet");
       });
-      $("hookSaveBtn").addEventListener("click", function(){
-        setHook($("hookInput").value);
-        setSettingsStatus(hookUrl() ? "Webhook URL saved — remarks now save to the sheet." : "Webhook URL cleared — remarks will save on this phone only.", "ok");
-        updateRemarkChrome();
-        if(state.detailOpen) renderLiveLoc();
-        fetchRemarks(true);
-      });
+      function saveHookForEvent(ev){
+        setHookFor(ev, $(ev==="CMOT" ? "hookInputCmot" : "hookInputIffi").value);
+        setSettingsStatus(hookUrlFor(ev)
+          ? ev+" webhook URL saved — "+ev+" remarks now save to that event's sheet."
+          : ev+" webhook URL cleared — "+ev+" remarks will save on this phone only.", "ok");
+        if(ev===activeEvent){
+          updateRemarkChrome();
+          if(state.detailOpen) renderLiveLoc();
+          fetchRemarks(true);
+        }
+      }
+      function saveSheetForEvent(ev){
+        var inp = $(ev==="CMOT" ? "sheetInputCmot" : "sheetInputIffi");
+        var u = inp.value.trim();
+        setSheetUrlFor(ev, u);
+        inp.value = u;
+        if(ev===activeEvent){
+          $("sheetUrl").value = u;
+          if(u) loadFromUrl(u, false, false);
+          setSettingsStatus(ev+" sheet link saved"+(u ? " — loading it now." : " — cleared."), "ok");
+        }else{
+          setSettingsStatus(ev+" sheet link saved. Switch to "+ev+" at the top to load it.", "ok");
+        }
+      }
+      $("hookSaveCmot").addEventListener("click", function(){ saveHookForEvent("CMOT"); });
+      $("hookSaveIffi").addEventListener("click", function(){ saveHookForEvent("IFFI"); });
+      $("sheetSaveCmot").addEventListener("click", function(){ saveSheetForEvent("CMOT"); });
+      $("sheetSaveIffi").addEventListener("click", function(){ saveSheetForEvent("IFFI"); });
 
       /* ================= LIVE LOCATION ================= */
+      function localLocationsKey(){ return LS_LOCAL_LOCATIONS+"-"+evLc(activeEvent); }
       function localLocations(){
-        var m = lsGetJSON(LS_LOCAL_LOCATIONS, {});
+        var m = lsGetJSON(localLocationsKey(), {});
         return (m && typeof m==="object" && !Array.isArray(m)) ? m : {};
       }
       function saveLocalLocation(vehicleNo, link){
         var m = localLocations();
         m[String(vehicleNo).trim()] = link;
-        lsSetJSON(LS_LOCAL_LOCATIONS, m);
+        lsSetJSON(localLocationsKey(), m);
       }
       function applyLocalLocations(guests){
         var m = localLocations();
@@ -1344,6 +1542,7 @@ function setLocation_(data) {
         return "https://docs.google.com/spreadsheets/d/"+m[1]+"/export?format=csv&gid="+gid;
       }
       function loadFromUrl(url, quiet, silent){
+        var forEvent = activeEvent;
         var csvUrl = sheetCsvUrl(url);
         if(!csvUrl){
           if(!quiet) setStatus("That doesn't look like a Google Sheet link. Copy the full link from the sheet's address bar or Share dialog.", "err");
@@ -1355,11 +1554,23 @@ function setLocation_(data) {
           return res.text();
         }).then(function(text){
           if(/^\s*</.test(text)) throw new Error("html");
-          lsSetRaw(LS_KEY, url);
+          setSheetUrlFor(forEvent, url);
+          var guests = tableToGuests(parseCSV(text));
+          if(forEvent!==activeEvent){
+            /* The user switched events while this sheet was loading — keep the
+               data with its own event instead of mixing it into the new one. */
+            var bk = eventBuckets[forEvent];
+            bk.guests = guests;
+            bk.source = {kind:"real", label:"the Google Sheet", url:url};
+            bk.lastUpdated = hhmm(new Date());
+            bk.touched = true;
+            return;
+          }
           state.lastUpdated = hhmm(new Date());
-          loadGuests(tableToGuests(parseCSV(text)), {kind:"real", label:"the Google Sheet", url:url});
+          loadGuests(guests, {kind:"real", label:"the Google Sheet", url:url});
           loadRoster(url);
         }).catch(function(){
+          if(forEvent!==activeEvent) return;
           if(!silent) setStatus("Could not read that sheet. Make sure it is shared as “Anyone with the link can view”, then try again — or download it as .xlsx/.csv and use Option B.", "err");
         });
       }
@@ -1569,8 +1780,10 @@ function setLocation_(data) {
         }
         var veh = vehicleStr(g);
         var drv = [clean(g.driver), clean(g.driverPhone)].filter(Boolean).join(", ");
-        if(veh || drv){
-          parts.push("Vehicle: "+(veh||"—")+(drv ? " (Driver: "+drv+")" : "")+".");
+        /* No vehicle assigned yet (e.g. the CMOT sheet has no vehicle columns):
+           omit the vehicle clause entirely — never print an empty "Vehicle: ()". */
+        if(veh){
+          parts.push("Vehicle: "+veh+(drv ? " (Driver: "+drv+")" : "")+".");
         }
         parts.push("Pickup: "+val(g,"from")+" at "+val(g,"time")+".");
         parts.push("Drop: "+dropPoint(g)+".");
@@ -1616,22 +1829,31 @@ function setLocation_(data) {
         });
         $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
         var dm = driverMsg(g), gm = guestMsg(g);
-        $("driverMsg").textContent = dm;
+        var noVehicle = !vehicleStr(g);
+        $("driverMsg").textContent = noVehicle ? "No vehicle assigned yet" : dm;
         $("guestMsg").textContent = gm;
         var isSample = !!g._sample;
         $("practiceNote").style.display = isSample ? "" : "none";
-        setSendable($("copyDriverBtn"), !isSample);
+        var driverOk = !isSample && !noVehicle;
+        setSendable($("copyDriverBtn"), driverOk);
         setSendable($("copyGuestBtn"), !isSample);
         setSendable($("copyAllBtn"), !isSample);
-        setSendable($("previewCopyDriverBtn"), !isSample);
+        setSendable($("previewCopyDriverBtn"), driverOk);
         setSendable($("previewCopyGuestBtn"), !isSample);
-        setSendable($("previewShareDriverBtn"), !isSample);
+        setSendable($("previewShareDriverBtn"), driverOk);
         setSendable($("previewShareGuestBtn"), !isSample);
         if(isSample){
           killLink($("waDriverBtn")); killLink($("waGuestBtn"));
           killLink($("callGuestBtn")); killLink($("callDriverBtn"));
           killLink($("smsGuestBtn")); killLink($("smsDriverBtn"));
           killLink($("previewCallGuestBtn")); killLink($("previewCallDriverBtn"));
+        }else if(noVehicle){
+          killLink($("waDriverBtn")); killLink($("callDriverBtn"));
+          killLink($("smsDriverBtn")); killLink($("previewCallDriverBtn"));
+          setWa($("waGuestBtn"), g.phone, g.cc, gm);
+          setTel($("callGuestBtn"), g.phone, g.cc);
+          setSms($("smsGuestBtn"), g.phone, g.cc, gm);
+          setTel($("previewCallGuestBtn"), g.phone, g.cc);
         }else{
           setWa($("waDriverBtn"), g.driverPhone, "", dm);
           setWa($("waGuestBtn"), g.phone, g.cc, gm);
@@ -1727,7 +1949,7 @@ function setLocation_(data) {
         }).join("");
       }
       function rosterSheetUrl(){
-        return state.source.url || lsGetRaw(LS_KEY) || $("sheetUrl").value.trim();
+        return state.source.url || sheetUrlFor(activeEvent) || $("sheetUrl").value.trim();
       }
       function reloadRosterAfterChange(doneMsg){
         var su = rosterSheetUrl();
@@ -1876,52 +2098,33 @@ function setLocation_(data) {
       $("previewShareGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(guestMsg(state.current)); });
       $("gasCopyBtn").addEventListener("click", function(){ copyText($("gasCode").textContent, "Apps Script code copied — paste it into Apps Script"); });
 
-      /* ---------- Init: login session, ?sheet= / ?hook= params, saved sheet ---------- */
+      /* ---------- Init: event selection, per-event sheet and hook params
+         (legacy ?sheet= / ?hook= apply to the ?event= event, default CMOT),
+         login session, saved sheet ---------- */
       (function(){
         var params = null;
         try{ params = new URLSearchParams(window.location.search); }catch(e){}
+        var evParam = params ? String(params.get("event") || "") : "";
+        activeEvent = evParam.trim().toUpperCase() === "IFFI" ? "IFFI" : "CMOT";
+        EVENTS.forEach(function(ev){
+          var sp = params ? params.get("sheet_" + evLc(ev)) : null;
+          if(sp) setSheetUrlFor(ev, sp);
+          var hp = params ? params.get("hook_" + evLc(ev)) : null;
+          if(hp) setHookFor(ev, hp);
+        });
         var hookParam = params ? params.get("hook") : null;
-        if(hookParam) setHook(hookParam);
-        else $("hookInput").value = hookUrl();
-
+        if(hookParam) setHookFor(activeEvent, hookParam);
         var sheetParam = params ? params.get("sheet") : null;
-        var saved = lsGetRaw(LS_KEY);
-        var url = sheetParam || saved;
+        if(sheetParam) setSheetUrlFor(activeEvent, sheetParam);
+        $("sheetInputCmot").value = sheetUrlFor("CMOT");
+        $("sheetInputIffi").value = sheetUrlFor("IFFI");
+        $("hookInputCmot").value = hookUrlFor("CMOT");
+        $("hookInputIffi").value = hookUrlFor("IFFI");
+        setActiveEventUI();
+
+        var url = sheetUrlFor(activeEvent);
         updateBanner();
         if(url) $("sheetUrl").value = url;
-
-        /* Re-validate any remembered session. With a roster, the stored mobile
-           must still be in the team list AND the stored password must still
-           equal that member's year of birth — otherwise the session is cleared
-           and the login screen shows. With no roster, only the admin fallback
-           session is kept. */
-        function restoreSession(){
-          var users = loadUsers();
-          var sess = lsGetRaw(LS_SESSION);
-          var rec = (sess && users[sess]) ? users[sess] : null;
-          if(!rec){ showLogin(); updateUserbar(); return; }
-          if(hasRoster()){
-            var v = validateRosterLogin(rec.mobile, rec.pin);
-            if(!v.ok){
-              lsDel(LS_SESSION);
-              currentUser = null;
-              showLogin();
-              updateUserbar();
-              return;
-            }
-            startSession({ name: v.member.name, mobile: normalizeMobile(rec.mobile), pin: rec.pin });
-          }else{
-            if(normalizeMobile(rec.mobile) !== ADMIN_MOBILE){
-              lsDel(LS_SESSION);
-              currentUser = null;
-              showLogin();
-              updateUserbar();
-              return;
-            }
-            startSession(rec);
-          }
-          updateUserbar();
-        }
 
         if(url){
           /* Load the team roster first, then decide the session, so a stale
