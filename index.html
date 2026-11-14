@@ -43,6 +43,7 @@
       .databanner .src{font-weight:600;overflow-wrap:anywhere}
       .databanner .upd{font-weight:600}
       .databanner .spacer{flex:1}
+      .uploadwarn{margin-top:10px;border-radius:var(--radius);padding:11px 14px;font-weight:600;font-size:.95rem;border:1px solid var(--warn);background:var(--warn-soft);color:var(--warn)}
       .privacy{margin-top:16px;border:2px solid #dc2626;border-radius:var(--radius);background:#fef2f2;color:#7f1d1d;padding:14px 16px}
       @media (prefers-color-scheme: dark){.privacy{background:#2a1111;color:#fecaca;border-color:#b91c1c}}
       .privacy h2{font-size:1rem;margin:0 0 6px}
@@ -247,6 +248,9 @@
         <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh now</button>
       </div>
 
+      <!-- ============ UPLOADED-FILE WARNING ============ -->
+      <div class="uploadwarn" id="uploadWarn" role="alert" style="display:none">Loaded from an uploaded file — edits in Drive won’t appear here until you re-upload the file. For live updates, link the Google Sheet instead.</div>
+
       <!-- ============ PRIVACY WARNING ============ -->
       <section class="privacy" aria-labelledby="privacy-h">
         <h2 id="privacy-h">⚠ Privacy — read before sharing</h2>
@@ -403,6 +407,8 @@
               <li>Keep ONE master Google Sheet. Share it as “Anyone with the link can view” and give the team that sheet link too.</li>
               <li>When the sheet changes (new flight, new vehicle), the open page picks it up by itself within 30 seconds — or tap Refresh now. No new file to forward.</li>
               <li><strong>Sheet updates:</strong> the tool re-checks the sheet every 30 seconds while the page is open, and whenever you tap <strong>Refresh now</strong>. The sheet cannot push updates to the page, so 30 seconds plus Refresh now is the closest to real time.</li>
+              <li><strong>Refresh always gets fresh data:</strong> Refresh now and the 30-second auto-refresh always fetch a fresh copy of the sheet — never a cached copy — so an edit you saved in the sheet (a new travel date, flight or hotel) appears on the next refresh for every member.</li>
+              <li><strong>Uploaded files are snapshots:</strong> data loaded with <strong>Option B (upload)</strong> is a frozen copy of the file at upload time — edits in Drive never appear in the tool until the file is re-uploaded, and a warning under the banner says so while uploaded data is showing. To make edits appear live, open the Excel file in Google Drive, choose <strong>File → Save as Google Sheets</strong>, share the new sheet as “Anyone with the link can view”, and paste its link as the event's sheet link (Option A, or in Settings).</li>
               <li>Only you and Puneet ji should have edit access on the sheet; the team only views.</li>
             </ul>
           </div>
@@ -504,7 +510,7 @@ Driver Number: {Driver Contact}</div>
             <li>The same webhook also saves the <strong>team list</strong>: Admin view → “Team members” adds and removes members through it, into the sheet's <strong>Team</strong> tab (columns Name | Mobile | Date of Birth | Role — the script creates the tab with those headers if it does not exist). Team members log in with their <strong>mobile number</strong> and their <strong>year of birth</strong> as the password, read from that tab. If the webhook was deployed before team members (or before the Date of Birth column) were supported, redeploy the current code below as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — the webhook must be running the current code for the addMember / removeMember actions to work, otherwise the old code keeps running and team changes will not save.</li>
             <li>If the webhook was deployed before admin password reset was supported, redeploy the same Apps Script project as a <strong>new version</strong> so the updateMember action goes live (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running and password resets will not save, and the tool will show the redeploy-as-new-version error instead of claiming success. On success updateMember returns <code>{ok:true, updated:1}</code> (updated = number of Team rows changed, 1 on success); if no row matches it returns <code>{ok:false, error:"Member not found"}</code>. The tool only claims success when it receives <code>{ok:true, updated:1}</code>.</li>
           </ol>
-          <div class="fmt" id="gasCode" style="margin-top:10px">function doGet() {
+          <div class="fmt" id="gasCode" style="margin-top:10px;display:none">function doGet() {
   var sh = remarksSheet_();
   var rows = sh.getDataRange().getValues();
   var out = [];
@@ -673,6 +679,7 @@ function setLocation_(data) {
   return updated;
 }</div>
           <div class="rowflex" style="margin-top:8px">
+            <button class="btn" id="gasToggleBtn" type="button" aria-expanded="false" aria-controls="gasCode">Show Apps Script code</button>
             <button class="btn" id="gasCopyBtn" type="button">Copy the Apps Script code</button>
           </div>
         </div>
@@ -847,7 +854,7 @@ function setLocation_(data) {
          The first synonym of each field is the exact Goa-IFFI-Guest-Master.xlsx header. */
       var FIELDS = [
         {key:"guestId",     label:"Guest ID",     syn:["guest id","id","guestid"]},
-        {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name","name (as per aadhaar)"]},
+        {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name","name (as per aadhaar)","name (as per adhaar)"]},
         {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp","contact number & alternative no."]},
         {key:"cc",          label:"Country Code", syn:["country code","cc","dial code","isd code"]},
         {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization","department"]},
@@ -988,6 +995,25 @@ function setLocation_(data) {
       }
       function setSettingsStatus(msg,cls){
         var s=$("settingsStatus"); s.textContent=msg; s.className="status"+(cls?" "+cls:"");
+      }
+
+      /* ---------- Cache-busting for live-data fetches ----------
+         Every fetch that reads live data (the guest sheet, the roster
+         sheet, the remarks list) must always get fresh bytes, never a
+         cached copy: a changing timestamp query parameter is appended
+         to the URL actually fetched (a different value on every call)
+         and cache:"no-store" is passed in the fetch options. The
+         timestamp goes ONLY on the fetched URL — never into the stored
+         sheet link, roster link or webhook URL, never into what the
+         member sees, and the sheet ID is still parsed from the stored
+         link exactly as before. */
+      var lastFetchTs = 0;
+      function freshUrl(u){
+        var ts = Date.now();
+        if(ts <= lastFetchTs) ts = lastFetchTs + 1;
+        lastFetchTs = ts;
+        u = String(u==null?"":u);
+        return u + (u.indexOf("?") > -1 ? "&" : "?") + "ts=" + ts;
       }
 
       /* ================= LOGIN ================= */
@@ -1131,7 +1157,7 @@ function setLocation_(data) {
       function fetchRosterTab(id, idx, forEvent, cb){
         if(idx>=ROSTER_TABS.length){ finishRosterLoad(forEvent, null, true, cb); return; }
         var csvUrl = "https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(ROSTER_TABS[idx]);
-        fetch(csvUrl).then(function(res){
+        fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
           if(!res.ok) throw new Error("HTTP "+res.status);
           return res.text();
         }).then(function(text){
@@ -1164,7 +1190,7 @@ function setLocation_(data) {
           }
           return;
         }
-        fetch(csvUrl).then(function(res){
+        fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
           if(!res.ok) throw new Error("HTTP "+res.status);
           return res.text();
         }).then(function(text){
@@ -1524,7 +1550,7 @@ function setLocation_(data) {
           if(state.adminOpen) renderAdmin();
           return;
         }
-        fetch(hook).then(function(res){ return res.json(); }).then(function(list){
+        fetch(freshUrl(hook), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(list){
           if(Array.isArray(list)) allRemarks = list.map(normalizeRemark);
           if(state.detailOpen) renderRemarks();
           if(state.adminOpen) renderAdmin();
@@ -1790,6 +1816,7 @@ function setLocation_(data) {
               if(norm(FIELDS[i].syn[j])===h) return FIELDS[i].key;
             }
           }
+          if(h && h.indexOf("name")===0) return "name";
           return null;
         });
         var guests=[];
@@ -1823,6 +1850,17 @@ function setLocation_(data) {
         }
         $("lastUpdated").textContent = state.lastUpdated ? "· Last updated "+state.lastUpdated : "";
         $("refreshBtn").style.display = state.source.url ? "" : "none";
+        /* Uploaded-file warning: data loaded from an uploaded file (a real
+           load with no sheet URL behind it) is a snapshot on this phone —
+           say so plainly in the main view, right under the banner, for as
+           long as that snapshot is what is showing. It disappears as soon
+           as the same event is loaded from a sheet link instead, and it is
+           tracked per event because updateBanner always describes the
+           active event's source. Refresh now stays hidden for uploaded
+           data (there is nothing to re-fetch) — this warning carries that
+           message instead. Sample rows are not uploads and never warn. */
+        var uw = $("uploadWarn");
+        if(uw) uw.style.display = (state.source.kind==="real" && !state.source.url && !!state.source.label) ? "" : "none";
       }
 
       function loadGuests(guests, source){
@@ -1864,7 +1902,7 @@ function setLocation_(data) {
           return;
         }
         if(!silent) setStatus("Loading sheet…");
-        fetch(csvUrl).then(function(res){
+        fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
           if(!res.ok) throw new Error("HTTP "+res.status);
           return res.text();
         }).then(function(text){
@@ -2868,6 +2906,23 @@ function setLocation_(data) {
       $("previewShareDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(driverMsg(state.current)); });
       $("previewShareGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(guestMsg(state.current)); });
       $("gasCopyBtn").addEventListener("click", function(){ copyText($("gasCode").textContent, "Apps Script code copied — paste it into Apps Script"); });
+      (function(){
+        var toggleBtn = $("gasToggleBtn"), codeEl = $("gasCode");
+        if(toggleBtn && codeEl){
+          toggleBtn.addEventListener("click", function(){
+            var isHidden = codeEl.style.display==="none";
+            if(isHidden){
+              codeEl.style.display="";
+              toggleBtn.textContent="Hide Apps Script code";
+              toggleBtn.setAttribute("aria-expanded","true");
+            }else{
+              codeEl.style.display="none";
+              toggleBtn.textContent="Show Apps Script code";
+              toggleBtn.setAttribute("aria-expanded","false");
+            }
+          });
+        }
+      })();
 
       /* ---------- Init: event selection, per-event sheet and hook params
          (legacy ?sheet= / ?hook= apply to the ?event= event, default CMOT),
