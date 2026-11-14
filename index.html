@@ -101,7 +101,7 @@
         background:var(--surface2);color:var(--ink);padding:10px 14px;font-weight:600;text-decoration:none;font-size:.95rem}
       .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       .btn.ghost{background:transparent}
-      .btn.small{min-height:2.25rem;padding:6px 11px;font-size:.88rem}
+      .btn.small{min-height:2.75rem;padding:6px 11px;font-size:.88rem}
       .btn:disabled{opacity:.5;cursor:not-allowed}
       input[type="file"]{width:100%;border:1px dashed var(--line);border-radius:9px;padding:8px;background:var(--surface);color:var(--ink2);font-size:.9rem}
       input[type="file"]::file-selector-button{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:none;border-radius:7px;padding:10px 14px;margin-right:10px;cursor:pointer;min-height:2.5rem}
@@ -112,11 +112,24 @@
       .cols-note code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:.82rem}
 
       /* ---------- Search ---------- */
-      .searchbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:14px 0 8px;margin-top:8px}
+      .searchbar{position:relative;z-index:20;background:var(--bg);padding:14px 0 8px;margin-top:8px;transition:transform .22s ease,opacity .22s ease}
+      .searchbar.autohide-revealed{position:fixed;top:0;left:0;right:0;margin:0 auto;max-width:1060px;padding-left:16px;padding-right:16px;box-shadow:var(--shadow);border-bottom:1px solid var(--line)}
+      .searchbar.autohide-hidden{transform:translateY(-110%);opacity:0;pointer-events:none}
+      .filters-details{margin-top:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+      .filters-details>summary{cursor:pointer;font-weight:700;padding:10px 14px;min-height:2.75rem;display:flex;align-items:center;gap:8px;list-style:none}
+      .filters-details>summary::-webkit-details-marker{display:none}
+      .filters-body{padding:2px 14px 14px}
+      .badge.phoneonly{background:var(--warn-soft);color:var(--warn);text-transform:none;letter-spacing:0;white-space:normal;text-align:left}
+      .secthead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .secthead h3{margin:0}
+      .textlink{background:none;border:none;color:var(--accent);text-decoration:underline;font-size:.88rem;font-weight:600;padding:6px 2px;cursor:pointer;min-height:2rem}
+      details.privacy>summary{cursor:pointer;font-size:1rem;font-weight:700;list-style:none}
+      details.privacy>summary::-webkit-details-marker{display:none}
+      .msg-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
       .searchrow{display:flex;gap:8px}
       .searchrow input{flex:1;font-size:1.05rem;padding:12px 14px;border-radius:11px;border:2px solid var(--accent);background:var(--surface)}
       .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-      .chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:.9rem;min-height:2.5rem}
+      .chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:.9rem;min-height:2.75rem}
       .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       .selrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
       .selrow select{flex:1;min-width:150px}
@@ -147,7 +160,7 @@
       .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;text-align:left;width:100%;color:var(--ink)}
       .card:active{transform:scale(.995)}
       .card .nm{font-weight:700;font-size:1.08rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-      .badge{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+      .badge{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
       .badge.arr{background:var(--ok-soft);color:var(--ok)}
       .badge.dep{background:var(--warn-soft);color:var(--warn)}
       .badge.sample{background:#dc2626;color:#fff}
@@ -176,8 +189,8 @@
       .actions .btn{width:100%}
       .msgbox{margin-top:16px}
       .msgbox h3{font-size:.95rem;margin:0 0 6px}
-      .msgbox pre{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;margin:0}
-      .msg-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+      .msgbox pre{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.95rem;margin:0}
+      .msg-actions .btn{width:100%}
       .msg-actions .btn{width:100%;padding-left:8px;padding-right:8px}
       .drivernote{font-size:.85rem;color:var(--ink2);margin:6px 0 0}
       .msgblur{filter:blur(7px);-webkit-filter:blur(7px);user-select:none;-webkit-user-select:none}
@@ -193,7 +206,7 @@
       .remark .rguest{font-weight:700;font-size:.92rem}
       .remark .rtext{white-space:pre-wrap;word-break:break-word}
       .remark .rmeta{font-size:.8rem;color:var(--ink2);margin-top:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-      .btn.rdel{min-height:2rem;padding:3px 10px;font-size:.78rem;color:#dc2626;border-color:#dc2626;background:transparent}
+      .btn.rdel{min-height:2.75rem;padding:3px 10px;font-size:.78rem;color:#dc2626;border-color:#dc2626;background:transparent}
       @media (prefers-color-scheme: dark){.btn.rdel{color:#f28b82;border-color:#b91c1c}}
       .remark-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
       .remark-add input{flex:1;min-width:200px}
@@ -257,8 +270,8 @@
       <div class="uploadwarn" id="uploadWarn" role="alert" style="display:none">Loaded from an uploaded file — edits in Drive won’t appear here until you re-upload the file. For live updates, link the Google Sheet instead.</div>
 
       <!-- ============ PRIVACY WARNING ============ -->
-      <section class="privacy" aria-labelledby="privacy-h">
-        <h2 id="privacy-h">⚠ Privacy — read before sharing</h2>
+      <details class="privacy" id="privacyBox" open aria-labelledby="privacy-h">
+        <summary id="privacy-h">⚠ Privacy — read before sharing</summary>
         <p>This page's link and the shared guest sheet expose <strong>guest names and phone numbers</strong> to anyone who holds them. Share both links <strong>only with the team</strong>. <strong>NEVER post this tool link or the sheet link in the client group.</strong></p>
         <p style="margin-bottom:2px"><strong>If a link leaks:</strong></p>
         <ul>
@@ -266,7 +279,7 @@
           <li>Re-share the sheet with a fresh link and load the new link in this tool.</li>
           <li>Tell the whole team in the internal group to stop using the old link immediately.</li>
         </ul>
-      </section>
+      </details>
 
       <!-- ============ SETTINGS ============ -->
       <section class="panel" id="settingsPanel" style="display:none" aria-labelledby="settings-h">
@@ -320,6 +333,8 @@
         <h2 id="load-h">1 · Load the guest sheet</h2>
         <p class="hint">Pick whichever way the sheet reaches you. A Google Sheet link is remembered on this device and reloaded automatically next time you open the page — while the page stays open it re-checks the sheet every 30 seconds on its own, and Refresh now in the banner above pulls the latest version any time.</p>
         <p class="hint" id="loadEventHint" style="margin-top:-6px">You are loading data for <strong id="loadEventName">CMOT</strong>. Each event keeps its own data — to load the other event's sheet or file, switch events at the top first.</p>
+        <details id="loadStepsDetails" open>
+        <summary style="cursor:pointer;font-weight:700;min-height:2.75rem;display:flex;align-items:center">Show load options</summary>
         <div class="steps">
           <div class="step">
             <h3>Option A — Google Sheet link</h3>
@@ -344,6 +359,7 @@
             </div>
           </div>
         </div>
+        </details>
         <div class="status" id="loadStatus" role="status"></div>
         <p class="cols-note">Columns match the master file <code>Goa-IFFI-Guest-Master.xlsx</code> exactly (any order in your copy, extra columns are kept and shown too):
           <code>Guest ID</code> <code>Guest Name</code> <code>Phone</code> <code>Country Code</code> <code>Designation</code> <code>Type</code> <code>Date</code> <code>Time</code>
@@ -353,7 +369,14 @@
       </section>
 
       <!-- ============ SEARCH ============ -->
-      <div class="searchbar">
+      <div class="searchbar" id="searchbar">
+        <div class="searchrow">
+          <input type="search" id="q" placeholder="Search name / phone / flight / vehicle no / hotel…" autocomplete="off" aria-label="Search guests" />
+          <button class="btn" id="clearBtn" type="button">Clear</button>
+        </div>
+        <details class="filters-details" id="filtersDetails">
+          <summary id="filtersSummary">Filters <span class="badge" id="filterCountBadge" style="display:none"></span><span id="filterCountText"></span></summary>
+          <div class="filters-body">
         <div class="locbar">
           <label class="loclabel" for="locInput">Search by location</label>
           <div class="locwrap">
@@ -361,10 +384,6 @@
             <button class="btn" id="locClearBtn" type="button" style="display:none">Clear location</button>
             <div class="locmenu" id="locMenu" role="listbox" aria-label="Locations in the loaded data"></div>
           </div>
-        </div>
-        <div class="searchrow">
-          <input type="search" id="q" placeholder="Search name / phone / flight / vehicle no / hotel…" autocomplete="off" aria-label="Search guests" />
-          <button class="btn" id="clearBtn" type="button">Clear</button>
         </div>
         <div class="chips" role="group" aria-label="Movement type">
           <button class="chip" type="button" data-type="all" aria-pressed="true">All</button>
@@ -395,6 +414,8 @@
             <input type="time" id="timeTo" aria-label="Pickup time to" />
           </label>
         </div>
+          </div>
+        </details>
         <p class="count" id="countLine"></p>
       </div>
 
@@ -756,37 +777,34 @@ function setVehicleStatus_(data) {
         </div>
         <h2 id="dName">Guest</h2>
         <div class="desig" id="dDesig"></div>
-        <table class="fields" id="dFields"></table>
-
         <div class="actions">
           <button class="btn primary" id="copyDriverBtn" type="button">Copy for Driver</button>
           <a class="btn" id="waDriverBtn" href="#" target="_blank" rel="noopener">WhatsApp Driver</a>
           <button class="btn" id="copyGuestBtn" type="button">Copy for Guest</button>
           <a class="btn" id="waGuestBtn" href="#" target="_blank" rel="noopener">WhatsApp Guest</a>
-          <button class="btn" id="copyAllBtn" type="button">Copy Full Details</button>
           <a class="btn" id="callGuestBtn" href="#">Call Guest</a>
           <a class="btn" id="smsGuestBtn" href="#">SMS Guest</a>
           <a class="btn" id="callDriverBtn" href="#">Call Driver</a>
           <a class="btn" id="smsDriverBtn" href="#">SMS Driver</a>
         </div>
+        <table class="fields" id="dFields"></table>
         <div class="practice-note" id="practiceNote" style="display:none">Practice data — load the real sheet to send</div>
         <p class="cols-note" id="waDriverNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
         <p class="cols-note" id="waGuestNote" style="display:none;color:var(--warn);font-weight:600;margin-top:8px">No valid WhatsApp number — check the contact number in the sheet.</p>
 
         <div class="vehstatus" id="vehicleStatusSection" style="display:none">
-          <h3>Vehicle status</h3>
+          <div class="secthead"><h3>Vehicle status</h3><span class="badge phoneonly" id="vstatLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
           <div id="vstatCurrent"></div>
           <div class="rowflex" style="margin-top:10px">
-            <button class="btn" id="vstatReportedBtn" type="button">Mark Vehicle Reported</button>
-            <button class="btn primary" id="vstatDepartedBtn" type="button">Mark Vehicle Departed</button>
+            <button class="btn primary" id="vstatReportedBtn" type="button">Mark Vehicle Reported</button>
+            <button class="btn" id="vstatDepartedBtn" type="button">Mark Vehicle Departed</button>
           </div>
           <div class="status err" id="vstatError" role="alert"></div>
-          <p class="cols-note" id="vstatLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</p>
           <div class="practice-note" id="vstatPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
         </div>
 
         <div class="liveloc" id="liveLocSection">
-          <h3>Live Location</h3>
+          <div class="secthead"><h3>Live Location</h3><span class="badge phoneonly" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
           <div id="liveLocCurrent"></div>
           <p class="hint">Paste the Google Maps share link from the driver's phone (24-hour share)</p>
           <p class="cols-note" style="margin:-4px 0 10px">This link is saved on every guest row with this vehicle number.</p>
@@ -796,7 +814,6 @@ function setVehicleStatus_(data) {
           </div>
           <p class="cols-note" id="liveLocWarn" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This doesn't look like a Google Maps link — check it before saving.</p>
           <div class="status err" id="liveLocError" role="alert"></div>
-          <p class="cols-note" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</p>
           <div class="practice-note" id="liveLocPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
         </div>
 
@@ -806,6 +823,7 @@ function setVehicleStatus_(data) {
           <p class="drivernote" id="driverTimeNote" style="display:none"></p>
           <div class="msg-actions" aria-label="Driver message actions">
             <button class="btn" id="previewCopyDriverBtn" type="button" aria-label="Copy driver message">Copy</button>
+            <a class="btn" id="previewWaDriverBtn" href="#" target="_blank" rel="noopener" aria-label="WhatsApp driver message">WhatsApp</a>
             <a class="btn" id="previewCallDriverBtn" href="#" aria-label="Call driver">Call</a>
             <button class="btn" id="previewShareDriverBtn" type="button" aria-label="Share driver message">Share</button>
           </div>
@@ -816,19 +834,30 @@ function setVehicleStatus_(data) {
           <p class="cols-note" id="guestNoDriverNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">Driver details not assigned yet — add the vehicle in the sheet first</p>
           <div class="msg-actions" aria-label="Guest message actions">
             <button class="btn" id="previewCopyGuestBtn" type="button" aria-label="Copy guest message">Copy</button>
+            <a class="btn" id="previewWaGuestBtn" href="#" target="_blank" rel="noopener" aria-label="WhatsApp guest message">WhatsApp</a>
             <a class="btn" id="previewCallGuestBtn" href="#" aria-label="Call guest">Call</a>
             <button class="btn" id="previewShareGuestBtn" type="button" aria-label="Share guest message">Share</button>
           </div>
         </div>
 
+        <div style="margin-top:16px">
+          <button class="btn ghost" id="copyAllBtn" type="button">Copy Full Details</button>
+        </div>
+
         <div class="remarks">
-          <h3>Remarks for this guest</h3>
+          <div class="secthead"><h3>Remarks for this guest</h3><span class="badge phoneonly" id="remarkLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share remarks with the team</span></div>
           <div id="remarkThread"></div>
+          <div id="remarkConfirmBar" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
+            <span style="font-weight:600">Delete this remark?</span>
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn small" id="remarkConfirmYes" type="button" style="color:#dc2626;border-color:#dc2626">Confirm</button>
+              <button class="btn small ghost" id="remarkConfirmNo" type="button">Cancel</button>
+            </div>
+          </div>
           <div class="remark-add">
             <input type="text" id="remarkInput" placeholder="Add a remark — e.g. guest reached the hotel" autocomplete="off" aria-label="Add a remark for this guest" />
-            <button class="btn primary" id="remarkSendBtn" type="button">Send</button>
+            <button class="btn primary" id="remarkSendBtn" type="button">Add remark</button>
           </div>
-          <p class="cols-note" id="remarkLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share remarks with the team</p>
           <div class="rowflex" style="margin-top:8px">
             <button class="btn small" id="copyRemarksBtn" type="button" style="display:none">Copy all remarks</button>
           </div>
@@ -883,6 +912,13 @@ function setVehicleStatus_(data) {
         </div>
         <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
           <h3 style="font-size:1rem;margin:0 0 4px">All remarks</h3>
+          <div id="adminRemarkConfirmBar" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
+            <span style="font-weight:600">Delete this remark?</span>
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn small" id="adminRemarkConfirmYes" type="button" style="color:#dc2626;border-color:#dc2626">Confirm</button>
+              <button class="btn small ghost" id="adminRemarkConfirmNo" type="button">Cancel</button>
+            </div>
+          </div>
           <div id="adminList"></div>
         </div>
       </div>
@@ -893,19 +929,23 @@ function setVehicleStatus_(data) {
       <div class="logincard">
         <div class="eyebrow">57th IFFI · Goa · Fox India</div>
         <h2>Team login</h2>
+        <p>Mobile + birth year — the login just tags your remarks with your name</p>
+        <details id="loginWhyDetails">
+          <summary style="cursor:pointer;font-weight:700;min-height:2.75rem;display:flex;align-items:center">Why do I log in?</summary>
         <p>This is a <strong>light team login</strong> so that every remark shows who wrote it — it is <strong>not bank-level security</strong>, and it does not lock the guest data. Anyone with this page's link can still open the tool; the login just tags your remarks with your name.</p>
         <p>Log in with your <strong>mobile number</strong> (10 digits) and your <strong>year of birth as the password</strong> (4 digits, e.g. 1995), exactly as the admin has listed them in the team list. Both are checked against that list — a mobile number that is not in the list, or a wrong year of birth, will not log you in.</p>
+        <p>Type the mobile number the admin added for you in the team list, and your password is your year of birth. You stay logged in on this phone — and your login is checked against the team list again each time the page opens, so a removed member or a changed date of birth means logging in again.</p>
+        </details>
         <p id="loginRosterNote" style="display:none;border:1px dashed var(--line);border-radius:10px;padding:10px 12px">Team list not set up yet — only the admin can log in. Admin: add the team list (Name + Mobile + Date of Birth) in the sheet's Team tab or in Admin view.</p>
         <label for="loginMobile">Mobile number (10 digits)
-          <input type="text" id="loginMobile" placeholder="e.g. 9876543210" inputmode="numeric" autocomplete="off" />
+          <input type="text" id="loginMobile" placeholder="e.g. 9876543210" inputmode="numeric" autocomplete="off" autofocus />
         </label>
         <label for="loginPassword">Password — your year of birth
           <input type="password" id="loginPassword" placeholder="Year of birth, e.g. 1995" inputmode="numeric" maxlength="4" autocomplete="off" />
         </label>
-        <p style="margin-top:14px">Type the mobile number the admin added for you in the team list, and your password is your year of birth. You stay logged in on this phone — and your login is checked against the team list again each time the page opens, so a removed member or a changed date of birth means logging in again.</p>
         <div class="status err" id="loginErr" role="alert"></div>
         <button class="btn primary" id="loginBtn" type="button" style="width:100%;margin-top:10px">Log in</button>
-        <button class="btn ghost small" id="resetLoginLink" type="button" style="width:100%;margin-top:8px">Reset login on this phone</button>
+        <div style="text-align:center;margin-top:14px"><button class="textlink" id="resetLoginLink" type="button">Reset login on this phone</button></div>
         <div id="resetLoginConfirm" style="display:none;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface2)">
           <span style="font-weight:600">This clears the saved login and any PIN set on this phone for both events. You will need to log in again.</span>
           <div class="rowflex" style="margin-top:8px">
@@ -1059,9 +1099,11 @@ function setVehicleStatus_(data) {
         return d;
       }
 
-      function toast(msg){
+      function toast(msg, dur){
         var t=$("toast"); t.textContent=msg; t.classList.add("show");
-        clearTimeout(t._h); t._h=setTimeout(function(){ t.classList.remove("show"); },2200);
+        var ms = (typeof dur==="number" && dur>0) ? dur : 2200;
+        t._dur = ms; t.setAttribute("data-dur", String(ms));
+        clearTimeout(t._h); t._h=setTimeout(function(){ t.classList.remove("show"); }, ms);
       }
       function setStatus(msg,cls){
         var s=$("loadStatus"); s.textContent=msg; s.className="status"+(cls?" "+cls:"");
@@ -1300,6 +1342,7 @@ function setVehicleStatus_(data) {
         updateLoginNote();
         $("loginGate").classList.add("open");
         document.body.style.overflow="hidden";
+        try{ var lm=$("loginMobile"); if(lm) lm.focus(); }catch(e){}
       }
       function startSession(rec){
         var mob = normalizeMobile(rec.mobile);
@@ -1674,7 +1717,7 @@ function setVehicleStatus_(data) {
           renderRemarks();
           if(state.adminOpen) renderAdmin();
           postToHook({ action:"add", guestId:r.guestId, guestName:r.guestName, remark:r.remark, author:r.author, time:r.time })
-            .then(function(){ fetchRemarks(true); toast("Remark saved to the sheet"); })
+            .then(function(){ fetchRemarks(true); toast("Remark saved to the sheet", 4000); })
             .catch(function(){ toast("Remark is shown here, but saving to the sheet failed — check the webhook URL in Settings"); });
         }else{
           var loc = localRemarks();
@@ -1683,8 +1726,27 @@ function setVehicleStatus_(data) {
           allRemarks = loc;
           renderRemarks();
           if(state.adminOpen) renderAdmin();
-          toast("Remark saved on this phone");
+          toast("Remark saved on this phone", 4000);
         }
+      }
+      var pendingDeleteRemark = null;
+      function hideRemarkConfirm(){
+        pendingDeleteRemark = null;
+        var b1=$("remarkConfirmBar"); if(b1) b1.style.display="none";
+        var b2=$("adminRemarkConfirmBar"); if(b2) b2.style.display="none";
+      }
+      function requestDeleteRemark(r){
+        if(!canDelete(r)){ toast("You can only delete your own remarks"); return; }
+        pendingDeleteRemark = r;
+        var b1=$("remarkConfirmBar"); if(b1 && state.detailOpen) b1.style.display="";
+        var b2=$("adminRemarkConfirmBar"); if(b2 && state.adminOpen) b2.style.display="";
+        /* If neither bar is in the open view, show the detail bar if present */
+        if(b1 && !state.detailOpen && !state.adminOpen) b1.style.display="";
+      }
+      function confirmDeleteRemark(){
+        var r = pendingDeleteRemark;
+        hideRemarkConfirm();
+        if(r) deleteRemark(r);
       }
       function deleteRemark(r){
         if(!canDelete(r)){ toast("You can only delete your own remarks"); return; }
@@ -1693,11 +1755,11 @@ function setVehicleStatus_(data) {
         if(state.adminOpen) renderAdmin();
         if(hookUrl()){
           postToHook({ action:"delete", guestId:r.guestId, time:r.time, author:r.author, remark:r.remark })
-            .then(function(){ fetchRemarks(true); toast("Remark deleted"); })
+            .then(function(){ fetchRemarks(true); toast("Remark deleted", 4000); })
             .catch(function(){ toast("Delete could not reach the sheet — check the webhook URL in Settings"); });
         }else{
           lsSetJSON(localRemarksKey(), allRemarks);
-          toast("Remark deleted");
+          toast("Remark deleted", 4000);
         }
       }
       $("remarkSendBtn").addEventListener("click", addRemark);
@@ -1705,13 +1767,19 @@ function setVehicleStatus_(data) {
       $("remarkThread").addEventListener("click", function(e){
         var t = e.target;
         var i = (t && t.getAttribute) ? t.getAttribute("data-deli") : null;
-        if(i!==null && i!==undefined && threadList[+i]) deleteRemark(threadList[+i]);
+        if(i!==null && i!==undefined && threadList[+i]) requestDeleteRemark(threadList[+i]);
       });
       $("adminList").addEventListener("click", function(e){
         var t = e.target;
         var i = (t && t.getAttribute) ? t.getAttribute("data-deli") : null;
-        if(i!==null && i!==undefined && adminListArr[+i]) deleteRemark(adminListArr[+i]);
+        if(i!==null && i!==undefined && adminListArr[+i]) requestDeleteRemark(adminListArr[+i]);
       });
+      (function(){
+        var y1=$("remarkConfirmYes"); if(y1) y1.addEventListener("click", confirmDeleteRemark);
+        var n1=$("remarkConfirmNo"); if(n1) n1.addEventListener("click", hideRemarkConfirm);
+        var y2=$("adminRemarkConfirmYes"); if(y2) y2.addEventListener("click", confirmDeleteRemark);
+        var n2=$("adminRemarkConfirmNo"); if(n2) n2.addEventListener("click", hideRemarkConfirm);
+      })();
       $("copyRemarksBtn").addEventListener("click", function(){
         if(!allRemarks.length){ toast("No remarks yet"); return; }
         var lines = allRemarks.slice()
@@ -1855,7 +1923,7 @@ function setVehicleStatus_(data) {
             renderLiveLoc();
             $("liveLocInput").value = "";
             updateLiveLocWarn();
-            toast("Live location link saved to "+data.updated+" rows in the sheet");
+            toast("Live location link saved to "+data.updated+" rows in the sheet", 4000);
           }).catch(function(){
             errBox.textContent = "Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
           });
@@ -1868,7 +1936,7 @@ function setVehicleStatus_(data) {
           renderLiveLoc();
           $("liveLocInput").value = "";
           updateLiveLocWarn();
-          toast("Live location saved on this phone");
+          toast("Live location saved on this phone", 4000);
         }
       }
       $("liveLocSaveBtn").addEventListener("click", saveLiveLocation);
@@ -1956,6 +2024,9 @@ function setVehicleStatus_(data) {
           cur.innerHTML = '<p class="cols-note" style="margin:6px 0">Not marked yet.</p>';
         }
         var isSample = !!g._sample;
+        var rb=$("vstatReportedBtn"), db=$("vstatDepartedBtn");
+        if(rb) rb.classList.toggle("primary", !rec);
+        if(db) db.classList.toggle("primary", !!rec && rec.status==="REPORTED");
         setSendable($("vstatReportedBtn"), !isSample && !rec);
         setSendable($("vstatDepartedBtn"), !isSample && !!rec && rec.status==="REPORTED");
         $("vstatPracticeNote").style.display = isSample ? "" : "none";
@@ -1989,7 +2060,7 @@ function setVehicleStatus_(data) {
               updateBanner();
               render();
               renderVehicleStatus();
-              toast(status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported");
+              toast(status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported", 4000);
             }).catch(function(){
               if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
             });
@@ -1999,7 +2070,7 @@ function setVehicleStatus_(data) {
           applyVehicleStatusToRows(vehicle, newRec);
           render();
           renderVehicleStatus();
-          toast((status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported")+" — saved on this phone");
+          toast((status==="DEPARTED" ? "Vehicle marked Departed" : "Vehicle marked Reported")+" — saved on this phone", 4000);
         }
       }
       $("vstatReportedBtn").addEventListener("click", function(){ markVehicleStatus("REPORTED"); });
@@ -2050,6 +2121,7 @@ function setVehicleStatus_(data) {
           setSendable($("previewCopyGuestBtn"), false);
           setSendable($("previewShareGuestBtn"), false);
           killLink($("waGuestBtn"));
+          var pwg=$("previewWaGuestBtn"); if(pwg) killLink(pwg);
           killLink($("smsGuestBtn"));
           var wgn = $("waGuestNote");
           if(wgn) wgn.style.display = "none";
@@ -2146,6 +2218,7 @@ function setVehicleStatus_(data) {
         buildLocations();
         render();
         updateBanner();
+        var lsd = $("loadStepsDetails"); if(lsd && guests.length) lsd.removeAttribute("open");
         /* If a guest detail is open, refresh it in place with the new data
            (same guest, matched by ID) — the search and list stay untouched. */
         if(state.detailOpen && state.currentKey){
@@ -2584,8 +2657,78 @@ function setVehicleStatus_(data) {
         return true;
       }
 
+      /* ---------- Active-filter count (Filters disclosure summary) ---------- */
+      function activeFilterCount(){
+        var n = 0;
+        if(state.locationFilter) n++;
+        if(state.typeFilter && state.typeFilter!=="all") n++;
+        var hf=$("hotelFilter"), af=$("airportFilter"), df=$("dateFilter");
+        if(hf && hf.value) n++;
+        if(af && af.value) n++;
+        if(df && df.value) n++;
+        var tf=$("timeFrom"), tt=$("timeTo");
+        if((tf && tf.value) || (tt && tt.value)) n++;
+        return n;
+      }
+      function updateFilterCount(){
+        var n = activeFilterCount();
+        var badge = $("filterCountBadge"), txt = $("filterCountText"), sum = $("filtersSummary");
+        if(badge){ badge.textContent = n ? String(n) : ""; badge.style.display = n ? "" : "none"; }
+        if(txt) txt.textContent = n ? (n+" active") : "";
+        if(sum) sum.setAttribute("data-active-count", String(n));
+        var det = $("filtersDetails"); if(det) det.setAttribute("data-active-count", String(n));
+      }
+      /* ---------- Privacy box: open on first visit, closable ---------- */
+      (function(){
+        var pb = $("privacyBox"); if(!pb) return;
+        try{
+          if(localStorage.getItem("iffi-privacy-closed")==="1") pb.removeAttribute("open");
+          pb.addEventListener("toggle", function(){ try{ localStorage.setItem("iffi-privacy-closed", pb.open ? "0" : "1"); }catch(e){} });
+        }catch(e){}
+      })();
+      /* ---------- Auto-hide search bar: no freeze while scrolling down.
+         The search + filters block is in normal flow (not sticky/fixed).
+         Scrolling down lets it scroll away so the list gets full height.
+         A small upward scroll (about 10px) reveals it fixed at the top;
+         scrolling down again hides it again. ---------- */
+      (function(){
+        var bar = $("searchbar"); if(!bar) return;
+        var origTop = bar.offsetTop || 0;
+        var lastY = (typeof window!=="undefined" && window.scrollY) || 0;
+        var spacer = document.createElement("div"); spacer.id="searchbarSpacer"; spacer.style.display="none";
+        if(bar.parentNode) bar.parentNode.insertBefore(spacer, bar);
+        function currentY(){ return (typeof window!=="undefined" && typeof window.scrollY==="number") ? window.scrollY : ((document.documentElement && document.documentElement.scrollTop) || 0); }
+        function onScroll(){
+          var y = currentY();
+          var barTop = origTop || spacer.offsetTop || bar.offsetTop || 0;
+          var delta = y - lastY;
+          if(y <= barTop + 10){
+            bar.classList.remove("autohide-hidden"); bar.classList.remove("autohide-revealed");
+            bar.style.transform=""; bar.style.opacity=""; spacer.style.display="none";
+          }else if(delta >= 10 || (delta > 0 && bar.classList.contains("autohide-hidden"))){
+            /* scrolling down: NOT pinned, NOT visible */
+            if(delta > 0){
+              bar.classList.add("autohide-hidden"); bar.classList.remove("autohide-revealed");
+              bar.style.transform="translateY(-110%)"; bar.style.opacity="0"; spacer.style.display="none";
+            }
+          }else if(delta <= -10 || (delta < 0 && bar.classList.contains("autohide-hidden"))){
+            if(delta < 0){
+              bar.classList.remove("autohide-hidden"); bar.classList.add("autohide-revealed");
+              bar.style.transform="translateY(0)"; bar.style.opacity="1";
+              spacer.style.height = bar.offsetHeight+"px"; spacer.style.display="";
+            }
+          }
+          /* smaller deltas: accumulate by not updating lastY until threshold crossed */
+          if(Math.abs(delta) >= 10 || y <= barTop + 10) lastY = y;
+        }
+        if(typeof window!=="undefined" && window.addEventListener) window.addEventListener("scroll", onScroll, {passive:true});
+        if(typeof document!=="undefined" && document.addEventListener) document.addEventListener("scroll", onScroll, {passive:true});
+        bar._onScroll = onScroll;
+      })();
+
       /* ---------- Render results ---------- */
       function render(){
+        updateFilterCount();
         var q=$("q").value, hf=$("hotelFilter").value, df=$("dateFilter").value;
         var afEl=$("airportFilter"); var af=afEl ? afEl.value : "";
         var loc = state.locationFilter;
@@ -2821,6 +2964,8 @@ function setVehicleStatus_(data) {
           killLink($("waDriverBtn")); killLink($("waGuestBtn"));
           killLink($("callGuestBtn")); killLink($("callDriverBtn"));
           killLink($("smsGuestBtn")); killLink($("smsDriverBtn"));
+          var swd=$("previewWaDriverBtn"); if(swd) killLink(swd);
+          var swg=$("previewWaGuestBtn"); if(swg) killLink(swg);
           killLink($("previewCallGuestBtn")); killLink($("previewCallDriverBtn"));
           var snd = $("waDriverNote"); if(snd) snd.style.display = "none";
           var sng = $("waGuestNote"); if(sng) sng.style.display = "none";
@@ -2833,6 +2978,8 @@ function setVehicleStatus_(data) {
           setSms($("smsDriverBtn"), g.driverPhone, "", dm);
           setTel($("previewCallGuestBtn"), g.phone, g.cc);
           setTel($("previewCallDriverBtn"), g.driverPhone, "");
+          var pwd=$("previewWaDriverBtn"); if(pwd) setWa(pwd, g.driverPhone, "", dm, null);
+          var pwg2=$("previewWaGuestBtn"); if(pwg2) setWa(pwg2, g.phone, g.cc, gm, null);
         }
         updateRemarkChrome();
         renderLiveLoc();
