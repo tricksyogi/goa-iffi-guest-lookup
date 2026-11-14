@@ -113,8 +113,9 @@
 
       /* ---------- Search ---------- */
       .searchbar{position:relative;z-index:20;background:var(--bg);padding:14px 0 8px;margin-top:8px;transition:transform .22s ease,opacity .22s ease}
-      .searchbar.autohide-revealed{position:fixed;top:0;left:0;right:0;margin:0 auto;max-width:1060px;padding-left:16px;padding-right:16px;box-shadow:var(--shadow);border-bottom:1px solid var(--line)}
-      .searchbar.autohide-hidden{transform:translateY(-110%);opacity:0;pointer-events:none}
+      .searchbar.is-pinned{position:fixed;top:0;left:0;right:0;margin:0 auto;max-width:1060px;padding-left:16px;padding-right:16px;box-shadow:var(--shadow);border-bottom:1px solid var(--line)}
+      .searchbar.is-pinned.is-hidden{transform:translateY(-110%);opacity:0;pointer-events:none}
+      #searchbarSpacer{display:none}
       .filters-details{margin-top:10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
       .filters-details>summary{cursor:pointer;font-weight:700;padding:10px 14px;min-height:2.75rem;display:flex;align-items:center;gap:8px;list-style:none}
       .filters-details>summary::-webkit-details-marker{display:none}
@@ -501,10 +502,8 @@
           <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”. A line is omitted when its value is blank (for example, no flight for a shuttle, or no remark). The preview, Copy and Share all use this same line-wise text. Department comes from the Designation column (the CMOT “Department” column), and Remark comes from the Remark column. <strong>Pickup Time in the driver message is shown one hour before the time in the sheet</strong> — the driver is told to report one hour early. Everywhere else in the tool (the guest message, the detail view, search cards and location lists) you, the member, always see the actual sheet time, unchanged. Under the driver message preview in the detail view, a small note shows both times so you can see exactly what the driver was told; that note is never part of the message sent, copied or shared to the driver.</p>
           <div class="fmt">Guest Name: {Guest Name}
 Department: {Designation}
-Contact Number: {Phone}
 Date: {Date}
 Pickup Time: {Time}
-Flight No.: {Flight No}
 Hotel: {Hotel}
 Remark: {Remark}
 Pickup Point: {Pickup Point}</div>
@@ -801,20 +800,20 @@ function setVehicleStatus_(data) {
           </div>
           <div class="status err" id="vstatError" role="alert"></div>
           <div class="practice-note" id="vstatPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
-        </div>
 
-        <div class="liveloc" id="liveLocSection">
-          <div class="secthead"><h3>Live Location</h3><span class="badge phoneonly" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
-          <div id="liveLocCurrent"></div>
-          <p class="hint">Paste the Google Maps share link from the driver's phone (24-hour share)</p>
-          <p class="cols-note" style="margin:-4px 0 10px">This link is saved on every guest row with this vehicle number.</p>
-          <div class="remark-add">
-            <input type="url" id="liveLocInput" placeholder="Paste Google Maps share link…" autocomplete="off" aria-label="Live Location Link" />
-            <button class="btn primary" id="liveLocSaveBtn" type="button">Save live location link</button>
+          <div class="liveloc" id="liveLocSection">
+            <div class="secthead"><h3>Live Location</h3><span class="badge phoneonly" id="liveLocLocalNote" style="display:none">Saved on this phone only — set the webhook URL to share it with the team</span></div>
+            <div id="liveLocCurrent"></div>
+            <p class="hint">Paste the Google Maps share link from the driver's phone (24-hour share)</p>
+            <p class="cols-note" style="margin:-4px 0 10px">This link is saved on every guest row with this vehicle number.</p>
+            <div class="remark-add">
+              <input type="url" id="liveLocInput" placeholder="Paste Google Maps share link…" autocomplete="off" aria-label="Live Location Link" />
+              <button class="btn primary" id="liveLocSaveBtn" type="button">Save live location link</button>
+            </div>
+            <p class="cols-note" id="liveLocWarn" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This doesn't look like a Google Maps link — check it before saving.</p>
+            <div class="status err" id="liveLocError" role="alert"></div>
+            <div class="practice-note" id="liveLocPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
           </div>
-          <p class="cols-note" id="liveLocWarn" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This doesn't look like a Google Maps link — check it before saving.</p>
-          <div class="status err" id="liveLocError" role="alert"></div>
-          <div class="practice-note" id="liveLocPracticeNote" style="display:none">Practice data — load the real sheet to send</div>
         </div>
 
         <div class="msgbox">
@@ -2686,44 +2685,110 @@ function setVehicleStatus_(data) {
           pb.addEventListener("toggle", function(){ try{ localStorage.setItem("iffi-privacy-closed", pb.open ? "0" : "1"); }catch(e){} });
         }catch(e){}
       })();
-      /* ---------- Auto-hide search bar: no freeze while scrolling down.
-         The search + filters block is in normal flow (not sticky/fixed).
-         Scrolling down lets it scroll away so the list gets full height.
-         A small upward scroll (about 10px) reveals it fixed at the top;
-         scrolling down again hides it again. ---------- */
+      /* ---------- Auto-hide search bar: no freeze while scrolling.
+         Three states, switched without ever changing the document height,
+         so the list never jumps or stutters:
+           FLOW          — bar sits in the page and scrolls away naturally
+                           while scrolling down (nothing stays frozen).
+           PINNED-SHOW   — after the bar has scrolled past, a small upward
+                           scroll (about 8px) brings it back, fixed at top.
+           PINNED-HIDE   — scrolling down again slides that fixed bar away,
+                           but it STAYS fixed and the spacer keeps holding
+                           its space, so hiding never collapses the page.
+         The bar's home position is read live from the spacer (which never
+         leaves the flow), so panels opening above the bar — Settings, the
+         privacy box, the load steps — can never make the threshold stale.
+         One rAF-throttled listener only, and the bar never hides while a
+         control inside it has focus (typing in search, using filters). --- */
       (function(){
         var bar = $("searchbar"); if(!bar) return;
-        var origTop = bar.offsetTop || 0;
-        var lastY = (typeof window!=="undefined" && window.scrollY) || 0;
-        var spacer = document.createElement("div"); spacer.id="searchbarSpacer"; spacer.style.display="none";
+        var spacer = document.createElement("div");
+        spacer.id = "searchbarSpacer"; spacer.setAttribute("aria-hidden","true");
+        spacer.style.display = "none";
         if(bar.parentNode) bar.parentNode.insertBefore(spacer, bar);
-        function currentY(){ return (typeof window!=="undefined" && typeof window.scrollY==="number") ? window.scrollY : ((document.documentElement && document.documentElement.scrollTop) || 0); }
-        function onScroll(){
-          var y = currentY();
-          var barTop = origTop || spacer.offsetTop || bar.offsetTop || 0;
-          var delta = y - lastY;
-          if(y <= barTop + 10){
-            bar.classList.remove("autohide-hidden"); bar.classList.remove("autohide-revealed");
-            bar.style.transform=""; bar.style.opacity=""; spacer.style.display="none";
-          }else if(delta >= 10 || (delta > 0 && bar.classList.contains("autohide-hidden"))){
-            /* scrolling down: NOT pinned, NOT visible */
-            if(delta > 0){
-              bar.classList.add("autohide-hidden"); bar.classList.remove("autohide-revealed");
-              bar.style.transform="translateY(-110%)"; bar.style.opacity="0"; spacer.style.display="none";
-            }
-          }else if(delta <= -10 || (delta < 0 && bar.classList.contains("autohide-hidden"))){
-            if(delta < 0){
-              bar.classList.remove("autohide-hidden"); bar.classList.add("autohide-revealed");
-              bar.style.transform="translateY(0)"; bar.style.opacity="1";
-              spacer.style.height = bar.offsetHeight+"px"; spacer.style.display="";
-            }
-          }
-          /* smaller deltas: accumulate by not updating lastY until threshold crossed */
-          if(Math.abs(delta) >= 10 || y <= barTop + 10) lastY = y;
+        var THRESH = 8;
+        var mode = "flow"; /* flow | show | hide */
+        var lastY = currentY();
+        var ticking = false;
+        function currentY(){
+          if(typeof window!=="undefined" && typeof window.scrollY==="number") return window.scrollY;
+          return (document.documentElement && document.documentElement.scrollTop) || 0;
         }
-        if(typeof window!=="undefined" && window.addEventListener) window.addEventListener("scroll", onScroll, {passive:true});
-        if(typeof document!=="undefined" && document.addEventListener) document.addEventListener("scroll", onScroll, {passive:true});
+        function homeTop(){
+          /* The spacer always stays in the flow at the bar's home slot, so
+             its document position is the true threshold in every state. */
+          var r = spacer.getBoundingClientRect();
+          return r.top + currentY();
+        }
+        function barHasFocus(){
+          var a = document.activeElement;
+          return !!(a && a!==document.body && bar.contains(a));
+        }
+        function setSpacer(){
+          spacer.style.height = bar.offsetHeight+"px";
+          spacer.style.display = "block";
+        }
+        function toFlow(){
+          if(mode==="flow") return;
+          mode = "flow";
+          bar.classList.remove("is-pinned"); bar.classList.remove("is-hidden");
+          bar.style.transform=""; bar.style.opacity="";
+          spacer.style.display = "none"; spacer.style.height = "0px";
+        }
+        function toPinned(show){
+          if(mode==="flow"){
+            /* Reserve the bar's exact space BEFORE it leaves the flow, so
+               pinning does not move anything else on the page. */
+            setSpacer();
+            bar.classList.add("is-pinned");
+          }
+          mode = show ? "show" : "hide";
+          if(show){ bar.classList.remove("is-hidden"); bar.style.transform=""; bar.style.opacity=""; }
+          else{ bar.classList.add("is-hidden"); bar.style.transform=""; bar.style.opacity=""; }
+        }
+        function onScrollFrame(){
+          ticking = false;
+          var y = currentY();
+          if(y <= homeTop() + 4){ toFlow(); lastY = y; return; }
+          if(mode==="flow"){
+            /* Bar's home slot is above the viewport: pin it, starting
+               hidden if the member is still moving down the list. */
+            toPinned(y <= lastY);
+            lastY = y; return;
+          }
+          if(barHasFocus()){ if(mode!=="show") toPinned(true); lastY = y; return; }
+          var delta = y - lastY;
+          if(delta >= THRESH){ toPinned(false); lastY = y; }
+          else if(delta <= -THRESH){ toPinned(true); lastY = y; }
+          /* Smaller moves keep lastY, so slow scrolls accumulate to the
+             threshold instead of flickering the bar on every pixel. */
+        }
+        function onScroll(){
+          if(ticking) return;
+          ticking = true;
+          if(typeof window!=="undefined" && window.requestAnimationFrame) window.requestAnimationFrame(onScrollFrame);
+          else onScrollFrame();
+        }
+        if(typeof window!=="undefined" && window.addEventListener){
+          window.addEventListener("scroll", onScroll, {passive:true});
+          window.addEventListener("resize", function(){
+            if(mode!=="flow") setSpacer();
+            lastY = currentY();
+            onScroll();
+          });
+          window.addEventListener("load", onScroll);
+        }
+        /* Keep the reserved space exact while pinned — Filters opening or
+           closing, or the count line wrapping, must not shift the list. */
+        if(typeof ResizeObserver!=="undefined"){
+          try{
+            var ro = new ResizeObserver(function(){ if(mode!=="flow") setSpacer(); });
+            ro.observe(bar);
+          }catch(e){}
+        }
+        bar.addEventListener("focusin", function(){ if(mode==="hide") toPinned(true); });
         bar._onScroll = onScroll;
+        onScroll();
       })();
 
       /* ---------- Render results ---------- */
@@ -2756,7 +2821,8 @@ function setVehicleStatus_(data) {
           var meta=[];
           if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
           if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" · "))+"</b></span>");
-          if(g.hotel) meta.push("<span>"+esc(g.hotel)+"</span>");
+          if(g.from) meta.push("<span>Pickup: <b>"+esc(g.from)+"</b></span>");
+          if(g.hotel) meta.push("<span>Drop: <b>"+esc(g.hotel)+"</b></span>");
           if(g.vehNo) meta.push("<span>Vehicle <b>"+esc(g.vehNo)+"</b></span>");
           if(g.driver) meta.push("<span>Driver <b>"+esc(g.driver)+"</b></span>");
           var vsRec = vehicleStatusFor(g);
@@ -2866,11 +2932,9 @@ function setVehicleStatus_(data) {
         function add(label, value){ var v = clean(value); if(v) lines.push(label+": "+v); }
         add("Guest Name", g.name);
         add("Department", g.designation || g.department);
-        add("Contact Number", g.phone);
         add("Date", g.date);
         var dti = driverTimeInfo(g.time);
         add("Pickup Time", dti ? (dti.blank ? "" : dti.text) : g.time);
-        add("Flight No.", g.flight);
         add("Hotel", g.hotel);
         add("Remark", (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark);
         add("Pickup Point", g.from || g.pickupPoint);
