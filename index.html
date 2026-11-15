@@ -264,6 +264,10 @@
       .gchip{border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:999px;padding:7px 12px;font-weight:600;font-size:.88rem;min-height:2.75rem}
       .drvrow{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
       .drvrow .dname{font-weight:700;font-size:1.05rem}
+      /* ---------- v30: hotel locations ---------- */
+      .hotelcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
+      .hotelcard .hname{font-weight:700;font-size:1.05rem}
+      .hotelcard .haddr{color:var(--ink2);font-size:.92rem;margin-top:3px;white-space:pre-wrap;word-break:break-word}
       .viewhead{font-weight:700;font-size:1.05rem;margin:14px 2px 4px}
       .viewsub{color:var(--ink2);font-size:.92rem;margin:0 2px 10px}
       .legdest{display:block;font-weight:600;font-size:.95rem;margin-top:12px}
@@ -315,6 +319,7 @@
         <button type="button" class="vtab" id="tabToday" aria-pressed="false">Aaj ke arrivals</button>
         <button type="button" class="vtab" id="tabVehicles" aria-pressed="false">Vehicles</button>
         <button type="button" class="vtab" id="tabDrivers" aria-pressed="false">Today's drivers</button>
+        <button type="button" class="vtab" id="tabHotels" aria-pressed="false">Hotels</button>
       </div>
 
       <!-- ============ PRIVACY WARNING ============ -->
@@ -366,6 +371,14 @@
         </label>
         <div class="rowflex" style="margin-top:8px">
           <button class="btn" id="rosterSaveBtn" type="button">Save roster sheet link</button>
+        </div>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Hotel locations sheet (shared — both events)</h3>
+        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Hotel Locations</strong> sheet — holds every hotel's name, address and map location link, for <strong>both CMOT and IFFI</strong>. The tool only <strong>reads</strong> it (it never writes to it): the list powers the <strong>Hotels tab</strong> and adds the hotel address + location link to the driver message. New hotels are added as rows in that sheet and appear here on the next refresh — no tool change needed. Paste its link here once, or open the tool through a team link carrying <code>?locations=…</code>. The admin can share one team link carrying it. Saving this link never changes either event's sheet link, webhook URL, or the roster link. This link is <strong>team-only</strong>, like the guest sheet link — never post it in the client group.</p>
+        <label class="setlabel" for="locationsInput">Hotel locations sheet link
+          <input type="url" id="locationsInput" placeholder="Paste the Hotel Locations sheet link…" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="locationsSaveBtn" type="button">Save locations sheet link</button>
         </div>
         <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
         <p class="hint" style="margin-bottom:8px">When the team list is active, your password is your <strong>year of birth</strong> and cannot be changed here — ask the admin to correct your date of birth in the Team list if it is wrong. This change only applies to the admin fallback login (no team list), where it changes the admin PIN on this phone.</p>
@@ -474,6 +487,7 @@
       <div id="todayView" style="display:none"></div>
       <div id="vehiclesView" style="display:none"></div>
       <div id="driversView" style="display:none"></div>
+      <div id="hotelsView" style="display:none"></div>
 
       <!-- ============ HELP ============ -->
       <section class="panel" id="helpPanel" aria-labelledby="help-h">
@@ -557,8 +571,11 @@ Department: {Designation}
 Date: {Date}
 Pickup Time: {Time}
 Hotel: {Hotel}
+Hotel Address: {Hotel Address}
+Hotel Location: {Location Link}
 Remark: {Remark}
 Pickup Point: {Pickup Point}</div>
+          <p style="font-size:.92rem;color:var(--ink2);margin:8px 0 0">The <strong>Hotel Address</strong> and <strong>Hotel Location</strong> lines appear only when the guest's hotel is in the Hotel Locations list (see “Hotel locations” below) — when it is not, both lines are omitted entirely, exactly like any other blank line.</p>
           <p style="font-size:.92rem;color:var(--ink2);margin:8px 0 0"><strong>Copy Full Details is for members only:</strong> it copies the raw field dump of the guest's row, including the guest's phone number and flight number — never paste it to a driver. For anything a driver receives, use the driver message above (Copy for Driver / WhatsApp Driver), which leaves those out.</p>
         </div>
         <div style="margin-top:14px">
@@ -590,6 +607,17 @@ Driver Number: {Driver Contact}</div>
             <li><strong>Aaj ke arrivals</strong> — only today's guests (IST), in time order, with vehicle and driver status.</li>
             <li><strong>Vehicles</strong> — every vehicle of the selected event in one place: driver, phone, its guests, hotel, usage type, current status and latest trip. Filter by status: on arrival duty / with guest / on shuttle / idle.</li>
             <li><strong>Today's drivers</strong> — every driver on duty today in one list: one tap to <strong>Call</strong>, one tap to send the ready-made <strong>WhatsApp</strong> day message, and a <strong>Called &#10003;</strong> tick once you have spoken to them. The tick saves with your name and the time (in the sheet when the webhook is set, otherwise on this phone — labelled as such). Calls cannot be auto-dialled for free — the tap <em>is</em> the call button.</li>
+          </ul>
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="font-size:.98rem;margin:0 0 6px">Hotel locations</h3>
+          <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
+            <li>The hotel list comes from the <strong>Hotel Locations sheet</strong> — one shared sheet with each hotel's name, address and map location link. New hotels are added as rows in that sheet and appear in this tool live on the next refresh (every 30 seconds, or tap Refresh now) — <strong>no tool update is ever needed</strong> to add a hotel. The tool only reads that sheet; it never writes to it.</li>
+            <li>The <strong>Hotels tab</strong> (with the view tabs above the guest list) shows every hotel in the list with its address and an <strong>Open in Maps</strong> link. Each hotel also has <strong>Copy</strong> (copies the name, address and location link together) and <strong>Share</strong>, so any member can look up a hotel and send its location to anyone.</li>
+            <li>When a guest's details are sent to the <strong>driver</strong>, the driver message carries two extra lines right after the Hotel line — <strong>Hotel Address</strong> and <strong>Hotel Location</strong> (the map link, as plain text) — whenever that guest's hotel is in the locations list. When the hotel is not in the list, both lines are left out entirely.</li>
+            <li>Hotel names are <strong>matched loosely</strong>: “Hotel Casa de Katson” in the guest sheet finds “Casa de Katson” in the locations list, and small spelling differences in a name still match. If a guest's hotel is known but has no location saved yet, the guest's detail view shows a small note under the driver message saying so — that note is only for members and is never part of any message sent.</li>
+            <li>The <strong>guest message does not carry</strong> the hotel address or location link — those go only to the driver.</li>
+            <li>The locations sheet link is set in <strong>Settings → Hotel locations sheet link</strong> (one link, shared by both events) and is <strong>team-only</strong>, exactly like the guest sheet link — never post it in the client group.</li>
           </ul>
         </div>
         <div style="margin-top:14px">
@@ -1116,6 +1144,7 @@ function setCallTick_(data) {
           <h3>Message for driver (preview)</h3>
           <pre id="driverMsg"></pre>
           <p class="drivernote" id="driverTimeNote" style="display:none"></p>
+          <p class="drivernote" id="driverLocNote" style="display:none"></p>
           <div class="msg-actions" aria-label="Driver message actions">
             <button class="btn" id="previewCopyDriverBtn" type="button" aria-label="Copy driver message">Copy</button>
             <a class="btn" id="previewWaDriverBtn" href="#" target="_blank" rel="noopener" aria-label="WhatsApp driver message">WhatsApp</a>
@@ -1314,6 +1343,7 @@ function setCallTick_(data) {
       var LS_NOTIF_DISMISSED = "iffi-notif-dismissed";
       var LS_LOCAL_ACTIVITY = "iffi-local-activity";
       var LS_LOCAL_CALLTICKS = "iffi-local-callticks";
+      var LS_LOCATIONS = "iffi-hotel-locations-url";
       var REFRESH_MS = 30000;
 
       /* ================= EVENTS (CMOT / IFFI) =================
@@ -1910,6 +1940,204 @@ function setCallTick_(data) {
       }
       $("evBtnCmot").addEventListener("click", function(){ switchEvent("CMOT"); });
       $("evBtnIffi").addEventListener("click", function(){ switchEvent("IFFI"); });
+
+      /* ================= v30 — HOTEL LOCATIONS =================
+         A NEW read-only data source: the "Hotel Locations" Google Sheet
+         (Timestamp | Email Address | Hotel Name | Hotel Address |
+         Location Link, first tab only), read via the gviz CSV endpoint
+         through the SAME fetch path as the guest sheet (freshUrl's ts=
+         cache-buster + cache:"no-store"). ONE link is shared across BOTH
+         events (like the roster link, not per-event), remembered on the
+         device under its own key; when no link has ever been saved on
+         this device the team's default sheet below is used, and saving
+         an empty link in Settings clears it (the Hotels tab then asks
+         for the link instead of showing a silently empty list). It
+         loads on page load, on the 30-second auto-refresh and on
+         Refresh now, in the same cycle as the guest data. The tool
+         NEVER writes to this sheet. The list powers the Hotels tab,
+         the "Hotel location" row in the detail view, and two extra
+         lines (Hotel Address / Hotel Location) in the DRIVER message
+         only — the guest message never carries them. */
+      var DEFAULT_LOCATIONS_URL = "https://docs.google.com/spreadsheets/d/1MpIA0iLfw61jtkx60NcSstxdDndTgKWE-pV6MphvVn4/edit?usp=drivesdk";
+      var hotelLocations = []; /* [{name, address, link}] in sheet order */
+      var locationsStatus = "nolink"; /* nolink | loading | ok | error */
+      var locationsLoaded = false; /* true once a list has been read OK */
+      var hotelsQuery = "";
+      function locationsLinkUrl(){
+        var v = lsGetRaw(LS_LOCATIONS);
+        if(v===null) return DEFAULT_LOCATIONS_URL;
+        return String(v==null?"":v).trim();
+      }
+      function setLocationsLinkUrl(u){
+        u = String(u==null?"":u).trim();
+        lsSetRaw(LS_LOCATIONS, u);
+        var inp = $("locationsInput");
+        if(inp) inp.value = u;
+      }
+      /* Accepts the /edit URL, a gviz URL, or a bare sheet ID — the ID is
+         parsed the same way guest-sheet links are parsed. */
+      function locationsCsvUrl(url){
+        var u = String(url==null?"":url).trim();
+        if(!u) return null;
+        var id = sheetIdFromUrl(u);
+        if(!id && /^[a-zA-Z0-9-_]+$/.test(u)) id = u;
+        if(!id) return null;
+        return "https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?tqx=out:csv";
+      }
+      /* Columns are matched BY HEADER (Hotel Name / Hotel Address /
+         Location Link), falling back to the sheet's column order. The
+         guest-sheet parseCSV parser is reused as-is, so quoted fields
+         with embedded newlines inside addresses parse correctly. Names
+         and addresses are trimmed (clean) — the sheet's "Taj Cidade Goa
+         Heritage " trailing space never reaches the UI or a message. */
+      function parseLocations(text){
+        var table = parseCSV(text);
+        if(!table.length) return [];
+        var headers = table[0].map(function(h){ return norm(h); });
+        function findCol(subs, fallback){
+          for(var s=0;s<subs.length;s++){
+            for(var i=0;i<headers.length;i++){ if(headers[i].indexOf(subs[s])>-1) return i; }
+          }
+          return fallback;
+        }
+        var nameIdx = findCol(["hotel name","name"], 2);
+        var addrIdx = findCol(["hotel address","address"], 3);
+        var linkIdx = findCol(["location link","location","link"], 4);
+        var out = [];
+        for(var r=1;r<table.length;r++){
+          var row = table[r];
+          var name = clean(row[nameIdx]);
+          if(!name) continue;
+          out.push({ name:name, address:clean(row[addrIdx]), link:clean(row[linkIdx]) });
+        }
+        return out;
+      }
+      function loadLocations(){
+        var url = locationsLinkUrl();
+        if(!url){
+          hotelLocations = [];
+          locationsStatus = "nolink";
+          locationsLoaded = false;
+          if(state.view==="hotels") renderHotels();
+          return;
+        }
+        var csvUrl = locationsCsvUrl(url);
+        if(!csvUrl){
+          locationsStatus = "error";
+          if(state.view==="hotels") renderHotels();
+          return;
+        }
+        if(locationsStatus!=="ok") locationsStatus = "loading";
+        fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        }).then(function(text){
+          if(/^\s*</.test(text)) throw new Error("html");
+          hotelLocations = parseLocations(text);
+          locationsStatus = "ok";
+          locationsLoaded = true;
+          if(state.view==="hotels") renderHotels();
+          /* A guest detail open while the list arrived refreshes in
+             place, exactly like a guest-sheet reload does. */
+          if(state.detailOpen && state.currentKey){
+            for(var i=0;i<state.guests.length;i++){
+              if(remarkKey(state.guests[i])===state.currentKey){ openDetail(i); break; }
+            }
+          }
+        }).catch(function(){
+          locationsStatus = "error";
+          if(state.view==="hotels") renderHotels();
+        });
+      }
+      /* Save the ONE shared locations sheet link. This writes only the
+         locations key — it never touches either event's sheet link,
+         webhook URL, or the roster link. */
+      $("locationsSaveBtn").addEventListener("click", function(){
+        var u = $("locationsInput").value.trim();
+        setLocationsLinkUrl(u);
+        setSettingsStatus(u
+          ? "Hotel locations sheet link saved \u2014 it is shared by both CMOT and IFFI. Loading the hotel list now."
+          : "Hotel locations sheet link cleared \u2014 the Hotels tab will ask for the link.", "ok");
+        loadLocations();
+      });
+
+      /* ---------- Hotel matching (guest sheet name -> locations row) ----------
+         No match when the guest hotel is blank or one of the "unknown"
+         placeholders. Otherwise both sides are normalised (lowercase,
+         trim, collapsed whitespace, punctuation stripped, a leading
+         "hotel " or "the " stripped): an exact normalised match wins;
+         else a token match with typo tolerance — two tokens count as
+         equal when identical, or Levenshtein distance <= 1 for tokens
+         of length >= 4 — matching when shared tokens >= 2 AND
+         shared / min(token counts) >= 0.6, OR when one side has exactly
+         one token and that token matches a token on the other side.
+         The best score wins; ties go to the first sheet row. */
+      var HOTEL_UNKNOWN = ["na","n/a","ask from guest","ask guest","tbd"];
+      function hotelIsKnown(raw){
+        var v = clean(raw);
+        if(!v) return false;
+        return HOTEL_UNKNOWN.indexOf(v.toLowerCase())<0;
+      }
+      function normHotelName(s){
+        var v = String(s==null?"":s).toLowerCase().trim().replace(/\s+/g," ");
+        v = v.replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
+        if(v.indexOf("hotel ")===0) v = v.slice(6);
+        else if(v.indexOf("the ")===0) v = v.slice(4);
+        return v.trim();
+      }
+      function levDistance(a, b){
+        if(a===b) return 0;
+        var la=a.length, lb=b.length;
+        if(!la) return lb;
+        if(!lb) return la;
+        var prev=[], cur=[], i, j;
+        for(j=0;j<=lb;j++) prev[j]=j;
+        for(i=1;i<=la;i++){
+          cur[0]=i;
+          for(j=1;j<=lb;j++){
+            var cost = a.charAt(i-1)===b.charAt(j-1) ? 0 : 1;
+            cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost);
+          }
+          var tmp=prev; prev=cur; cur=tmp;
+        }
+        return prev[lb];
+      }
+      function hotelTokensEqual(a, b){
+        if(a===b) return true;
+        if(a.length>=4 && b.length>=4) return levDistance(a,b)<=1;
+        return false;
+      }
+      function matchHotelLocation(guestHotel){
+        if(!hotelIsKnown(guestHotel)) return null;
+        if(!hotelLocations.length) return null;
+        var gNorm = normHotelName(guestHotel);
+        if(!gNorm) return null;
+        var i;
+        for(i=0;i<hotelLocations.length;i++){
+          if(normHotelName(hotelLocations[i].name)===gNorm) return hotelLocations[i];
+        }
+        var gToks = gNorm.split(" ").filter(Boolean);
+        var best=null, bestScore=-1, bestShared=-1;
+        for(i=0;i<hotelLocations.length;i++){
+          var sToks = normHotelName(hotelLocations[i].name).split(" ").filter(Boolean);
+          if(!gToks.length || !sToks.length) continue;
+          var used={}, shared=0;
+          gToks.forEach(function(gt){
+            for(var j=0;j<sToks.length;j++){
+              if(used[j]) continue;
+              if(hotelTokensEqual(gt, sToks[j])){ used[j]=1; shared++; break; }
+            }
+          });
+          var minLen = Math.min(gToks.length, sToks.length);
+          var ratio = minLen ? shared/minLen : 0;
+          var ok = (shared>=2 && ratio>=0.6) || ((gToks.length===1 || sToks.length===1) && shared>=1);
+          if(!ok) continue;
+          if(ratio>bestScore || (ratio===bestScore && shared>bestShared)){
+            best = hotelLocations[i]; bestScore = ratio; bestShared = shared;
+          }
+        }
+        return best;
+      }
 
       /* ================= REMARKS ================= */
       var allRemarks = [];
@@ -2624,6 +2852,7 @@ function setCallTick_(data) {
         }else if(rosterLinkUrl()){
           loadRoster("");
         }
+        loadLocations();
         fetchRemarks(true);
         fetchVehicleStatuses(true);
         fetchLegs(true);
@@ -2640,6 +2869,10 @@ function setCallTick_(data) {
         /* The shared roster re-loads on every refresh cycle too, so a member
            added in the roster form appears without any tool change. */
         if(rosterLinkUrl()) loadRoster(state.source.url);
+        /* The shared hotel locations list re-loads in the same cycle, so
+           a hotel added to the locations sheet appears without any tool
+           change. */
+        loadLocations();
         if(hookUrl()) fetchRemarks(true);
         if(hookUrl()) fetchVehicleStatuses(true);
         fetchLegs(true);
@@ -3297,6 +3530,16 @@ function setCallTick_(data) {
         var dti = driverTimeInfo(g.time);
         add("Pickup Time", dti ? (dti.blank ? "" : dti.text) : g.time);
         add("Hotel", g.hotel);
+        /* v30: when the guest's hotel matches a locations-sheet row, the
+           driver also gets the hotel address and the map location link,
+           as plain-text lines right after the Hotel line. No match means
+           both lines are omitted entirely (the blank-omitted rule). The
+           guest message never carries these lines. */
+        var loc = matchHotelLocation(g.hotel);
+        if(loc){
+          if(clean(loc.address)) lines.push("Hotel Address: "+clean(loc.address));
+          if(clean(loc.link)) lines.push("Hotel Location: "+clean(loc.link));
+        }
         add("Remark", (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark);
         add("Pickup Point", g.from || g.pickupPoint);
         return lines.join("\n");
@@ -3356,6 +3599,15 @@ function setCallTick_(data) {
         Object.keys(g._extra||{}).forEach(function(k){
           rowsHtml += "<tr><th>"+esc(k)+"</th><td>"+esc(g._extra[k])+"</td></tr>";
         });
+        /* v30: member-facing "Hotel location" row when the guest's hotel
+           matches the locations sheet — address + Open in Maps. This row
+           is only shown here; it is never part of any sent message (the
+           driver message carries the same address + link as its own
+           Hotel Address / Hotel Location lines). */
+        var locMatch = matchHotelLocation(g.hotel);
+        if(locMatch){
+          rowsHtml += '<tr><th>Hotel location</th><td>'+esc(locMatch.address)+(locMatch.link ? ' <a href="'+esc(locMatch.link)+'" target="_blank" rel="noopener">Open in Maps</a>' : "")+"</td></tr>";
+        }
         $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
         var dm = driverMsg(g), gm = guestMsg(g);
         $("driverMsg").textContent = dm;
@@ -3373,6 +3625,20 @@ function setCallTick_(data) {
           }else{
             dtNote.textContent = "";
             dtNote.style.display = "none";
+          }
+        }
+        /* v30: member-only note when the hotel is known (not blank / NA /
+           Ask from Guest) and the locations list has been read, but no
+           row matches it. Like the time note above it lives outside the
+           message text — never copied, shared or sent to the driver. */
+        var locNote = $("driverLocNote");
+        if(locNote){
+          if(locationsLoaded && hotelIsKnown(g.hotel) && !matchHotelLocation(g.hotel)){
+            locNote.textContent = "Location not saved for "+clean(g.hotel)+" yet \u2014 add it to the locations sheet.";
+            locNote.style.display = "";
+          }else{
+            locNote.textContent = "";
+            locNote.style.display = "none";
           }
         }
         var isSample = !!g._sample;
@@ -4590,27 +4856,112 @@ function setCallTick_(data) {
         var btns = box.querySelectorAll("[data-calltick]");
         for(var i=0;i<btns.length;i++) btns[i].addEventListener("click", function(){ markDriverCalled(parseInt(this.getAttribute("data-calltick"),10)); });
       }
+      /* ================= v30 — HOTELS VIEW =================
+         Every row of the locations sheet: name, address, an "Open in
+         Maps" link, and per-hotel Copy / Share of exactly
+         "Name\nAddress\nLocation link". Visible to every logged-in
+         member. The three non-list states are always honest and never
+         a silently empty list: no link set, sheet could not be read,
+         or a linked sheet with zero hotel rows. */
+      function shareHotel(h){
+        var text = h.name+"\n"+h.address+"\n"+h.link;
+        if(typeof navigator!=="undefined" && navigator.share){
+          try{
+            var p = navigator.share({text:text});
+            if(p && typeof p.catch==="function") p.catch(function(){});
+          }catch(e){}
+        }else{
+          copyText(text, "Sharing not supported \u2014 hotel details copied, paste them anywhere");
+        }
+      }
+      function renderHotels(){
+        var box = $("hotelsView");
+        if(!box) return;
+        var head = '<p class="viewhead">Hotels \u2014 locations</p>'
+          + '<p class="viewsub">Every hotel from the locations sheet, with its address and map link. Copy or share any hotel to send its details.</p>';
+        if(locationsStatus==="nolink"){
+          box.innerHTML = head + '<div class="empty"><strong>No locations sheet linked</strong>Add the locations sheet link in Settings (Menu \u2192 Settings \u2192 Hotel locations sheet link).</div>';
+          return;
+        }
+        if(locationsStatus==="error" && !hotelLocations.length){
+          box.innerHTML = head + '<div class="empty"><strong>Locations sheet could not be read</strong>Check the locations sheet link in Settings and that the sheet is shared as \u201Canyone with the link can view\u201D, then tap Refresh now.</div>';
+          return;
+        }
+        if(locationsStatus==="loading" && !hotelLocations.length){
+          box.innerHTML = head + '<div class="empty"><strong>Loading hotels\u2026</strong>Reading the locations sheet.</div>';
+          return;
+        }
+        if(!hotelLocations.length){
+          box.innerHTML = head + '<div class="empty"><strong>No hotels saved yet</strong>Add a hotel to the locations sheet and it will appear here on the next refresh.</div>';
+          return;
+        }
+        box.innerHTML = head
+          + (locationsStatus==="error" ? '<div class="uploadwarn" role="status" style="margin:0 0 10px">Could not refresh the locations sheet \u2014 showing the last loaded list.</div>' : '')
+          + '<div class="searchrow" style="margin-bottom:10px"><input type="search" id="hotelSearch" placeholder="Search hotel name or address\u2026" autocomplete="off" aria-label="Search hotels" value="'+esc(hotelsQuery)+'" /></div>'
+          + '<p class="count" id="hotelCount" style="margin:0 2px 10px"></p>'
+          + '<div id="hotelList"></div>';
+        var inp = $("hotelSearch");
+        if(inp) inp.addEventListener("input", function(){ hotelsQuery = inp.value; renderHotelList(); });
+        renderHotelList();
+      }
+      function renderHotelList(){
+        var listEl = $("hotelList"), countEl = $("hotelCount");
+        if(!listEl) return;
+        var q = hotelsQuery.trim().toLowerCase();
+        var list = hotelLocations.filter(function(h){
+          if(!q) return true;
+          return h.name.toLowerCase().indexOf(q)>-1 || h.address.toLowerCase().indexOf(q)>-1;
+        });
+        if(countEl) countEl.innerHTML = "<strong>"+list.length+"</strong> hotel"+(list.length===1?"":"s")+(q ? " matching your search" : "");
+        if(!list.length){
+          listEl.innerHTML = '<div class="empty"><strong>No hotels match</strong>Try a different search.</div>';
+          return;
+        }
+        listEl.innerHTML = '<div class="results" style="margin-top:0">' + list.map(function(h){
+          var i = hotelLocations.indexOf(h);
+          return '<div class="hotelcard"><div class="hname">'+esc(h.name)+"</div>"
+            + (h.address ? '<div class="haddr">'+esc(h.address)+"</div>" : "")
+            + '<div class="rowflex" style="margin-top:10px">'
+            + (h.link ? '<a class="btn small" href="'+esc(h.link)+'" target="_blank" rel="noopener">Open in Maps</a>' : "")
+            + '<button class="btn small" type="button" data-hcopy="'+i+'">Copy</button>'
+            + '<button class="btn small" type="button" data-hshare="'+i+'">Share</button>'
+            + "</div></div>";
+        }).join("") + "</div>";
+        var cps = listEl.querySelectorAll("[data-hcopy]");
+        for(var a=0;a<cps.length;a++) cps[a].addEventListener("click", function(){
+          var h = hotelLocations[+this.getAttribute("data-hcopy")];
+          if(h) copyText(h.name+"\n"+h.address+"\n"+h.link, "Hotel copied \u2014 paste it anywhere");
+        });
+        var shs = listEl.querySelectorAll("[data-hshare]");
+        for(var b=0;b<shs.length;b++) shs[b].addEventListener("click", function(){
+          var h = hotelLocations[+this.getAttribute("data-hshare")];
+          if(h) shareHotel(h);
+        });
+      }
       function setView(v){
         state.view = v;
-        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers") };
+        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers"), hotels:$("tabHotels") };
         Object.keys(tabs).forEach(function(k){ if(tabs[k]) tabs[k].setAttribute("aria-pressed", k===v ? "true" : "false"); });
         var sb = $("searchbar"), rs = $("results"), es = $("emptyState");
-        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView");
+        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView"), hv = $("hotelsView");
         if(sb) sb.style.display = v==="guests" ? "" : "none";
         if(rs) rs.style.display = v==="guests" ? "" : "none";
         if(es) es.style.display = v==="guests" ? (state.guests.length ? "none" : "block") : "none";
         if(tv) tv.style.display = v==="today" ? "" : "none";
         if(vv) vv.style.display = v==="vehicles" ? "" : "none";
         if(dv) dv.style.display = v==="drivers" ? "" : "none";
+        if(hv) hv.style.display = v==="hotels" ? "" : "none";
         if(v==="guests") render();
         else if(v==="today") renderToday();
         else if(v==="vehicles"){ fetchLegs(true); renderVehicles(); }
         else if(v==="drivers"){ fetchCallTicks(); renderDrivers(); }
+        else if(v==="hotels") renderHotels();
       }
       function refreshCurrentView(){
         if(state.view==="today") renderToday();
         else if(state.view==="vehicles") renderVehicles();
         else if(state.view==="drivers") renderDrivers();
+        else if(state.view==="hotels") renderHotelList();
       }
 
       /* ================= v29 — SIDE PANE (drawer) =================
@@ -4666,11 +5017,14 @@ function setCallTick_(data) {
         if(sheetParam) setSheetUrlFor(activeEvent, sheetParam);
         var rosterParam = params ? params.get("roster") : null;
         if(rosterParam) setRosterLinkUrl(rosterParam);
+        var locationsParam = params ? params.get("locations") : null;
+        if(locationsParam) setLocationsLinkUrl(locationsParam);
         $("sheetInputCmot").value = sheetUrlFor("CMOT");
         $("sheetInputIffi").value = sheetUrlFor("IFFI");
         $("hookInputCmot").value = hookUrlFor("CMOT");
         $("hookInputIffi").value = hookUrlFor("IFFI");
         $("rosterInput").value = rosterLinkUrl();
+        $("locationsInput").value = locationsLinkUrl();
         if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
         setActiveEventUI();
 
@@ -4703,6 +5057,7 @@ function setCallTick_(data) {
         fetchNotifications();
         fetchLegs(true);
         fetchCallTicks();
+        loadLocations();
         var bellBtnEl = $("bellBtn"); if(bellBtnEl) bellBtnEl.addEventListener("click", openBell);
         var bellCloseEl = $("bellCloseBtn"); if(bellCloseEl) bellCloseEl.addEventListener("click", closeBell);
         var bellBackEl = $("bellBackBtn"); if(bellBackEl) bellBackEl.addEventListener("click", closeBell);
@@ -4726,6 +5081,7 @@ function setCallTick_(data) {
         var tabT = $("tabToday"); if(tabT) tabT.addEventListener("click", function(){ setView("today"); });
         var tabV = $("tabVehicles"); if(tabV) tabV.addEventListener("click", function(){ setView("vehicles"); });
         var tabD = $("tabDrivers"); if(tabD) tabD.addEventListener("click", function(){ setView("drivers"); });
+        var tabH = $("tabHotels"); if(tabH) tabH.addEventListener("click", function(){ setView("hotels"); });
         setView("guests");
         /* PWA: register the app-shell service worker (staged next to this
            page as sw.js at host time). Fully guarded: if registration is
