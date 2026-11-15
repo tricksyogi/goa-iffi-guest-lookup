@@ -18,6 +18,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       :root{
         --bg:#f6f4ef; --surface:#ffffff; --surface2:#efece4; --ink:#1c1a15; --ink2:#5c564a;
@@ -241,6 +243,12 @@
       .fmt{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.83rem;white-space:pre-wrap;word-break:break-word}
       /* ---------- v29: view tabs, drawer, bell, vehicles, drivers ---------- */
       .viewtabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+      /* v31: Members rows, Live Map */
+      .memberrow{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px;margin:0 0 10px}
+      #leafletMap{height:420px;border-radius:12px;border:1px solid var(--line);z-index:0;background:var(--surface2)}
+      .mapveh{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px;margin:0 0 10px}
+      .badge.stale{background:#fee2e2;color:#991b1b}
+      @media (prefers-color-scheme: dark){.badge.stale{background:#450a0a;color:#fca5a5}}
       .vtab{flex:1 1 42%;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:12px 10px;font-weight:700;font-size:1rem;min-height:3.4rem}
       .vtab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       @media(min-width:760px){.vtab{flex:1 1 20%}}
@@ -279,7 +287,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.1</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -309,6 +317,7 @@
         <span class="spacer"></span>
         <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh now</button>
       </div>
+      <p class="cols-note" id="phoneOnlyNote" style="display:none;margin:8px 2px 0;font-weight:600">Writes save on this phone only — remarks, markings and the share log reach the sheet only once the webhook URL is set (Menu → Settings). Ask the admin (Yogesh) to finish the webhook setup.</p>
 
       <!-- ============ UPLOADED-FILE WARNING ============ -->
       <div class="uploadwarn" id="uploadWarn" role="alert" style="display:none">Loaded from an uploaded file — edits in Drive won’t appear here until you re-upload the file. For live updates, link the Google Sheet instead.</div>
@@ -320,6 +329,8 @@
         <button type="button" class="vtab" id="tabVehicles" aria-pressed="false">Vehicles</button>
         <button type="button" class="vtab" id="tabDrivers" aria-pressed="false">Today's drivers</button>
         <button type="button" class="vtab" id="tabHotels" aria-pressed="false">Hotels</button>
+        <button type="button" class="vtab" id="tabMembers" aria-pressed="false">Members</button>
+        <button type="button" class="vtab" id="tabMap" aria-pressed="false">Live Map</button>
       </div>
 
       <!-- ============ PRIVACY WARNING ============ -->
@@ -436,7 +447,7 @@
           <input type="search" id="q" placeholder="Search name / phone / flight / vehicle no / hotel…" autocomplete="off" aria-label="Search guests" />
           <button class="btn" id="clearBtn" type="button">Clear</button>
         </div>
-        <details class="filters-details" id="filtersDetails">
+        <details class="filters-details" id="filtersDetails" open>
           <summary id="filtersSummary">Filters <span class="badge" id="filterCountBadge" style="display:none"></span><span id="filterCountText"></span></summary>
           <div class="filters-body">
         <div class="locbar">
@@ -464,6 +475,8 @@
               <option value="timeAsc" selected>Pickup time: earliest first</option>
               <option value="timeDesc">Pickup time: latest first</option>
               <option value="nameAsc">Guest name: A–Z</option>
+              <option value="hotelAsc">Hotel: A–Z</option>
+              <option value="flightAsc">Flight no.: A–Z</option>
             </select>
           </label>
         </div>
@@ -476,6 +489,7 @@
             <input type="time" id="timeTo" aria-label="Pickup time to" />
           </label>
         </div>
+        <p class="cols-note" id="filtersNoDataHint" style="margin:8px 2px 0">Filters and sort work on the loaded guest list — load the event sheet first (Menu → Load data, or open the team link).</p>
           </div>
         </details>
         <p class="count" id="countLine"></p>
@@ -488,6 +502,8 @@
       <div id="vehiclesView" style="display:none"></div>
       <div id="driversView" style="display:none"></div>
       <div id="hotelsView" style="display:none"></div>
+      <div id="membersView" style="display:none"></div>
+      <div id="mapView" style="display:none"></div>
 
       <!-- ============ HELP ============ -->
       <section class="panel" id="helpPanel" aria-labelledby="help-h">
@@ -645,7 +661,7 @@ Driver Number: {Driver Contact}</div>
             <li>Only the admin sees the <strong>Activity</strong> section (in Admin view): who is using the tool and who changed or updated what — markings, remarks, live-location links, driver call ticks, and team-member add / remove / password reset — newest first, with date, time and the member's name.</li>
             <li>With the webhook set, every write is also logged in the sheet's <strong>“Activity”</strong> tab (Date | Time | By | Action | Vehicle/Guest | Details), so the record survives even if a phone is lost. Without a webhook, the activity is kept on each phone only and the section says so.</li>
             <li>The <strong>Today's summary</strong> in Admin view shows: guests arriving today, pickups done, pickups still pending, vehicles currently out, and driver calls made today.</li>
-            <li>After this update, redeploy the Apps Script as a <strong>new version</strong> once (Deploy → Manage deployments → Edit → Version: New version) so the Activity log, Notifications, trips and call ticks save to the sheet.</li>
+            <li>After this update, redeploy the Apps Script as a <strong>new version</strong> once (Deploy → Manage deployments → Edit → Version: New version) so the Share Log, live-tracking positions, Activity log, Notifications, trips and call ticks save to the sheet.</li>
           </ul>
         </div>
         <div style="margin-top:18px">
@@ -661,6 +677,9 @@ Driver Number: {Driver Contact}</div>
             <li>The same webhook also saves the <strong>team list</strong>: Admin view → “Team members” adds and removes members through it, into the sheet's <strong>Team</strong> tab (columns Name | Mobile | Date of Birth | Role — the script creates the tab with those headers if it does not exist). Team members log in with their <strong>mobile number</strong> and their <strong>year of birth</strong> as the password, read from that tab. If the webhook was deployed before team members (or before the Date of Birth column) were supported, redeploy the current code below as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — the webhook must be running the current code for the addMember / removeMember actions to work, otherwise the old code keeps running and team changes will not save.</li>
             <li>If the webhook was deployed before admin password reset was supported, redeploy the same Apps Script project as a <strong>new version</strong> so the updateMember action goes live (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running and password resets will not save, and the tool will show the redeploy-as-new-version error instead of claiming success. On success updateMember returns <code>{ok:true, updated:1}</code> (updated = number of Team rows changed, 1 on success); if no row matches it returns <code>{ok:false, error:"Member not found"}</code>. The tool only claims success when it receives <code>{ok:true, updated:1}</code>.</li>
             <li>The same webhook also saves <strong>vehicle status</strong>: in a guest's detail view, once the sheet has a vehicle number for that guest, any logged-in member can tap <strong>Mark Vehicle Reported</strong> when the vehicle reports, and then <strong>Mark Vehicle Departed</strong> once the guest is on board and the vehicle leaves (Departed can only be marked after Reported). The status is saved through the webhook's setVehicleStatus action into a <strong>“Vehicle Status”</strong> tab (columns Vehicle | Status | Time | By — the script creates the tab with those headers if it does not exist), is keyed by vehicle number so every guest row with that vehicle shows the same status, and loads back for all members on page open and on every refresh. On success setVehicleStatus returns <code>{ok:true, updated:1}</code> and the tool only claims success when it receives exactly that. If the webhook was deployed before vehicle status was supported, redeploy the same Apps Script project as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running, vehicle statuses will not save to the sheet, and the tool will show the redeploy-as-new-version error instead of claiming success. Until the webhook is set, a marked status is saved on that member's phone only and is labelled as such.</li>
+            <li><strong>Members tab (v31):</strong> every logged-in member can see who is posted where — Name, mobile (tap-to-call), Role and Allocation, read from the Team Member Allocation sheet's Allocation column. An empty Allocation shows “Not assigned yet” and is never guessed. If the sheet has no Allocation column, the tab says so instead of failing.</li>
+            <li><strong>Live Map tab (v31):</strong> all vehicles on one map. Positions come from each driver's phone — send the driver the vehicle's “Start tracking” link and they tap once; the phone posts its position to the sheet's “Live Locations” tab every 2 minutes (needs the webhook deployed). A Google Maps share link cannot be read for coordinates, so it stays as the per-vehicle Track button instead. A vehicle with no position for over 15 minutes is marked “Stale”. The tab also has “Add live location link” to paste a Maps link for any vehicle.</li>
+            <li><strong>Share log (v31):</strong> in Admin view — every Copy / WhatsApp / Share tap on a driver or guest message, newest first, with date, time (IST), guest, sent-to, channel, shared-by and vehicle. It records the tap only (“opened WhatsApp”); it does <strong>not</strong> confirm the message was sent. Without a webhook it is kept on that phone only.</li>
           </ol>
           <div class="fmt" id="gasCode" style="margin-top:10px;display:none">function doGet(e) {
   var view = e &amp;&amp; e.parameter &amp;&amp; e.parameter.view;
@@ -678,6 +697,12 @@ Driver Number: {Driver Contact}</div>
   }
   if (view === "callTicks") {
     return ContentService.createTextOutput(JSON.stringify(callTickRows_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "liveLocations") {
+    return ContentService.createTextOutput(JSON.stringify(liveLocations_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "shareLog") {
+    return ContentService.createTextOutput(JSON.stringify(shareLogRows_())).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   var rows = sh.getDataRange().getValues();
@@ -745,6 +770,17 @@ function doPost(e) {
     setCallTick_(data);
     logActivity_(data.by || data.author || "", "Driver called", data.driverName || "", data.vehicle || "", data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "trackPosition") {
+    /* v31: driver phone posts lat/lng every 2 min — append-only log, the
+       tool plots the latest row per vehicle. */
+    liveLocationsSheet_().appendRow([data.vehicle || "", data.lat || "", data.lng || "", data.time || "", data.by || ""]);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "logShare") {
+    /* v31: records the TAP only — never claimed as confirmed delivery. */
+    shareLogSheet_().appendRow([data.date || "", data.time || "", data.guest || "", data.sentTo || "", data.channel || "", data.by || "", data.vehicle || ""]);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   }
   var sh = remarksSheet_();
   if (data.action === "add") {
@@ -945,6 +981,30 @@ function notificationsSheet_() { return tabSheet_("Notifications", ["Time", "By"
 function activitySheet_() { return tabSheet_("Activity", ["Date", "Time", "By", "Action", "Vehicle/Guest", "Details"]); }
 function legsSheet_() { return tabSheet_("Vehicle Legs", ["Vehicle", "From", "To", "Departed Time", "Departed By", "Arrived Time", "Arrived By"]); }
 function callsSheet_() { return tabSheet_("Driver Calls", ["Date", "Time", "Driver Name", "Phone", "Vehicle", "By"]); }
+
+function liveLocationsSheet_() { return tabSheet_("Live Locations", ["Vehicle", "Lat", "Lng", "Time", "By"]); }
+
+function liveLocations_() {
+  var sh = liveLocationsSheet_();
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ vehicle: rows[i][0], lat: rows[i][1], lng: rows[i][2], time: rows[i][3], by: rows[i][4] });
+  }
+  return out;
+}
+
+function shareLogSheet_() { return tabSheet_("Share Log", ["Date", "Time", "Guest", "Sent to", "Channel", "Shared by", "Vehicle"]); }
+
+function shareLogRows_() {
+  var sh = shareLogSheet_();
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ date: rows[i][0], time: rows[i][1], guest: rows[i][2], sentTo: rows[i][3], channel: rows[i][4], by: rows[i][5], vehicle: rows[i][6] });
+  }
+  return out;
+}
 
 function istParts_(timeVal) {
   var dt = new Date(timeVal);
@@ -1254,6 +1314,12 @@ function setCallTick_(data) {
           <p class="cols-note" id="activityLocalNote" style="display:none;font-weight:600;margin:0 0 8px">Saved on this phone only — set the webhook URL to share the activity log with the team (it is then kept in the sheet's “Activity” tab).</p>
           <div id="activityList"></div>
         </div>
+        <div style="margin-top:18px;border-top:2px solid var(--line);padding-top:14px">
+          <h3 style="font-size:1rem;margin:0 0 4px">Share log — driver &amp; guest messages</h3>
+          <p class="cols-note" style="margin:0 0 8px">Every tap on Copy / WhatsApp / Share in a guest's detail view, newest first. <strong>This log records the tap only (“opened WhatsApp”) — it does NOT confirm the message was actually sent</strong>, because WhatsApp never tells the tool whether Send was pressed.</p>
+          <p class="cols-note" id="shareLogLocalNote" style="display:none;font-weight:600;margin:0 0 8px">Saved on this phone only — set the webhook URL to share the log with the team (it is then kept in the sheet's “Share Log” tab).</p>
+          <div id="shareLogList"></div>
+        </div>
       </div>
     </div>
 
@@ -1383,7 +1449,15 @@ function setCallTick_(data) {
       }
       function updateEmptyState(){
         var el = $("emptyState");
-        if(el) el.textContent = "No guest data loaded for "+activeEvent+". Open the team link shared by the admin — it carries the "+activeEvent+" sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.";
+        if(!el) return;
+        /* v31: when the admin has not put this event's sheet link in the
+           team link (?sheet_cmot= / ?sheet_iffi=), say so plainly — the
+           member then knows it is a missing link, not a broken tool. */
+        if(!sheetUrlFor(activeEvent)){
+          el.textContent = "No guest data loaded for "+activeEvent+". The team link does not carry the "+activeEvent+" sheet yet — admin: add ?sheet_"+evLc(activeEvent)+"=<sheet link> to the team link, or paste the sheet link in Menu → Settings → "+activeEvent+" sheet link.";
+          return;
+        }
+        el.textContent = "No guest data loaded for "+activeEvent+". Open the team link shared by the admin — it carries the "+activeEvent+" sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.";
       }
       function setActiveEventUI(){
         var c = $("evBtnCmot"), f = $("evBtnIffi");
@@ -1484,6 +1558,7 @@ function setCallTick_(data) {
          login username and a member's password is their year of birth. */
       var roster = null;
       var rosterLoadFailed = false;
+      var rosterHasAllocation = false; /* v31: true when the roster sheet has an Allocation column */
       var LOGIN_NOTE_DEFAULT = null;
       var ADMIN_MOBILE = "9261201083";
       function normalizeMobile(mobile){
@@ -1555,8 +1630,9 @@ function setCallTick_(data) {
            ( Do not enter country code)" (with a line break in it), so an
            exact match would fail; Date of Birth by "contains" ("date of
            birth" or "dob"); Role if a Role column exists, otherwise every
-           member is a Member. All other columns (Timestamp, Email Address,
-           Home Address, Email, Allocation, …) are ignored. */
+           member is a Member; Allocation if an Allocation column exists
+           (v31 — the member's posting). All other columns (Timestamp,
+           Email Address, Home Address, Email, …) are ignored. */
         function colExact(n){ return headers.indexOf(n); }
         function colContains(sub){
           for(var ci=0;ci<headers.length;ci++){ if(headers[ci].indexOf(sub)>-1) return ci; }
@@ -1569,6 +1645,12 @@ function setCallTick_(data) {
         if(dobIdx<0) dobIdx = colContains("dob");
         var roleIdx = colExact("role");
         if(roleIdx<0) roleIdx = colContains("role");
+        /* v31: Allocation — the posting the admin fills in the Team Member
+           Allocation sheet (e.g. "Airport", "Cidade de Goa"). Never
+           invented: an empty cell renders as "Not assigned yet". */
+        var allocIdx = colExact("allocation");
+        if(allocIdx<0) allocIdx = colContains("allocation");
+        rosterHasAllocation = allocIdx>=0;
         if(nameIdx<0 || mobileIdx<0) return null;
         var out = [];
         for(var r=1;r<table.length;r++){
@@ -1578,7 +1660,8 @@ function setCallTick_(data) {
             name: clean(table[r][nameIdx]),
             mobile: mob,
             dob: dobIdx>=0 ? clean(table[r][dobIdx]) : "",
-            role: roleIdx>=0 ? (clean(table[r][roleIdx]) || "Member") : "Member"
+            role: roleIdx>=0 ? (clean(table[r][roleIdx]) || "Member") : "Member",
+            allocation: allocIdx>=0 ? clean(table[r][allocIdx]) : ""
           });
         }
         return out.length ? out : null;
@@ -1609,6 +1692,7 @@ function setCallTick_(data) {
         rosterLoadFailed = !!failed;
         updateLoginNote();
         if(state.adminOpen && typeof renderTeam==="function") renderTeam();
+        if(state.view==="members" && typeof renderMembers==="function") renderMembers();
         if(cb) cb();
       }
       function fetchRosterTab(id, idx, forEvent, cb){
@@ -2732,6 +2816,11 @@ function setCallTick_(data) {
       /* ---------- Data banner ---------- */
       function updateBanner(){
         var b=$("dataBanner"), t=$("dataBannerText");
+        /* v31.1: one persistent line on the main view while no webhook is
+           set, so a member never has to open Help to learn their writes
+           are phone-only. */
+        var pn = $("phoneOnlyNote");
+        if(pn) pn.style.display = hookUrl() ? "none" : "";
         b.classList.remove("real","sample");
         if(state.source.kind==="sample"){
           b.classList.add("sample");
@@ -2875,6 +2964,8 @@ function setCallTick_(data) {
         loadLocations();
         if(hookUrl()) fetchRemarks(true);
         if(hookUrl()) fetchVehicleStatuses(true);
+        if(hookUrl()) fetchLivePositions(true);
+        fetchShareLog();
         fetchLegs(true);
         fetchCallTicks();
         fetchNotifications();
@@ -3209,6 +3300,24 @@ function setCallTick_(data) {
           return out;
         }
         var dir = mode === "timeDesc" ? -1 : 1;
+        if(mode === "hotelAsc" || mode === "flightAsc"){
+          out.sort(function(a, b){
+            var x = mode === "hotelAsc" ? String(clean(a.hotel)).toLowerCase() : String(clean(a.flight)).toLowerCase();
+            var y = mode === "hotelAsc" ? String(clean(b.hotel)).toLowerCase() : String(clean(b.flight)).toLowerCase();
+            /* v31.1: blanks last, like the time sort's nulls-last rule —
+               a blank hotel/flight is not "A". */
+            if(x==="" && y!=="") return 1;
+            if(y==="" && x!=="") return -1;
+            if(x < y) return -1;
+            if(x > y) return 1;
+            var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
+            if(av === null && bv === null) return 0;
+            if(av === null) return 1;
+            if(bv === null) return -1;
+            return av - bv;
+          });
+          return out;
+        }
         out.sort(function(a, b){
           var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
           if(av === null && bv === null) return 0;
@@ -3378,6 +3487,11 @@ function setCallTick_(data) {
       /* ---------- Render results ---------- */
       function render(){
         updateFilterCount();
+        /* v31: the "load the sheet first" hint under Filters shows only
+           while no guest data is loaded, so the open Filters section is
+           never mistaken for broken when the list is empty. */
+        var fHint = $("filtersNoDataHint");
+        if(fHint) fHint.style.display = state.guests.length ? "none" : "";
         var q=$("q").value, hf=$("hotelFilter").value, df=$("dateFilter").value;
         var afEl=$("airportFilter"); var af=afEl ? afEl.value : "";
         var loc = state.locationFilter;
@@ -4025,13 +4139,31 @@ function setCallTick_(data) {
           copyText(text, "Sharing not supported — message copied, paste it in WhatsApp");
         }
       }
-      $("copyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(driverMsg(state.current), "Copied — paste it to the driver"); });
-      $("copyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(guestMsg(state.current), "Copied — paste it to the guest"); });
-      $("copyAllBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(fullText(state.current), "Full guest details copied"); });
-      $("previewCopyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(driverMsg(state.current), "Copied — paste it to the driver"); });
-      $("previewCopyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) copyText(guestMsg(state.current), "Copied — paste it to the guest"); });
-      $("previewShareDriverBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(driverMsg(state.current)); });
-      $("previewShareGuestBtn").addEventListener("click", function(){ if(sendableCurrent()) shareText(guestMsg(state.current)); });
+      $("copyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()){ copyText(driverMsg(state.current), "Copied — paste it to the driver"); logShare(state.current, "Driver", "Copy"); } });
+      $("copyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()){ copyText(guestMsg(state.current), "Copied — paste it to the guest"); logShare(state.current, "Guest", "Copy"); } });
+      $("copyAllBtn").addEventListener("click", function(){ if(sendableCurrent()){ copyText(fullText(state.current), "Full guest details copied"); logShare(state.current, "Guest", "Copy"); } });
+      $("previewCopyDriverBtn").addEventListener("click", function(){ if(sendableCurrent()){ copyText(driverMsg(state.current), "Copied — paste it to the driver"); logShare(state.current, "Driver", "Copy"); } });
+      $("previewCopyGuestBtn").addEventListener("click", function(){ if(sendableCurrent()){ copyText(guestMsg(state.current), "Copied — paste it to the guest"); logShare(state.current, "Guest", "Copy"); } });
+      $("previewShareDriverBtn").addEventListener("click", function(){ if(sendableCurrent()){ shareText(driverMsg(state.current)); logShare(state.current, "Driver", "Share"); } });
+      $("previewShareGuestBtn").addEventListener("click", function(){ if(sendableCurrent()){ shareText(guestMsg(state.current)); logShare(state.current, "Guest", "Share"); } });
+      /* v31: WhatsApp taps are logged too — the tap ("opened WhatsApp"),
+         NOT confirmed delivery. Guarded the same way as the copy buttons:
+         sendableCurrent() blocks sample rows, so no share is ever logged
+         from practice data. */
+      $("waDriverBtn").addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Driver", "WhatsApp"); });
+      $("waGuestBtn").addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Guest", "WhatsApp"); });
+      /* v31.1: the preview-pane WhatsApp anchors had no listeners, so a
+         tap from the message preview escaped the log while the adjacent
+         preview Copy/Share buttons were logged. Same killed-link guard:
+         killLink removes href entirely, so a dead link can never log. */
+      (function(){
+        var pwd=$("previewWaDriverBtn"); if(pwd) pwd.addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Driver", "WhatsApp"); });
+        var pwg=$("previewWaGuestBtn"); if(pwg) pwg.addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Guest", "WhatsApp"); });
+        /* v31.1: SMS taps are shares too — log them the same way, so a
+           member sending by SMS leaves a trace in the log. */
+        var sg=$("smsGuestBtn"); if(sg) sg.addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Guest", "SMS"); });
+        var sd=$("smsDriverBtn"); if(sd) sd.addEventListener("click", function(){ if(sendableCurrent() && this.getAttribute("href") && this.getAttribute("href")!=="#") logShare(state.current, "Driver", "SMS"); });
+      })();
       $("gasCopyBtn").addEventListener("click", function(){ copyText($("gasCode").textContent, "Apps Script code copied — paste it into Apps Script"); });
       (function(){
         var toggleBtn = $("gasToggleBtn"), codeEl = $("gasCode");
@@ -4938,12 +5070,479 @@ function setCallTick_(data) {
           if(h) shareHotel(h);
         });
       }
+      /* ================= v31 — MEMBERS TAB =================
+         Visible to every logged-in member (not admin-only). Reads the
+         Allocation column of the same Team Member Allocation sheet the
+         roster/logins come from. An empty allocation is never invented —
+         it shows "Not assigned yet". Re-renders on every roster reload
+         (the 30-second auto-refresh reloads the roster) and whenever
+         the Members tab is opened. */
+      function renderMembers(){
+        var box = $("membersView");
+        if(!box) return;
+        var head = '<p class="viewhead">Members — who is posted where</p>'
+          + '<p class="viewsub">From the Team Member Allocation sheet — the same sheet the logins come from. The posting is filled by the admin in that sheet\u2019s Allocation column, and it refreshes every 30 seconds with the rest of the tool.</p>';
+        if(!rosterLinkUrl()){
+          box.innerHTML = head + '<div class="empty"><strong>No roster linked</strong>Add the Team Member Allocation sheet link in Settings (Menu \u2192 Settings \u2192 Team roster sheet link), or open the team link.</div>';
+          return;
+        }
+        if(rosterLoadFailed && !hasRoster()){
+          box.innerHTML = head + '<div class="empty"><strong>Roster sheet could not be read</strong>Check the roster sheet link in Settings and that the sheet is shared as \u201CAnyone with the link can view\u201D, then tap Refresh now.</div>';
+          return;
+        }
+        if(!hasRoster()){
+          box.innerHTML = head + '<div class="empty"><strong>Loading members\u2026</strong>Reading the roster sheet.</div>';
+          return;
+        }
+        var note = "";
+        if(!rosterHasAllocation){
+          note = '<div class="uploadwarn" role="status" style="margin:0 0 10px">The roster sheet has no \u201CAllocation\u201D column yet — add one (header: Allocation) and fill each member\u2019s posting; it will appear here on the next refresh.</div>';
+        }
+        var rows = roster.slice().sort(function(a,b){
+          var x = String(a.name||"").toLowerCase(), y = String(b.name||"").toLowerCase();
+          return x<y ? -1 : (x>y ? 1 : 0);
+        });
+        box.innerHTML = head + note
+          + '<p class="count" style="margin:0 2px 10px"><strong>'+rows.length+'</strong> member'+(rows.length===1?"":"s")+'</p>'
+          + '<div class="results" style="margin-top:0">' + rows.map(function(m){
+            var tel = intlNumber(m.mobile, "");
+            return '<div class="memberrow"><span class="dname">'+esc(m.name||"Member")+"</span>"
+              + '<div class="vmeta" style="margin-top:3px">Role: <b>'+esc(m.role||"Member")+'</b> · Posting: <b>'+esc(clean(m.allocation) || "Not assigned yet")+"</b></div>"
+              + '<div class="rowflex" style="margin-top:10px">'
+              + (tel ? '<a class="btn" href="tel:+'+tel+'">Call '+esc(m.mobile)+"</a>" : '<span class="vmeta">'+esc(m.mobile||"No number")+"</span>")
+              + "</div></div>";
+          }).join("") + "</div>";
+      }
+
+      /* ================= v31 — LIVE MAP =================
+         All vehicles on ONE map. Honest constraint, stated in the tab
+         itself: a Google Maps live-location share link cannot be read
+         for coordinates by any tool, so plotted positions come only
+         from the driver's own phone posting its position:
+           (a) each vehicle row has a "Start tracking" link — the driver
+               opens it on their phone, taps one big button, and the
+               phone posts lat/lng to the sheet (Live Locations tab) via
+               the webhook every 2 minutes. The map plots the latest
+               position per vehicle from that log.
+           (b) the existing per-vehicle Track button (the Google Maps
+               share link pasted in the tool) stays as the fallback for
+               vehicles without tracking.
+           (c) "Add live location link" in this tab pastes a Maps link
+               for a vehicle — validated as a Maps link, saved via the
+               webhook's setLocation into the sheet's Live Location Link
+               column; without a webhook it saves on this phone only and
+               says so.
+         A vehicle with no position for over 15 minutes is marked
+         "Stale". Leaflet + OpenStreetMap tiles need no API key and work
+         in a static page; if the map library cannot load (offline), the
+         list below still shows every vehicle with its Track link. */
+      var livePositions = {}; /* vehicle -> {lat,lng,time,by,source} */
+      var leafletMap = null, leafletMarkers = {};
+      var trackWatchId = null, trackTimer = null, trackVehicle = "", trackDriver = "", trackLastFix = null, trackPosting = false;
+      function localLivePosKey(){ return LS_LOCAL_LIVEPOS+"-"+evLc(activeEvent); }
+      function normalizeLivePos(r){
+        if(!r) return null;
+        var v = vehKey(r.vehicle!=null ? r.vehicle : r.vehicleNo);
+        if(!v) return null;
+        var lat = parseFloat(r.lat), lng = parseFloat(r.lng);
+        if(isNaN(lat) || isNaN(lng)) return null;
+        return { vehicle:v, lat:lat, lng:lng, time:String(r.time==null?"":r.time), by:String(r.by!=null ? r.by : (r.author||"")) };
+      }
+      function fetchLivePositions(quiet){
+        var hook = hookUrl();
+        if(!hook){
+          var loc = lsGetJSON(localLivePosKey(), {});
+          livePositions = {};
+          if(loc && typeof loc==="object") Object.keys(loc).forEach(function(k){ var p = normalizeLivePos(loc[k]); if(p) livePositions[k]=p; });
+          if(state.view==="map") renderMap();
+          return;
+        }
+        fetch(freshUrl(hook+"?view=liveLocations"), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(data){
+          var list = data;
+          if(data && !Array.isArray(data) && Array.isArray(data.liveLocations)) list = data.liveLocations;
+          livePositions = {};
+          if(Array.isArray(list)) list.forEach(function(r){ var p = normalizeLivePos(r); if(p) livePositions[p.vehicle]=p; });
+          if(state.view==="map") renderMap();
+        }).catch(function(){ if(!quiet) toast("Could not load live positions — check the webhook URL in Settings"); });
+      }
+      function livePosAgeMin(p){
+        if(!p || !p.time) return null;
+        var t = new Date(p.time).getTime();
+        if(isNaN(t)) return null;
+        return Math.max(0, Math.round((Date.now()-t)/60000));
+      }
+      function livePosFresh(p){
+        var age = livePosAgeMin(p);
+        return age!==null && age<=15;
+      }
+      function trackLinkFor(vehNo, driver){
+        var u = location.origin + location.pathname + "?track=" + encodeURIComponent(vehNo) + "&event=" + activeEvent;
+        var hook = hookUrl();
+        if(hook) u += "&hook_" + evLc(activeEvent) + "=" + encodeURIComponent(hook);
+        if(driver) u += "&driver=" + encodeURIComponent(driver);
+        return u;
+      }
+      function renderMap(){
+        var box = $("mapView");
+        if(!box) return;
+        /* v31.1 — Leaflet lifecycle: the map instance is bound to its
+           container div, and this tab rebuilds its innerHTML on every
+           render (tab open, fetch resolution, 30s refresh). A surviving
+           instance would point at a destroyed div and the live map would
+           stay empty, so destroy it BEFORE replacing the HTML;
+           initLeafletMap recreates it against the fresh div below. */
+        if(leafletMap){ try{ leafletMap.remove(); }catch(e){} leafletMap = null; leafletMarkers = {}; }
+        var agg = vehAggMap();
+        var keys = Object.keys(agg).sort();
+        var head = '<p class="viewhead">Live Map — all vehicles</p>'
+          + '<p class="viewsub">Positions come from each driver\u2019s phone (Start tracking below) — a Google Maps share link cannot be read for coordinates, so a vehicle with no tracking shows its Track link instead. A vehicle with no position for over 15 minutes is marked <b>Stale</b>.'
+          + (hookUrl() ? "" : " <b>No webhook set — tracking positions cannot reach the sheet yet; they would save on the driver\u2019s phone only.</b>")
+          + "</p>";
+        if(typeof L === "undefined"){
+          box.innerHTML = head + '<div class="empty"><strong>Map could not load</strong>The map library needs internet once. The vehicle list below still works — use each vehicle\u2019s Track link.</div>' + mapAddLinkFormHtml() + '<div id="mapVehicleList" style="margin-top:14px">' + mapVehicleListHtml(agg, keys) + "</div>";
+          wireMapAddLinkForm(box, keys);
+          wireMapList(box);
+          return;
+        }
+        box.innerHTML = head
+          + '<div id="leafletMap" role="application" aria-label="Live vehicle map"></div>'
+          + mapAddLinkFormHtml()
+          + '<div id="mapVehicleList" style="margin-top:14px">' + mapVehicleListHtml(agg, keys) + "</div>";
+        wireMapAddLinkForm(box, keys);
+        wireMapList(box);
+        initLeafletMap(agg, keys);
+      }
+      /* v31.1: the "Add live location link" form is one shared block so it
+         renders in BOTH branches (map loaded and map-library-offline) —
+         the offline fallback previously lost the form entirely. */
+      function mapAddLinkFormHtml(){
+        return '<div style="margin-top:14px;border-top:2px solid var(--line);padding-top:14px"><h3 style="font-size:1rem;margin:0 0 4px">Add live location link</h3>'
+          + '<p class="cols-note" style="margin:0 0 8px">Paste a Google Maps live-location share link for a vehicle. It is saved to the sheet\u2019s Live Location Link column (same as in a guest\u2019s detail view).</p>'
+          + '<div class="remark-add" style="margin-top:0"><select id="mapVehSelect" aria-label="Vehicle" style="flex:0 1 200px"></select>'
+          + '<input type="url" id="mapLocInput" placeholder="Paste Google Maps link…" autocomplete="off" aria-label="Google Maps live location link" style="flex:1;min-width:200px" />'
+          + '<button class="btn primary" id="mapLocSaveBtn" type="button">Save link</button></div>'
+          + '<p class="cols-note" id="mapLocWarn" style="display:none;color:var(--warn);font-weight:600;margin:6px 0 0"></p>'
+          + '<p class="cols-note" id="mapLocLocalNote" style="display:none;font-weight:600;margin:6px 0 0">Saved on this phone only — set the webhook URL to share the link with the team.</p>'
+          + '<p class="cols-note" id="mapLocError" style="display:none;color:#dc2626;font-weight:600;margin:6px 0 0"></p></div>';
+      }
+      function wireMapAddLinkForm(box, keys){
+        var sel = $("mapVehSelect");
+        if(sel){
+          sel.innerHTML = keys.length ? keys.map(function(k){ return '<option value="'+esc(k)+'">'+esc(k)+"</option>"; }).join("") : '<option value="">No vehicles yet</option>';
+          sel.disabled = !keys.length;
+        }
+        var saveBtn = $("mapLocSaveBtn");
+        if(saveBtn) saveBtn.addEventListener("click", saveMapLiveLocation);
+        var inp = $("mapLocInput");
+        if(inp){
+          inp.addEventListener("keydown", function(e){ if(e.key==="Enter") saveMapLiveLocation(); });
+          inp.addEventListener("input", updateMapLocWarn);
+        }
+        var locNote = $("mapLocLocalNote");
+        if(locNote) locNote.style.display = hookUrl() ? "none" : "";
+      }
+      function mapVehicleListHtml(agg, keys){
+        if(!keys.length) return '<div class="empty"><strong>No vehicles yet</strong>Vehicles appear here once the sheet has vehicle numbers.</div>';
+        return keys.map(function(k){
+          var a = agg[k];
+          var p = livePositions[k];
+          var age = livePosAgeMin(p);
+          var posLine = p
+            ? ("Last position " + fmtDT(p.time) + " · " + (age===null ? "time unknown" : (age===0 ? "just now" : age + " min ago")) + " · " + (livePosFresh(p) ? "Fresh" : "Stale"))
+            : "No position yet — ask the driver to start tracking";
+          var badge = p ? (livePosFresh(p) ? '<span class="badge" style="background:var(--ok-soft);color:var(--ok)">Fresh</span>' : '<span class="badge stale">Stale</span>') : '<span class="badge">No tracking</span>';
+          return '<div class="mapveh"><span class="vno">'+esc(k)+"</span> " + badge
+            + '<div class="vmeta" style="margin-top:3px">Driver: <b>'+esc(a.driver||"\u2014")+"</b>"+(a.driverPhone ? " · "+esc(a.driverPhone) : "")+"</div>"
+            + '<div class="vmeta">'+esc(posLine)+"</div>"
+            + '<div class="rowflex" style="margin-top:10px">'
+            + (a.liveLocation ? '<a class="btn small trackBtn" href="'+esc(a.liveLocation)+'" target="_blank" rel="noopener">Track</a>' : "")
+            + '<button class="btn small" type="button" data-tracklink="'+esc(k)+'">Start tracking link</button>'
+            + '<button class="btn small ghost" type="button" data-copylink="'+esc(k)+'">Copy tracking link</button>'
+            + "</div></div>";
+        }).join("");
+      }
+      function wireMapList(box){
+        var tls = box.querySelectorAll("[data-tracklink]");
+        for(var i=0;i<tls.length;i++) tls[i].addEventListener("click", function(){
+          var k = this.getAttribute("data-tracklink");
+          var a = vehAggMap()[k];
+          var link = trackLinkFor(k, a ? a.driver : "");
+          copyText(link, "Tracking link copied — send it to the driver on WhatsApp");
+        });
+        var cps = box.querySelectorAll("[data-copylink]");
+        for(var j=0;j<cps.length;j++) cps[j].addEventListener("click", function(){
+          var k = this.getAttribute("data-copylink");
+          var a = vehAggMap()[k];
+          copyText(trackLinkFor(k, a ? a.driver : ""), "Tracking link copied — send it to the driver on WhatsApp");
+        });
+      }
+      function initLeafletMap(agg, keys){
+        if(typeof L === "undefined") return;
+        var el = document.getElementById("leafletMap");
+        if(!el) return;
+        try{
+          if(!leafletMap){
+            leafletMap = L.map("leafletMap").setView([15.4909, 73.8278], 11);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "\u00A9 OpenStreetMap contributors" }).addTo(leafletMap);
+          }
+          Object.keys(leafletMarkers).forEach(function(v){ leafletMap.removeLayer(leafletMarkers[v]); });
+          leafletMarkers = {};
+          var bounds = [];
+          keys.forEach(function(k){
+            var p = livePositions[k];
+            if(!p) return;
+            var a = agg[k];
+            var m = L.marker([p.lat, p.lng]).addTo(leafletMap);
+            m.bindPopup("<b>"+esc(k)+"</b><br>Driver: "+esc(a.driver||"\u2014")+"<br>Last update: "+esc(fmtDT(p.time))+" · "+(livePosFresh(p) ? "Fresh" : "Stale — "+(livePosAgeMin(p)===null ? "time unknown" : "no update for "+livePosAgeMin(p)+" min")));
+            leafletMarkers[k] = m;
+            bounds.push([p.lat, p.lng]);
+          });
+          if(bounds.length>1) leafletMap.fitBounds(bounds, {padding:[30,30]});
+          else if(bounds.length===1) leafletMap.setView(bounds[0], 13);
+          setTimeout(function(){ if(leafletMap) leafletMap.invalidateSize(); }, 100);
+        }catch(e){
+          var b = $("mapView");
+          if(b && !document.getElementById("leafletMap")){ /* map div replaced by list already */ }
+        }
+      }
+      function updateMapLocWarn(){
+        var w = $("mapLocWarn");
+        if(!w) return;
+        var link = $("mapLocInput").value.trim();
+        if(link && !isMapsLink(link)){
+          w.textContent = "This doesn't look like a Google Maps link — check it before saving.";
+          w.style.display = "";
+        }else{
+          w.style.display = "none";
+        }
+      }
+      function saveMapLiveLocation(){
+        var sel = $("mapVehSelect"), inp = $("mapLocInput"), errBox = $("mapLocError");
+        if(!sel || !inp) return;
+        var vehicleNo = sel.value;
+        if(!vehicleNo){ if(errBox){ errBox.textContent = "No vehicle selected."; errBox.style.display=""; } return; }
+        if(state.current && state.current._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var link = inp.value.trim();
+        updateMapLocWarn();
+        if(!(link.indexOf("http://")===0 || link.indexOf("https://")===0)){
+          if(errBox){ errBox.textContent = "Paste a full link starting with http:// or https://"; errBox.style.display=""; }
+          return;
+        }
+        if(errBox) errBox.style.display = "none";
+        var payload = {action:"setLocation", vehicleNo:vehicleNo, link:link, author:currentUser.name, time:new Date().toISOString()};
+        if(hookUrl()){
+          postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+            var data = null;
+            try{ data = JSON.parse(txt); }catch(e){}
+            if(!data || typeof data.updated !== "number"){
+              if(errBox){ errBox.textContent = "Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)"; errBox.style.display=""; }
+              return;
+            }
+            if(data.updated === 0){
+              if(errBox){ errBox.textContent = "Vehicle not found in the sheet"; errBox.style.display=""; }
+              toast("Vehicle not found in the sheet");
+              return;
+            }
+            applyLocationToRows(vehicleNo, link);
+            recordAction("Live location saved", vehicleNo, link, "Live location link saved for vehicle "+vehicleNo);
+            state.lastUpdated = hhmmss(new Date());
+            updateBanner();
+            inp.value = "";
+            updateMapLocWarn();
+            toast("Live location link saved to "+data.updated+" rows in the sheet", 4000);
+            renderMap();
+          }).catch(function(){
+            if(errBox){ errBox.textContent = "Could not save to the sheet — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)"; errBox.style.display=""; }
+          });
+        }else{
+          saveLocalLocation(vehicleNo, link);
+          recordAction("Live location saved", vehicleNo, link, "Live location link saved for vehicle "+vehicleNo);
+          applyLocationToRows(vehicleNo, link);
+          state.lastUpdated = hhmmss(new Date());
+          updateBanner();
+          inp.value = "";
+          updateMapLocWarn();
+          toast("Live location saved on this phone", 4000);
+          renderMap();
+        }
+      }
+      /* Driver tracking page (?track=VEHICLE): one tap, no team login
+         needed — the driver is not a team member. The link carries the
+         event webhook (?hook_cmot= / ?hook_iffi=) when one is set; without
+         a webhook the Start button stays disabled and says so plainly,
+         because positions saved on the driver's phone would never reach
+         the team. Positions post immediately on the first fix and then
+         every 2 minutes while the page stays open. */
+      function initTrackMode(){
+        var params = null;
+        try{ params = new URLSearchParams(window.location.search); }catch(e){}
+        if(!params) return;
+        var veh = String(params.get("track") || "").trim();
+        if(!veh) return;
+        trackVehicle = veh;
+        trackDriver = String(params.get("driver") || "").trim();
+        var card = document.createElement("div");
+        card.id = "trackCard";
+        card.style.cssText = "position:fixed;inset:0;z-index:9999;background:var(--bg);color:var(--ink);padding:24px 18px;overflow:auto";
+        var hook = hookUrl();
+        card.innerHTML = '<div style="max-width:520px;margin:0 auto">'
+          + '<div class="eyebrow">57th IFFI · Goa · Live tracking</div>'
+          + '<h1 style="margin:8px 0 4px">Share this vehicle\u2019s location</h1>'
+          + '<p style="font-size:1.05rem">Vehicle <b>'+esc(veh)+'</b>'+(trackDriver ? ' · Driver <b>'+esc(trackDriver)+'</b>' : "")+'</p>'
+          + '<p>Tap Start once — your phone then sends its position to the team\u2019s Live Map every 2 minutes. Keep this page open while on duty; closing it stops sharing.</p>'
+          + (hook ? "" : '<p style="font-weight:700;color:var(--warn)">The team has not set up the sheet connection yet, so positions cannot reach the Live Map right now. Ask the admin (Yogesh) to finish the webhook setup, then open this link again.</p>')
+          + '<div class="rowflex" style="margin-top:14px"><button class="btn primary" id="trackStartBtn" type="button" style="flex:1"'+(hook ? "" : " disabled")+'>Start sharing my location</button>'
+          + '<button class="btn" id="trackStopBtn" type="button" disabled>Stop</button></div>'
+          + '<p class="status" id="trackStatus" role="status" style="margin-top:12px">Not sharing yet.</p>'
+          + '<p class="cols-note">Only the vehicle\u2019s position is shared — nothing else from your phone.</p></div>';
+        document.body.appendChild(card);
+        var startBtn = document.getElementById("trackStartBtn");
+        var stopBtn = document.getElementById("trackStopBtn");
+        var statusEl = document.getElementById("trackStatus");
+        function setTrackStatus(t){ if(statusEl) statusEl.textContent = t; }
+        function postTrackPosition(){
+          if(!trackLastFix || !hookUrl()) return;
+          var payload = {action:"trackPosition", vehicle:trackVehicle, lat:trackLastFix.lat, lng:trackLastFix.lng, time:new Date().toISOString(), by:trackDriver || "Driver"};
+          postToHook(payload).then(function(res){ return res.text(); }).then(function(txt){
+            var data = null;
+            try{ data = JSON.parse(txt); }catch(e){}
+            if(data && data.ok) setTrackStatus("Sharing — last sent "+hhmmss(new Date())+" IST. Keep this page open.");
+            else setTrackStatus("Position could not be saved — the webhook may be the old version. Tell the admin to redeploy the Apps Script as a new version.");
+          }).catch(function(){ setTrackStatus("Could not reach the sheet — check signal and keep this page open; it will retry in 2 minutes."); });
+        }
+        if(startBtn) startBtn.addEventListener("click", function(){
+          if(!navigator.geolocation){ setTrackStatus("This phone/browser cannot share location."); return; }
+          startBtn.disabled = true;
+          if(stopBtn) stopBtn.disabled = false;
+          setTrackStatus("Waiting for your location…");
+          trackWatchId = navigator.geolocation.watchPosition(function(pos){
+            trackLastFix = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            if(!trackPosting){ trackPosting = true; postTrackPosition(); }
+            /* v31.1: do not claim "Last sent" here — the POST has not
+               confirmed yet; postTrackPosition writes the confirmed time
+               on success. */
+            setTrackStatus("Sharing — position received, sending to the sheet… Keep this page open.");
+          }, function(err){
+            /* v31.1: on denial, stop the 2-minute timer too — otherwise
+               it keeps running after Start is re-enabled, and re-tapping
+               Start would leak a second watch + interval that Stop could
+               never clear. */
+            if(trackTimer){ clearInterval(trackTimer); trackTimer = null; }
+            if(trackWatchId!==null){ try{ navigator.geolocation.clearWatch(trackWatchId); }catch(e){} trackWatchId = null; }
+            trackPosting = false;
+            setTrackStatus("Location permission was not given — allow location for this page, then tap Start again.");
+            startBtn.disabled = false;
+            if(stopBtn) stopBtn.disabled = true;
+          }, { enableHighAccuracy:true, maximumAge:30000, timeout:20000 });
+          trackTimer = setInterval(postTrackPosition, 120000);
+        });
+        if(stopBtn) stopBtn.addEventListener("click", function(){
+          if(trackWatchId!==null && navigator.geolocation) navigator.geolocation.clearWatch(trackWatchId);
+          if(trackTimer) clearInterval(trackTimer);
+          trackWatchId = null; trackTimer = null; trackPosting = false;
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          setTrackStatus("Stopped sharing.");
+        });
+      }
+
+      /* ================= v31 — SHARE LOG =================
+         Every Copy / WhatsApp / Share tap on a driver or guest message
+         is logged: Date | Time (IST) | Guest | Sent to (Driver/Guest) |
+         Channel (WhatsApp/Copy/Share) | Shared by (logged-in member) |
+         Vehicle. Via the webhook it lands in the sheet's "Share Log"
+         tab and the Admin view shows it newest first; without a webhook
+         it is kept on this phone only and labelled as such. Honest
+         label, shown in Admin view: the log records the TAP ("opened
+         WhatsApp") — WhatsApp never tells the tool whether Send was
+         actually pressed, so this is NOT confirmed delivery. Sample
+         rows: every share action is already blocked for samples by
+         sendableCurrent(), and logShare() itself refuses sample guests
+         too, so no share can ever be logged from practice data. */
+      var shareLogArr = [];
+      var LS_LOCAL_SHARELOG = "iffi-local-sharelog";
+      var LS_LOCAL_LIVEPOS = "iffi-local-livepos";
+      function localShareLogKey(){ return LS_LOCAL_SHARELOG+"-"+evLc(activeEvent); }
+      function istDateTimeParts(d){
+        var d2 = new Date(d.getTime() + (5*60+30)*60000);
+        var dd = ("0"+d2.getUTCDate()).slice(-2), mm = ("0"+(d2.getUTCMonth()+1)).slice(-2), yy = d2.getUTCFullYear();
+        var hh = ("0"+d2.getUTCHours()).slice(-2), mi = ("0"+d2.getUTCMinutes()).slice(-2);
+        return { date: dd+"-"+mm+"-"+yy, time: hh+":"+mi };
+      }
+      function logShare(guest, sentTo, channel){
+        if(!guest || guest._sample) return;
+        if(!currentUser) return;
+        var now = new Date();
+        var p = istDateTimeParts(now);
+        var rec = { date:p.date, time:p.time, guest:clean(guest.name), sentTo:sentTo, channel:channel, by:currentUser.name, vehicle:clean(guest.vehNo) };
+        if(hookUrl()){
+          shareLogArr.unshift(rec);
+          if(state.adminOpen) renderShareLog();
+          postToHook({ action:"logShare", date:rec.date, time:rec.time, guest:rec.guest, sentTo:rec.sentTo, channel:rec.channel, by:rec.by, vehicle:rec.vehicle })
+            .catch(function(){ /* sheet write failed — the phone-side entry above still shows; the Admin note says the sheet copy may be missing */ });
+        }else{
+          var loc = lsGetJSON(localShareLogKey(), []);
+          if(!Array.isArray(loc)) loc = [];
+          loc.unshift(rec);
+          lsSetJSON(localShareLogKey(), loc);
+          shareLogArr = loc;
+          if(state.adminOpen) renderShareLog();
+        }
+      }
+      /* v31.1: dates are DD-MM-YYYY — compare as YYYYMMDDHHMM so the
+         order stays chronological across month boundaries (lexicographic
+         DD-MM-YYYY would put 02 Nov after 15 Oct). Returns 0 on equal
+         keys instead of -1. */
+      function shareLogSortKey(r){
+        var d = String(r.date||""), t = String(r.time||"");
+        var m = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        var tm = t.match(/^(\d{2}):(\d{2})/);
+        if(!m) return d + t;
+        return m[3] + m[2] + m[1] + (tm ? tm[1] + tm[2] : "0000");
+      }
+      function fetchShareLog(){
+        var hook = hookUrl();
+        if(!hook){
+          var loc = lsGetJSON(localShareLogKey(), []);
+          shareLogArr = Array.isArray(loc) ? loc : [];
+          if(state.adminOpen) renderShareLog();
+          return;
+        }
+        fetch(freshUrl(hook+"?view=shareLog"), {cache:"no-store"}).then(function(res){ return res.json(); }).then(function(data){
+          var list = data;
+          if(data && !Array.isArray(data) && Array.isArray(data.shareLog)) list = data.shareLog;
+          if(Array.isArray(list)){
+            shareLogArr = list.slice().sort(function(a,b){
+              var ka = shareLogSortKey(a), kb = shareLogSortKey(b);
+              return ka < kb ? 1 : (ka > kb ? -1 : 0);
+            });
+          }
+          if(state.adminOpen) renderShareLog();
+        }).catch(function(){ /* keep the last loaded log; the Admin note explains the sheet copy may be stale */ });
+      }
+      function renderShareLog(){
+        var box = $("shareLogList");
+        if(!box) return;
+        var note = $("shareLogLocalNote");
+        if(note) note.style.display = hookUrl() ? "none" : "";
+        if(!shareLogArr.length){
+          box.innerHTML = '<p class="cols-note">No shares logged yet — taps on Copy / WhatsApp / Share in a guest\u2019s detail view will appear here.</p>';
+          return;
+        }
+        box.innerHTML = '<div class="results" style="margin-top:0">' + shareLogArr.map(function(r){
+          return '<div class="memberrow"><span class="dname">'+esc(r.guest||"Guest")+"</span>"
+            + '<div class="vmeta" style="margin-top:3px">'+esc(r.date||"")+" "+esc(r.time||"")+" IST · Opened for <b>"+esc(r.sentTo||"\u2014")+"</b> · "+esc(r.channel||"")+" (tap)</div>"
+            + '<div class="vmeta">Shared by <b>'+esc(r.by||"\u2014")+"</b>"+(r.vehicle ? " · Vehicle <b>"+esc(r.vehicle)+"</b>" : "")+"</div></div>";
+        }).join("") + "</div>";
+      }
+
       function setView(v){
         state.view = v;
-        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers"), hotels:$("tabHotels") };
+        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers"), hotels:$("tabHotels"), members:$("tabMembers"), map:$("tabMap") };
         Object.keys(tabs).forEach(function(k){ if(tabs[k]) tabs[k].setAttribute("aria-pressed", k===v ? "true" : "false"); });
         var sb = $("searchbar"), rs = $("results"), es = $("emptyState");
-        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView"), hv = $("hotelsView");
+        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView"), hv = $("hotelsView"), mv = $("membersView"), mpv = $("mapView");
         if(sb) sb.style.display = v==="guests" ? "" : "none";
         if(rs) rs.style.display = v==="guests" ? "" : "none";
         if(es) es.style.display = v==="guests" ? (state.guests.length ? "none" : "block") : "none";
@@ -4951,17 +5550,23 @@ function setCallTick_(data) {
         if(vv) vv.style.display = v==="vehicles" ? "" : "none";
         if(dv) dv.style.display = v==="drivers" ? "" : "none";
         if(hv) hv.style.display = v==="hotels" ? "" : "none";
+        if(mv) mv.style.display = v==="members" ? "" : "none";
+        if(mpv) mpv.style.display = v==="map" ? "" : "none";
         if(v==="guests") render();
         else if(v==="today") renderToday();
         else if(v==="vehicles"){ fetchLegs(true); renderVehicles(); }
         else if(v==="drivers"){ fetchCallTicks(); renderDrivers(); }
         else if(v==="hotels") renderHotels();
+        else if(v==="members") renderMembers();
+        else if(v==="map"){ fetchLivePositions(true); renderMap(); }
       }
       function refreshCurrentView(){
         if(state.view==="today") renderToday();
         else if(state.view==="vehicles") renderVehicles();
         else if(state.view==="drivers") renderDrivers();
         else if(state.view==="hotels") renderHotelList();
+        else if(state.view==="members") renderMembers();
+        else if(state.view==="map") renderMap();
       }
 
       /* ================= v29 — SIDE PANE (drawer) =================
@@ -4983,7 +5588,7 @@ function setCallTick_(data) {
       function initDrawer(){
         var body = $("drawerBody");
         if(!body) return;
-        ["filtersDetails","loadPanel","settingsPanel","helpPanel","privacyBox"].forEach(function(id){
+        ["loadPanel","settingsPanel","helpPanel","privacyBox"].forEach(function(id){
           var el = $(id);
           if(el) body.appendChild(el);
         });
@@ -5057,6 +5662,13 @@ function setCallTick_(data) {
         fetchNotifications();
         fetchLegs(true);
         fetchCallTicks();
+        fetchLivePositions(true);
+        fetchShareLog();
+        /* v31: driver tracking page (?track=VEHICLE) — one tap, no team
+           login needed. Runs after the webhook URL from the link is
+           saved, so the track card knows whether positions can reach
+           the sheet. */
+        initTrackMode();
         loadLocations();
         var bellBtnEl = $("bellBtn"); if(bellBtnEl) bellBtnEl.addEventListener("click", openBell);
         var bellCloseEl = $("bellCloseBtn"); if(bellCloseEl) bellCloseEl.addEventListener("click", closeBell);
@@ -5082,6 +5694,8 @@ function setCallTick_(data) {
         var tabV = $("tabVehicles"); if(tabV) tabV.addEventListener("click", function(){ setView("vehicles"); });
         var tabD = $("tabDrivers"); if(tabD) tabD.addEventListener("click", function(){ setView("drivers"); });
         var tabH = $("tabHotels"); if(tabH) tabH.addEventListener("click", function(){ setView("hotels"); });
+        var tabM = $("tabMembers"); if(tabM) tabM.addEventListener("click", function(){ setView("members"); });
+        var tabMp = $("tabMap"); if(tabMp) tabMp.addEventListener("click", function(){ setView("map"); });
         setView("guests");
         /* PWA: register the app-shell service worker (staged next to this
            page as sw.js at host time). Fully guarded: if registration is
