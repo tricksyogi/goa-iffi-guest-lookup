@@ -287,7 +287,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.1</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.2</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -2888,13 +2888,15 @@ function setCallTick_(data) {
       }
 
       /* ---------- Option A: Google Sheet link ---------- */
+      /* v31.2: the export endpoint returns a Google HTML (consent) page
+         instead of CSV for link-shared sheets, so guest lists failed to
+         load. Use the gviz CSV endpoint instead — it returns clean CSV
+         for the same sheet. No gid needed: gviz without a sheet
+         parameter reads the first tab, which is the documented rule. */
       function sheetCsvUrl(url){
         var m = String(url).match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
         if(!m) return null;
-        var gid = "0";
-        var gm = String(url).match(/[#&?]gid=(\d+)/);
-        if(gm) gid = gm[1];
-        return "https://docs.google.com/spreadsheets/d/"+m[1]+"/export?format=csv&gid="+gid;
+        return "https://docs.google.com/spreadsheets/d/"+m[1]+"/gviz/tq?tqx=out:csv";
       }
       function loadFromUrl(url, quiet, silent){
         var forEvent = activeEvent;
