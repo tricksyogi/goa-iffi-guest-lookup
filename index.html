@@ -287,7 +287,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.2</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.3</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -321,6 +321,9 @@
 
       <!-- ============ UPLOADED-FILE WARNING ============ -->
       <div class="uploadwarn" id="uploadWarn" role="alert" style="display:none">Loaded from an uploaded file — edits in Drive won’t appear here until you re-upload the file. For live updates, link the Google Sheet instead.</div>
+
+      <!-- ============ HELD-LIST NOTE (v31.3) ============ -->
+      <div class="uploadwarn" id="holdWarn" role="status" style="display:none"></div>
 
       <!-- ============ VIEW TABS (v29) ============ -->
       <div class="viewtabs" role="group" aria-label="Choose what to see">
@@ -1423,7 +1426,7 @@ function setCallTick_(data) {
       var EVENTS = ["CMOT","IFFI"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
-      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{} }; }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0 }; }
       var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
@@ -2846,7 +2849,62 @@ function setCallTick_(data) {
            message instead. Sample rows are not uploads and never warn. */
         var uw = $("uploadWarn");
         if(uw) uw.style.display = (state.source.kind==="real" && !state.source.url && !!state.source.label) ? "" : "none";
+        /* v31.3 — hold note (same inline pattern as the v30 locations
+           note): while the displayed list is the last full one because
+           the latest refresh returned nothing, or a read is missing rows
+           that no human has confirmed yet, say so plainly under the
+           banner. The state lives in the event bucket, so the note is
+           per-event and follows the active event. */
+        var hw = $("holdWarn");
+        if(hw){
+          var hbk = eventBuckets[activeEvent];
+          if(hbk && hbk.lastReadEmpty && (hbk.emptyReads||0) >= EMPTY_CONFIRM_READS){
+            hw.textContent = "The sheet is returning no guests — if the sheet was cleared on purpose, open Notifications and tap Confirm empty. Nothing has been removed yet. Showing the last loaded list.";
+            hw.style.display = "";
+          }else if(hbk && hbk.lastReadEmpty){
+            hw.textContent = "The sheet just returned no guests — the sheet may have a filter hiding every row. Nothing has been removed yet. Showing the last loaded list.";
+            hw.style.display = "";
+          }else if(hbk && hbk.pendingRemoval){
+            var pm = hbk.pendingRemoval.missing.length;
+            hw.textContent = "The latest read from the sheet is missing "+pm+" guest"+(pm===1?"":"s")+". Nothing has been removed yet — tap Confirm in Notifications if these guests were really removed. Showing the last full list.";
+            hw.style.display = "";
+          }else{
+            hw.style.display = "none";
+          }
+        }
       }
+
+      /* v31.3 — removal hold. "No details should be erased until it is in
+         the sheet": gviz respects sheet filters, so one refresh can return
+         a subset (or nothing) while the rows are still in the sheet, and
+         the bell used to report those rows as removed. A read is held
+         whenever it is MISSING any row the displayed list has — an
+         identity check on remarkKey (name|phone, multiset-aware for
+         duplicate rows), never on the row count and never on vehicle
+         numbers, so a vehicle change or a concurrent addition cannot look
+         like a removal. Held removals are NEVER auto-confirmed: a human
+         confirms them in Notifications (confirmPendingRemovals), or the
+         hold clears itself when a later read brings the rows back. The
+         pending state lives in the event bucket, so it is per-event and
+         survives switching. */
+      var EMPTY_CONFIRM_READS = 3;
+      function missingKeys(oldList, newList){
+        /* Rows in oldList whose identity (remarkKey) is absent from
+           newList, one entry per missing row. Vehicle numbers play no
+           part: a row that returns with a different vehicle is present,
+           not missing. */
+        var counts = {};
+        (newList||[]).forEach(function(g){ var k = remarkKey(g); counts[k] = (counts[k]||0)+1; });
+        var missing = [];
+        (oldList||[]).forEach(function(g){
+          var k = remarkKey(g);
+          if(counts[k] > 0){ counts[k]--; }
+          else missing.push(g);
+        });
+        return missing;
+      }
+      function addNotifId(g){ return "a|"+remarkKey(g); }
+      function chgNotifId(n){ return "c|"+remarkKey(n)+"|"+vehKey(n.vehNo); }
 
       function loadGuests(guests, source){
         /* Bell: diff the freshly loaded sheet against what this phone was
@@ -2856,14 +2914,89 @@ function setCallTick_(data) {
            Diff notifications stay on this phone: every phone detects the
            same change itself, so posting them would duplicate the shared
            history. */
+        var prevGuests = state.guests;
+        var prevWasSheet = !!(state.source && state.source.kind==="real" && state.source.url);
+        var newIsSheet = !!(source && source.kind==="real" && source.url);
+        var held = false;
         try{
-          var prevGuests = state.guests;
-          var prevWasSheet = !!(state.source && state.source.kind==="real" && state.source.url);
-          var newIsSheet = !!(source && source.kind==="real" && source.url);
-          if(prevWasSheet && newIsSheet && prevGuests && prevGuests.length && guests && currentUser){
-            diffGuestsForBell(prevGuests, guests);
+          if(prevWasSheet && newIsSheet && prevGuests && prevGuests.length && guests){
+            var bk = eventBuckets[activeEvent];
+            if(!guests.length){
+              /* An empty read never means everyone was deleted — a filter
+                 can hide every row, or the fetch can return nothing. Hold
+                 the previous list; say so. No diff, no replacement. An
+                 empty read leaves a pending removal episode alone (it can
+                 neither lose a real pending removal nor confirm a false
+                 one); it only counts toward the empty-confirm threshold. */
+              bk.lastReadEmpty = true;
+              bk.emptyReads = (bk.emptyReads||0)+1;
+              held = true;
+            }else{
+              var missing = missingKeys(prevGuests, guests);
+              if(missing.length){
+                /* A row the displayed list has is absent from this read.
+                   Report additions and vehicle changes now (they erase
+                   nothing), but hold the removals: no auto-confirm, ever.
+                   Additions/changes already reported during this episode
+                   are skipped (their identities are in ep.reported), so
+                   a second read with a different set does not re-report
+                   them. */
+                var ep = bk.pendingRemoval || {missing:[], pendingList:[], count:0, prevCount:0, reported:{}};
+                if(currentUser){
+                  var rep = diffGuestsForBell(prevGuests, guests, {reportRemoved:false, skip:ep.reported});
+                  if(rep){
+                    (rep.added||[]).forEach(function(id){ ep.reported[id] = 1; });
+                    (rep.changed||[]).forEach(function(id){ ep.reported[id] = 1; });
+                  }
+                }
+                ep.missing = missing;
+                ep.pendingList = guests;
+                ep.count = guests.length;
+                ep.prevCount = prevGuests.length;
+                bk.pendingRemoval = ep;
+                bk.lastReadEmpty = false;
+                bk.emptyReads = 0;
+                held = true;
+              }else{
+                /* No row missing — the rows are all back (or never left).
+                   Accept the read; report additions and vehicle changes;
+                   any pending removal clears with zero removals ever. */
+                if(currentUser) diffGuestsForBell(prevGuests, guests);
+                bk.pendingRemoval = null;
+                bk.lastReadEmpty = false;
+                bk.emptyReads = 0;
+              }
+            }
+          }else{
+            /* Any other load (first load, upload, sample) replaces the list
+               outright — a hold from an earlier sheet list no longer
+               applies to what is showing. */
+            var bk0 = eventBuckets[activeEvent];
+            bk0.pendingRemoval = null;
+            bk0.lastReadEmpty = false;
+            bk0.emptyReads = 0;
           }
         }catch(e){}
+        if(held){
+          /* Held list: the displayed rows stay the previous list. Refresh
+             the banner (which carries the hold note) and say so in the
+             status line; do not touch state.guests, the filters, or the
+             detail view. The Notifications panel (if open) refreshes so
+             the confirm action appears. Returns false so the caller does
+             not advance "Last updated" on a read that changed nothing. */
+          updateBanner();
+          renderBell();
+          var hbk = eventBuckets[activeEvent];
+          if(hbk.lastReadEmpty && (hbk.emptyReads||0) >= EMPTY_CONFIRM_READS){
+            setStatus("The sheet is returning no guests. Nothing has been removed yet — open Notifications and tap Confirm empty if the sheet was cleared on purpose.", "err");
+          }else if(hbk.lastReadEmpty){
+            setStatus("The sheet just returned no guests. Nothing has been removed yet — showing the last loaded list.", "err");
+          }else if(hbk.pendingRemoval){
+            var pm = hbk.pendingRemoval.missing.length;
+            setStatus("The latest read from the sheet is missing "+pm+" guest"+(pm===1?"":"s")+". Nothing has been removed yet — tap Confirm in Notifications if these guests were really removed.", "err");
+          }
+          return false;
+        }
         applyLocalLocations(guests);
         applyKnownVehicleStatuses(guests);
         state.guests = guests;
@@ -2885,6 +3018,7 @@ function setCallTick_(data) {
         }else{
           setStatus("No guest rows found in "+state.source.label+". Check that the first row has column headings like Guest Name, Phone, Flight No.", "err");
         }
+        return true;
       }
 
       /* ---------- Option A: Google Sheet link ---------- */
@@ -2917,14 +3051,51 @@ function setCallTick_(data) {
             /* The user switched events while this sheet was loading — keep the
                data with its own event instead of mixing it into the new one. */
             var bk = eventBuckets[forEvent];
+            var prevBk = bk.guests || [];
+            if(prevBk.length && !guests.length){
+              /* An empty background read never means everyone was deleted
+                 — hold the bucket's list, as loadGuests does. It leaves a
+                 pending removal episode alone and never advances "Last
+                 updated": the displayed list did not change. */
+              bk.lastReadEmpty = true;
+              bk.emptyReads = (bk.emptyReads||0)+1;
+              bk.touched = true;
+              return;
+            }
+            var bmissing = missingKeys(prevBk, guests);
+            if(prevBk.length && bmissing.length){
+              /* A background read missing rows is held, never stored.
+                 Additions and vehicle changes in it are not reported here
+                 — they are reported by the active loadGuests path when the
+                 user switches back to this event and the sheet is read
+                 again — so the pending episode keeps the reported set it
+                 already has and only its missing set is refreshed. */
+              var bep = bk.pendingRemoval || {missing:[], pendingList:[], count:0, prevCount:0, reported:{}};
+              bep.missing = bmissing;
+              bep.pendingList = guests;
+              bep.count = guests.length;
+              bep.prevCount = prevBk.length;
+              bk.pendingRemoval = bep;
+              bk.lastReadEmpty = false;
+              bk.emptyReads = 0;
+              bk.touched = true;
+              return;
+            }
+            bk.pendingRemoval = null;
+            bk.lastReadEmpty = false;
+            bk.emptyReads = 0;
             bk.guests = guests;
             bk.source = {kind:"real", label:"the Google Sheet", url:url};
             bk.lastUpdated = hhmmss(new Date());
             bk.touched = true;
             return;
           }
-          state.lastUpdated = hhmmss(new Date());
-          loadGuests(guests, {kind:"real", label:"the Google Sheet", url:url});
+          /* "Last updated" advances only when the read is actually
+             accepted — loadGuests returns false when it holds the list,
+             so a held refresh no longer stamps a fresh time on stale data.
+             updateBanner runs again after stamping it, because loadGuests
+             already painted the banner before the stamp was set. */
+          if(loadGuests(guests, {kind:"real", label:"the Google Sheet", url:url})){ state.lastUpdated = hhmmss(new Date()); updateBanner(); }
           loadRoster(url);
         }).catch(function(){
           if(forEvent!==activeEvent) return;
@@ -4357,11 +4528,34 @@ function setCallTick_(data) {
         if(!box) return;
         var d = dismissedIds();
         var list = notifListArr.slice().reverse();
-        if(!list.length){
+        /* v31.3 — pending-removal confirm section (top of the panel, above
+           the history): while a read is held because rows are missing, the
+           team confirms or leaves it here. The empty-confirm section
+           appears only once the sheet has returned no guests
+           EMPTY_CONFIRM_READS times in a row — it is a manual confirm,
+           never an auto-confirm. Both are per-event (the active event's
+           bucket) and only for a logged-in member. */
+        var head = "";
+        var bk = eventBuckets[activeEvent];
+        if(currentUser && bk && bk.pendingRemoval){
+          var pm = bk.pendingRemoval;
+          head += '<div class="notif unread">'
+            + '<div class="ntext"><strong>'+pm.missing.length+' guest'+(pm.missing.length===1?"":"s")+' missing from the latest read.</strong> Nothing has been removed yet — tap Confirm below only if these guests were really removed from the sheet.</div>'
+            + pm.missing.map(function(m){ return '<div class="ntext">· '+esc(clean(m.name)||"Unnamed guest")+(clean(m.flight) ? " · Flight "+esc(clean(m.flight)) : "")+'</div>'; }).join("")
+            + '<div class="rowflex" style="margin-top:8px"><button class="btn primary" type="button" data-confirm-removals="1">Confirm these guests were removed</button></div>'
+            + "</div>";
+        }
+        if(currentUser && bk && bk.lastReadEmpty && (bk.emptyReads||0) >= EMPTY_CONFIRM_READS && state.guests.length){
+          head += '<div class="notif unread">'
+            + '<div class="ntext"><strong>The sheet is returning no guests.</strong> If the sheet was cleared on purpose, tap Confirm empty — every guest now showing will be reported as removed.</div>'
+            + '<div class="rowflex" style="margin-top:8px"><button class="btn primary" type="button" data-confirm-empty="1">Confirm empty</button></div>'
+            + "</div>";
+        }
+        if(!list.length && !head){
           box.innerHTML = '<p class="cols-note" style="margin:6px 0">Nothing yet — changes and team actions will appear here.</p>';
           return;
         }
-        box.innerHTML = list.map(function(n){
+        box.innerHTML = head + list.map(function(n){
           var id = notifId(n), read = d.indexOf(id)>=0;
           return '<div class="notif'+(read ? " read" : " unread")+'">'
             + '<div class="ntext">'+esc(n.text)+"</div>"
@@ -4479,25 +4673,38 @@ function setCallTick_(data) {
       }
 
       /* ================= v29 — SHEET DIFF FOR THE BELL ================= */
-      function diffGuestsForBell(oldList, newList){
+      function newEntryText(n){ return "New entry added: "+(clean(n.name)||"Unnamed guest")+(clean(n.flight) ? " · Flight "+clean(n.flight) : "")+(clean(n.date) ? " · "+clean(n.date) : ""); }
+      function removedText(o){ return "Entry removed: "+(clean(o.name)||"Unnamed guest")+(clean(o.flight) ? " · Flight "+clean(o.flight) : ""); }
+      function diffGuestsForBell(oldList, newList, opts){
         /* Rows are grouped by remarkKey (name|phone), but a group can hold
            more than one real row (duplicate name+phone, e.g. the same guest
            on two vehicles). Within a group, rows are matched as a multiset
            by vehicle number, so removing or re-vehicling ONE row of a
            duplicate pair still fires a notification instead of collapsing
            into the surviving row. */
+        /* v31.3: opts.reportRemoved / reportAdded / reportChanged (all
+           default true) let the hold report only part of a diff — a read
+           with missing rows reports additions and vehicle changes but
+           holds removals. opts.skip is a map of identities already
+           reported during the current pending episode (addNotifId /
+           chgNotifId); skipped rows are not reported again. Returns the
+           identities it did report, so the caller can record them. */
+        opts = opts || {};
+        var reportRemoved = opts.reportRemoved !== false;
+        var reportAdded = opts.reportAdded !== false;
+        var reportChanged = opts.reportChanged !== false;
+        var skip = opts.skip || null;
+        var reportedAdded = [], reportedChanged = [];
         function groupByKey(list){
           var m = {};
           list.forEach(function(g){ var k = remarkKey(g); (m[k] = m[k] || []).push(g); });
           return m;
         }
-        function newEntryText(n){ return "New entry added: "+(clean(n.name)||"Unnamed guest")+(clean(n.flight) ? " · Flight "+clean(n.flight) : "")+(clean(n.date) ? " · "+clean(n.date) : ""); }
-        function removedText(o){ return "Entry removed: "+(clean(o.name)||"Unnamed guest")+(clean(o.flight) ? " · Flight "+clean(o.flight) : ""); }
         var oldMap = groupByKey(oldList), newMap = groupByKey(newList);
         Object.keys(newMap).forEach(function(k){
           var news = newMap[k], olds = oldMap[k];
           if(!olds){
-            news.forEach(function(n){ addNotif("sheet", newEntryText(n), "Sheet", true); });
+            if(reportAdded) news.forEach(function(n){ var id = addNotifId(n); if(skip && skip[id]) return; addNotif("sheet", newEntryText(n), "Sheet", true); reportedAdded.push(id); });
             return;
           }
           var oldCounts = {};
@@ -4514,19 +4721,82 @@ function setCallTick_(data) {
             if(oldCounts[v] > 0){ oldCounts[v]--; removedRows.push(o); }
           });
           if(olds.length===news.length && removedRows.length && removedRows.length===addedRows.length){
-            for(var i=0;i<removedRows.length;i++){
-              addNotif("sheet", "Vehicle changed for "+(clean(addedRows[i].name)||"a guest")+": "+(vehKey(removedRows[i].vehNo)||"none")+" \u2192 "+(vehKey(addedRows[i].vehNo)||"none"), "Sheet", true);
+            if(reportChanged){
+              for(var i=0;i<removedRows.length;i++){
+                var cid = chgNotifId(addedRows[i]);
+                if(skip && skip[cid]) continue;
+                addNotif("sheet", "Vehicle changed for "+(clean(addedRows[i].name)||"a guest")+": "+(vehKey(removedRows[i].vehNo)||"none")+" \u2192 "+(vehKey(addedRows[i].vehNo)||"none"), "Sheet", true);
+                reportedChanged.push(cid);
+              }
             }
           }else{
-            removedRows.forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
-            addedRows.forEach(function(n){ addNotif("sheet", newEntryText(n), "Sheet", true); });
+            if(reportRemoved) removedRows.forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
+            if(reportAdded) addedRows.forEach(function(n){ var id = addNotifId(n); if(skip && skip[id]) return; addNotif("sheet", newEntryText(n), "Sheet", true); reportedAdded.push(id); });
           }
         });
         Object.keys(oldMap).forEach(function(k){
           if(!newMap[k]){
-            oldMap[k].forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
+            if(reportRemoved) oldMap[k].forEach(function(o){ addNotif("sheet", removedText(o), "Sheet", true); });
           }
         });
+        return {added:reportedAdded, changed:reportedChanged};
+      }
+
+      /* v31.3 — manual confirmation. Removals are never auto-confirmed:
+         a human taps Confirm in Notifications. Any logged-in member may
+         confirm — the confirm only acknowledges what the sheet already
+         says (it deletes nothing from the sheet), and the on-shift
+         coordinator is the person who can see whether the guests were
+         really removed; requiring the admin would leave a real deletion
+         unconfirmed until the admin taps it. A wrong confirm is
+         self-healing: if the rows return later they report as additions.
+         Both actions are per-event (they act on the active event's
+         bucket) and report each removal exactly once, with the same
+         "Entry removed" wording the bell has always used. */
+      function confirmPendingRemovals(){
+        if(!currentUser) return false;
+        var bk = eventBuckets[activeEvent];
+        if(!bk || !bk.pendingRemoval) return false;
+        var ep = bk.pendingRemoval;
+        var missing = ep.missing || [];
+        missing.forEach(function(g){ addNotif("sheet", removedText(g), "Sheet", true); });
+        var next = ep.pendingList || [];
+        applyLocalLocations(next);
+        applyKnownVehicleStatuses(next);
+        state.guests = next;
+        bk.pendingRemoval = null;
+        bk.lastReadEmpty = false;
+        bk.emptyReads = 0;
+        state.lastUpdated = hhmmss(new Date());
+        buildFilters();
+        buildLocations();
+        render();
+        updateBanner();
+        setStatus("Confirmed: "+missing.length+" guest"+(missing.length===1?"":"s")+" removed. Showing the updated list.", "ok");
+        renderBell();
+        renderNotifList();
+        return true;
+      }
+      function confirmEmptySheet(){
+        if(!currentUser) return false;
+        var bk = eventBuckets[activeEvent];
+        if(!bk || !bk.lastReadEmpty || (bk.emptyReads||0) < EMPTY_CONFIRM_READS) return false;
+        if(!state.guests.length) return false;
+        var gone = state.guests.slice();
+        gone.forEach(function(g){ addNotif("sheet", removedText(g), "Sheet", true); });
+        state.guests = [];
+        bk.pendingRemoval = null;
+        bk.lastReadEmpty = false;
+        bk.emptyReads = 0;
+        state.lastUpdated = hhmmss(new Date());
+        buildFilters();
+        buildLocations();
+        render();
+        updateBanner();
+        setStatus("Confirmed: the sheet is empty. All "+gone.length+" guests were reported as removed.", "ok");
+        renderBell();
+        renderNotifList();
+        return true;
       }
 
       /* ================= v29 — VEHICLE LEGS (rotation / shuttle trips) =================
@@ -5678,6 +5948,8 @@ function setCallTick_(data) {
         var notifListEl = $("notifList");
         if(notifListEl) notifListEl.addEventListener("click", function(e){
           var tg = e.target;
+          if(tg && tg.getAttribute && tg.getAttribute("data-confirm-removals")){ confirmPendingRemovals(); return; }
+          if(tg && tg.getAttribute && tg.getAttribute("data-confirm-empty")){ confirmEmptySheet(); return; }
           var id = (tg && tg.getAttribute) ? tg.getAttribute("data-dismiss") : null;
           if(id) dismissNotif(id);
         });
