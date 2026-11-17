@@ -207,6 +207,7 @@
       .msgblur{filter:blur(7px);-webkit-filter:blur(7px);user-select:none;-webkit-user-select:none}
       .badge.vstatrep{background:var(--warn-soft);color:var(--warn)}
       .badge.vstatdep{background:var(--ok-soft);color:var(--ok)}
+      .badge.arrived{background:var(--ok-soft);color:var(--ok)}
       .vehstatus{margin-top:22px;border-top:2px solid var(--line);padding-top:14px}
       .vehstatus h3{font-size:1rem;margin:0 0 4px}
 
@@ -287,7 +288,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v31.3</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v32</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -314,6 +315,7 @@
         <span class="dot" aria-hidden="true"></span>
         <span id="dataBannerText">NO DATA LOADED</span>
         <span class="upd" id="lastUpdated"></span>
+        <span class="upd" id="healthStatus"></span>
         <span class="spacer"></span>
         <button class="btn small" id="refreshBtn" type="button" style="display:none">Refresh now</button>
       </div>
@@ -324,6 +326,9 @@
 
       <!-- ============ HELD-LIST NOTE (v31.3) ============ -->
       <div class="uploadwarn" id="holdWarn" role="status" style="display:none"></div>
+
+      <!-- ============ DATA HEALTH CHECK NOTE (v32) ============ -->
+      <div class="uploadwarn" id="healthWarn" role="status" style="display:none"></div>
 
       <!-- ============ VIEW TABS (v29) ============ -->
       <div class="viewtabs" role="group" aria-label="Choose what to see">
@@ -574,13 +579,38 @@
             <ul>
               <li><strong>Sort</strong> (above the guest list): <strong>“Pickup time: earliest first”</strong> is the default — guests are ordered chronologically by <strong>date + pickup time together</strong>, so a 10:00 AM pickup on 18 Nov comes before a 09:00 AM pickup on 19 Nov. <strong>“Pickup time: latest first”</strong> reverses that order, and <strong>“Guest name: A–Z”</strong> sorts alphabetically by name (case-insensitive). Guests with a blank or unreadable pickup time always sort <strong>last</strong> in the time sorts — they are never dropped by sorting alone.</li>
               <li><strong>Pickup time range:</strong> set <strong>From</strong> and/or <strong>To</strong> (24-hour times) to keep only guests whose <strong>pickup time in the sheet</strong> falls in the range — both ends are included. This is the sheet pickup time, <strong>not</strong> the driver's 1-hour-early time. If <strong>To is earlier than From, the range wraps past midnight</strong> (for example 10:00 PM–02:00 AM keeps late-night and early-morning pickups). Setting only one end makes it an open-ended bound (From only = from that time onwards; To only = up to that time). Guests with a blank or unreadable pickup time are <strong>hidden while a range is set</strong> and come back when the range is cleared.</li>
-              <li><strong>Hotel and Airport filters:</strong> each dropdown lists <strong>every hotel / airport present in the currently loaded data</strong> (plus “All hotels” / “All airports”), and is rebuilt on every reload, so a new hotel or airport added in the sheet appears by itself. All filters <strong>compose</strong> — search, location, type, date, hotel, airport, time range and sort all narrow the same list, the count above the list always shows how many guests match, and your filters and sort stay in place across the 30-second auto-refresh and Refresh now. <strong>Clear</strong> resets everything — search, location, type, date, hotel, airport, time range and sort — back to the defaults.</li>
+              <li><strong>Hotel and Airport filters:</strong> each dropdown lists <strong>every hotel / airport present in the currently loaded data</strong> (plus “All hotels” / “All airports”), and is rebuilt on every reload, so a new hotel or airport added in the sheet appears by itself. Hotels are grouped by name — “Taj Vivanta Panjim” and “Vivanta” count as one hotel, and guests with no hotel in the sheet (blank, #N/A or NA) group as “No hotel listed”. The airport comes from the <strong>Pickup Point</strong> — “Dabolim South Goa (GOI)” and “Debolim Airport” both mean Dabolim Airport, “Mopa North Goa (GOX)” and “MOPA” both mean Mopa Airport, anything else is “Other” (and the Other option says how many of those guests have no pickup point in the sheet at all). All filters <strong>compose</strong> — search, location, type, date, hotel, airport, time range and sort all narrow the same list, the count above the list always shows how many guests match, and your filters and sort stay in place across the 30-second auto-refresh and Refresh now. <strong>Clear</strong> resets everything — search, location, type, date, hotel, airport, time range and sort — back to the defaults.</li>
+              <li><strong>Hotels tab — view guests:</strong> tap <strong>“View guests”</strong> on any hotel to see who is staying there, with pickup time, flight and Check-in / Check-out dates from the sheet. Tap a guest to open their full details. “No hotel listed” opens the guests with no hotel in the sheet. Tap <strong>“← Back to hotels”</strong> to return to the hotel list.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Guest arrived — marking arrivals</h3>
+            <ul>
+              <li>Open a guest and use the <strong>Guest arrived</strong> section: tap <strong>Arrived — Yes</strong> (or No), add a remark if there is one, and enter the <strong>Actual Vehicle</strong> number if the guest was sent in a different vehicle than the assigned one — then tap <strong>Save arrival</strong>. Any logged-in member can mark arrivals.</li>
+              <li>When the event's webhook is set, the marking saves into the sheet's <strong>Arrived / Arrival Remark / Actual Vehicle</strong> columns on that guest's row only. Without a webhook (or while the sheet has no such columns) it saves on this phone only and says so — add the three columns to the sheet (headers: Arrived, Arrival Remark, Actual Vehicle) and set the webhook to share arrivals with the team.</li>
+              <li>A marking saved on this phone only is <strong>not</strong> pushed to the sheet later — when the webhook is set (or the arrival columns are added), open the guest and tap <strong>Save arrival</strong> again to share it with the team.</li>
+              <li>Arrived guests show an <strong>“Arrived ✓”</strong> badge on their card. The detail view always shows an Arrived row (Yes / No / —) and the remark and actual vehicle when set.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Data health check (every 15 minutes)</h3>
+            <ul>
+              <li>While the page is open, the tool re-reads the sheet every <strong>15 minutes</strong> and checks that the guest count has not dropped below the most guests it has ever seen for this event. If the sheet returns fewer guests than before (for example a filter is hiding rows) or cannot be read at all, a warning appears under the banner and one bell notification is added.</li>
+              <li>When the check is healthy, the banner quietly shows <strong>“Data check OK · HH:MM”</strong> and nothing goes in the bell.</li>
+              <li><strong>Honest limit:</strong> on the very first load the tool can only see the rows the sheet returns — a filter already hiding rows before the first load cannot be detected. The check catches <strong>drops against history</strong> and fetch failures, and it cannot bring back hidden rows; if it warns, check the sheet for a filter, clear it, and tap Refresh now.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Members tab</h3>
+            <ul>
+              <li>Each member shows their <strong>Preference</strong> — what they asked for in the signup form (Debolim Airport, Mopa Airport or Hotel; this is a preference, <strong>not</strong> a posting — the posting is the Allocation line) — and <strong>Shift</strong> (from Shift Preference), a <strong>WhatsApp</strong> button when the member's mobile is a valid number, and their <strong>Supervisor, Manager and Lead</strong> with contacts when the roster has those columns.</li>
+              <li>Add Supervisor / Manager / Lead columns to the Team Member Allocation sheet to show them here (with Supervisor Contact / Manager Contact / Lead Contact for their numbers). Until then those lines show “—” — no names are ever invented.</li>
             </ul>
           </div>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Your sheet data stays as you gave it</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, updating only the Arrived, Arrival Remark and Actual Vehicle cells of the one guest row a member marks arrived, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
@@ -739,6 +769,20 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Vehicle not found" })).setMimeType(ContentService.MimeType.JSON);
     }
     logActivity_(data.by || data.author || "", data.status === "DEPARTED" ? "Vehicle departed" : "Vehicle reported", data.vehicle || "", data.status || "", data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "markArrived") {
+    var arrUpdated = markArrived_(data);
+    if (arrUpdated === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Arrival columns not in this sheet" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (arrUpdated === 2) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "More than one matching row" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (arrUpdated !== 1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Guest not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    logActivity_(data.by || data.author || "", "Guest arrived", data.name || "", (data.arrived || "") + (data.actualVehicle ? " · Actual vehicle " + data.actualVehicle : "") + (data.remark ? " · " + data.remark : ""), data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "updateMember") {
@@ -965,6 +1009,82 @@ function setVehicleStatus_(data) {
     }
   }
   sh.appendRow([vehicle, data.status, data.time, by]);
+  return 1;
+}
+
+/* v32: mark a guest arrived. Finds the guest's row in the FIRST sheet
+   (the guest sheet) by Guest Name + Date, falling back to Guest Name +
+   Contact Number (phones compared by digits only, via normMobile_).
+   Dates are compared as day-month ("19-nov") so a sheet Date cell and
+   a "19-Nov" / "19-Nov-2026" string match. Writes ONLY the Arrived /
+   Arrival Remark / Actual Vehicle cells of that one row — never any
+   other cell. Returns 1 when exactly one row was written, 0 when no
+   row matches, 2 when more than one row matches every discriminator
+   tried (ambiguous — the caller reports that distinctly, never as
+   "Guest not found"), -1 when the sheet has no arrival columns. The
+   tool only claims success on {ok:true, updated:1}, so a stale deploy
+   produces a visible error, never a false success. */
+function markArrived_(data) {
+  var name = String(data.name == null ? "" : data.name).trim().toLowerCase();
+  if (!name) return 0;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheets()[0];
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return 0;
+  var headers = rows[0].map(function(h){ return String(h == null ? "" : h).trim().toLowerCase(); });
+  var nameIdx = headers.indexOf("guest name");
+  if (nameIdx &lt; 0) nameIdx = headers.indexOf("name");
+  var dateIdx = headers.indexOf("date");
+  var phoneIdx = headers.indexOf("contact number");
+  if (phoneIdx &lt; 0) phoneIdx = headers.indexOf("phone");
+  var arrivedIdx = headers.indexOf("arrived");
+  if (arrivedIdx &lt; 0) arrivedIdx = headers.indexOf("guest arrived");
+  var remarkIdx = headers.indexOf("arrival remark");
+  if (remarkIdx &lt; 0) remarkIdx = headers.indexOf("arrived remark");
+  var vehIdx = headers.indexOf("actual vehicle");
+  if (vehIdx &lt; 0) vehIdx = headers.indexOf("sent in vehicle");
+  if (vehIdx &lt; 0) vehIdx = headers.indexOf("actual vehicle no");
+  if (arrivedIdx &lt; 0 || remarkIdx &lt; 0 || vehIdx &lt; 0) return -1;
+  var date = String(data.date == null ? "" : data.date).trim().toLowerCase().replace(/[-/]\d{4}$/, "");
+  var phone = normMobile_(data.phone);
+  /* Narrow by EVERY discriminator the tool sent, instead of OR-ing
+     them: a date match and a phone match are two views of the SAME
+     row, not two votes. Date first — it is the discriminator for a
+     guest with two rows under one phone (e.g. 20-Nov and 26-Nov);
+     phone narrows a multi-row date match, and is the fallback when
+     the date matches nothing (wrong date + right unique phone still
+     works). */
+  var dateMatches = [], phoneMatches = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (String(rows[i][nameIdx] == null ? "" : rows[i][nameIdx]).trim().toLowerCase() !== name) continue;
+    var rowDate = rows[i][dateIdx];
+    if (rowDate instanceof Date) rowDate = Utilities.formatDate(rowDate, "Asia/Kolkata", "d-MMM");
+    rowDate = String(rowDate == null ? "" : rowDate).trim().toLowerCase().replace(/[-/]\d{4}$/, "");
+    if (date &amp;&amp; rowDate === date) dateMatches.push(i);
+    if (phone &amp;&amp; phoneIdx &gt;= 0 &amp;&amp; normMobile_(rows[i][phoneIdx]) === phone) phoneMatches.push(i);
+  }
+  var chosen = -1, ambiguous = false;
+  if (date) {
+    if (dateMatches.length === 1) chosen = dateMatches[0];
+    else if (dateMatches.length &gt; 1) {
+      if (phone) {
+        var narrowed = dateMatches.filter(function(i){ return phoneMatches.indexOf(i) &gt; -1; });
+        if (narrowed.length === 1) chosen = narrowed[0];
+        else ambiguous = true;
+      } else ambiguous = true;
+    } else if (phone) {
+      if (phoneMatches.length === 1) chosen = phoneMatches[0];
+      else if (phoneMatches.length &gt; 1) ambiguous = true;
+    }
+  } else if (phone) {
+    if (phoneMatches.length === 1) chosen = phoneMatches[0];
+    else if (phoneMatches.length &gt; 1) ambiguous = true;
+  }
+  if (chosen &lt; 0) return ambiguous ? 2 : 0;
+  var r = chosen + 1;
+  sh.getRange(r, arrivedIdx + 1).setValue(data.arrived || "");
+  sh.getRange(r, remarkIdx + 1).setValue(data.remark || "");
+  sh.getRange(r, vehIdx + 1).setValue(data.actualVehicle || "");
   return 1;
 }
 
@@ -1203,6 +1323,31 @@ function setCallTick_(data) {
           </div>
         </div>
 
+        <!-- ============ GUEST ARRIVED (v32) ============ -->
+        <div class="vehstatus" id="arrivalSection" style="display:none">
+          <div class="secthead"><h3>Guest arrived</h3><span class="badge phoneonly" id="arrivalLocalNote" style="display:none">Saved on this phone only</span></div>
+          <div id="arrivalCurrent"></div>
+          <p class="cols-note" style="margin:4px 0 0">Mark this guest when they reach the airport. If they were sent in a different vehicle, enter that vehicle's number below.</p>
+          <p class="cols-note" id="arrivalNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Arrived / Arrival Remark / Actual Vehicle columns yet — markings save on this phone only until the columns are added to the sheet.</p>
+          <p class="cols-note" id="arrivalNoIdNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This guest has no date or phone in the sheet, so this can only save on this phone — add a date or phone to the sheet row to share the marking with the team.</p>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn" id="arrivedYesBtn" type="button">Arrived — Yes</button>
+            <button class="btn" id="arrivedNoBtn" type="button">Arrived — No</button>
+          </div>
+          <div class="remark-add" style="margin-top:10px">
+            <input type="text" id="arrivalRemarkInput" placeholder="Arrival remark — e.g. met at gate, delayed" autocomplete="off" aria-label="Arrival remark" />
+          </div>
+          <div class="remark-add" style="margin-top:10px">
+            <input type="text" id="actualVehInput" placeholder="Actual vehicle number — if different from assigned" autocomplete="off" aria-label="Actual vehicle number" />
+          </div>
+          <p class="cols-note" id="assignedVehNote" style="margin:6px 0 0"></p>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn primary" id="arrivalSaveBtn" type="button">Save arrival</button>
+          </div>
+          <div class="status err" id="arrivalError" role="alert"></div>
+          <div class="practice-note" id="arrivalPracticeNote" style="display:none">Practice data — load the real sheet to save</div>
+        </div>
+
         <div class="msgbox">
           <h3>Message for driver (preview)</h3>
           <pre id="driverMsg"></pre>
@@ -1392,7 +1537,12 @@ function setCallTick_(data) {
         {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]},
         {key:"usageType",   label:"Usage Type",   syn:["usage type","vehicle usage","user type","usage","car type","trip type"]},
         {key:"startDate",   label:"Start Date",   syn:["start date","from date"]},
-        {key:"endDate",     label:"End Date",     syn:["end date","to date","till date"]}
+        {key:"endDate",     label:"End Date",     syn:["end date","to date","till date"]},
+        {key:"checkin",     label:"Check-in",     syn:["checkin","check-in","check in","check-in date","check in date"]},
+        {key:"checkout",    label:"Check-out",    syn:["checkout","check-out","check out","check-out date","check out date"]},
+        {key:"arrived",     label:"Arrived",      syn:["arrived","guest arrived"]},
+        {key:"arrivalRemark", label:"Arrival Remark", syn:["arrival remark","arrived remark"]},
+        {key:"actualVeh",   label:"Actual Vehicle", syn:["actual vehicle","sent in vehicle","actual vehicle no","actual vehicle number"]}
       ];
       var FIELD_BY_KEY = {};
       FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
@@ -1426,7 +1576,7 @@ function setCallTick_(data) {
       var EVENTS = ["CMOT","IFFI"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
-      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0 }; }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false }; }
       var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
@@ -1437,6 +1587,15 @@ function setCallTick_(data) {
       }
       function setSheetUrlFor(ev, url){
         url = String(url==null?"":url).trim();
+        var prev = lsGetRaw(sheetLsKey(ev)) || "";
+        if(url && url!==prev){
+          /* v32: a different sheet is a new baseline for the data
+             health check — the old max-seen count belongs to the old
+             sheet, not this one. (Re-setting the SAME link changes
+             nothing.) */
+          lsDel(LS_HEALTH_MAX+"-"+evLc(ev));
+          lsDel(LS_HEALTH_STATE+"-"+evLc(ev));
+        }
         if(url) lsSetRaw(sheetLsKey(ev), url); else lsDel(sheetLsKey(ev));
       }
       function hookUrlFor(ev){
@@ -1562,6 +1721,7 @@ function setCallTick_(data) {
       var roster = null;
       var rosterLoadFailed = false;
       var rosterHasAllocation = false; /* v31: true when the roster sheet has an Allocation column */
+      var rosterHasHierarchy = false; /* v32: true when the roster sheet has ANY Supervisor / Manager / Lead column */
       var LOGIN_NOTE_DEFAULT = null;
       var ADMIN_MOBILE = "9261201083";
       function normalizeMobile(mobile){
@@ -1654,6 +1814,36 @@ function setCallTick_(data) {
         var allocIdx = colExact("allocation");
         if(allocIdx<0) allocIdx = colContains("allocation");
         rosterHasAllocation = allocIdx>=0;
+        /* v32: Preference / Shift — "Preference" (what the member asked
+           for in the signup form, e.g. "Debolim Airport" — a preference,
+           NOT a posting; the posting is the Allocation column) and
+           "Shift Preference" (Day/Night). And
+           the OPTIONAL hierarchy columns: Supervisor / Manager / Lead
+           plus their contacts. None of these exist in the roster today;
+           the columns are matched by header so they appear the moment
+           the user adds them, with no rebuild. The name columns are
+           matched EXACTLY ("supervisor") or by "supervisor name" —
+           a plain "contains supervisor" would wrongly match
+           "Supervisor Contact". */
+        var prefIdx = colExact("preference");
+        var shiftIdx = colExact("shift preference");
+        if(shiftIdx<0) shiftIdx = colContains("shift");
+        var supIdx = colExact("supervisor");
+        if(supIdx<0) supIdx = colContains("supervisor name");
+        var supContactIdx = colContains("supervisor contact");
+        if(supContactIdx<0) supContactIdx = colContains("supervisor phone");
+        if(supContactIdx<0) supContactIdx = colContains("supervisor mobile");
+        var mgrIdx = colExact("manager");
+        if(mgrIdx<0) mgrIdx = colContains("manager name");
+        var mgrContactIdx = colContains("manager contact");
+        if(mgrContactIdx<0) mgrContactIdx = colContains("manager phone");
+        if(mgrContactIdx<0) mgrContactIdx = colContains("manager mobile");
+        var leadIdx = colExact("lead");
+        if(leadIdx<0) leadIdx = colContains("lead name");
+        var leadContactIdx = colContains("lead contact");
+        if(leadContactIdx<0) leadContactIdx = colContains("lead phone");
+        if(leadContactIdx<0) leadContactIdx = colContains("lead mobile");
+        rosterHasHierarchy = supIdx>=0 || supContactIdx>=0 || mgrIdx>=0 || mgrContactIdx>=0 || leadIdx>=0 || leadContactIdx>=0;
         if(nameIdx<0 || mobileIdx<0) return null;
         var out = [];
         for(var r=1;r<table.length;r++){
@@ -1664,7 +1854,15 @@ function setCallTick_(data) {
             mobile: mob,
             dob: dobIdx>=0 ? clean(table[r][dobIdx]) : "",
             role: roleIdx>=0 ? (clean(table[r][roleIdx]) || "Member") : "Member",
-            allocation: allocIdx>=0 ? clean(table[r][allocIdx]) : ""
+            allocation: allocIdx>=0 ? clean(table[r][allocIdx]) : "",
+            preference: prefIdx>=0 ? clean(table[r][prefIdx]) : "",
+            shift: shiftIdx>=0 ? clean(table[r][shiftIdx]) : "",
+            supervisor: supIdx>=0 ? clean(table[r][supIdx]) : "",
+            supervisorContact: supContactIdx>=0 ? clean(table[r][supContactIdx]) : "",
+            manager: mgrIdx>=0 ? clean(table[r][mgrIdx]) : "",
+            managerContact: mgrContactIdx>=0 ? clean(table[r][mgrContactIdx]) : "",
+            lead: leadIdx>=0 ? clean(table[r][leadIdx]) : "",
+            leadContact: leadContactIdx>=0 ? clean(table[r][leadContactIdx]) : ""
           });
         }
         return out.length ? out : null;
@@ -1977,11 +2175,13 @@ function setCallTick_(data) {
         var b = eventBuckets[activeEvent];
         b.guests = state.guests; b.source = state.source; b.lastUpdated = state.lastUpdated; b.roster = roster; b.touched = true;
         b.vstat = vehicleStatusMap;
+        b.hasArrivalCols = !!state.hasArrivalCols;
         closeDetail();
         closeAdmin();
         activeEvent = newEv;
         var nb = eventBuckets[newEv];
         state.guests = nb.guests; state.source = nb.source; state.lastUpdated = nb.lastUpdated;
+        state.hasArrivalCols = !!nb.hasArrivalCols;
         roster = nb.roster;
         vehicleStatusMap = nb.vstat || {};
         state.current = null; state.currentKey = "";
@@ -2050,6 +2250,56 @@ function setCallTick_(data) {
       var locationsStatus = "nolink"; /* nolink | loading | ok | error */
       var locationsLoaded = false; /* true once a list has been read OK */
       var hotelsQuery = "";
+      var hotelDrill = ""; /* v32: the hotel group currently drilled into (a hotelGroupKey), "" = the hotel list */
+      function hotelGroupGuests(group){
+        return state.guests.filter(function(g){ return hotelGroupKey(g.hotel)===group; });
+      }
+      /* v32 — hotel drill-down: tapping a hotel opens the guests staying
+         there, from the LOADED guest list, grouped by the same
+         hotelGroupKey the filter and sort use. Each row shows name,
+         pickup time, flight and the Check-in / Check-out dates from the
+         sheet (blank when the sheet has none — CMOT has no such
+         columns); tapping a guest opens its detail. The back link
+         returns to the hotel list. Works for both events. */
+      function renderHotelDrill(){
+        var listEl = $("hotelList"), countEl = $("hotelCount");
+        if(!listEl) return;
+        var guests = hotelGroupGuests(hotelDrill);
+        guests = guests.slice().sort(function(a,b){
+          var av = guestTimeSortValue(a), bv = guestTimeSortValue(b);
+          if(av===null && bv===null) return 0;
+          if(av===null) return 1;
+          if(bv===null) return -1;
+          return av-bv;
+        });
+        if(countEl) countEl.innerHTML = "<strong>"+guests.length+"</strong> guest"+(guests.length===1?"":"s")+" staying at <strong>"+esc(hotelDrill)+"</strong>";
+        var backHtml = '<div class="rowflex" style="margin-bottom:10px"><button class="btn small" type="button" id="hotelBackBtn">← Back to hotels</button></div>';
+        if(!guests.length){
+          listEl.innerHTML = backHtml + '<div class="empty"><strong>No guests staying here in the loaded list</strong>Either no guest has this hotel in the sheet, or the guest data has not loaded yet.</div>';
+        }else{
+          listEl.innerHTML = backHtml + '<div class="results" style="margin-top:0">' + guests.map(function(g){
+            var idx = state.guests.indexOf(g);
+            var meta = [];
+            if(g.time) meta.push("<span>Pickup <b>"+esc(g.time)+"</b></span>");
+            if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
+            if(clean(g.vehNo)) meta.push("<span>Vehicle: <b>"+esc(clean(g.vehNo))+"</b></span>");
+            meta.push("<span>Check-in: <b>"+esc(clean(g.checkin) || "—")+"</b></span>");
+            meta.push("<span>Check-out: <b>"+esc(clean(g.checkout) || "—")+"</b></span>");
+            return '<button class="card" type="button" data-idx="'+idx+'">'
+              + '<span class="nm">'+esc(g.name||"Unnamed guest")
+              + (normalizeArrived(g.arrived)==="Yes" ? ' <span class="badge arrived">Arrived ✓</span>' : "")
+              + "</span>"
+              + '<span class="meta">'+meta.join("")+"</span>"
+              + "</button>";
+          }).join("") + "</div>";
+          var cards = listEl.querySelectorAll(".card");
+          for(var i=0;i<cards.length;i++){
+            cards[i].addEventListener("click", function(){ openDetail(parseInt(this.getAttribute("data-idx"),10)); });
+          }
+        }
+        var back = $("hotelBackBtn");
+        if(back) back.addEventListener("click", function(){ hotelDrill = ""; renderHotelList(); });
+      }
       function locationsLinkUrl(){
         var v = lsGetRaw(LS_LOCATIONS);
         if(v===null) return DEFAULT_LOCATIONS_URL;
@@ -2159,7 +2409,7 @@ function setCallTick_(data) {
          shared / min(token counts) >= 0.6, OR when one side has exactly
          one token and that token matches a token on the other side.
          The best score wins; ties go to the first sheet row. */
-      var HOTEL_UNKNOWN = ["na","n/a","ask from guest","ask guest","tbd"];
+      var HOTEL_UNKNOWN = ["na","n/a","ask from guest","ask guest","tbd","tbc"];
       function hotelIsKnown(raw){
         var v = clean(raw);
         if(!v) return false;
@@ -2224,6 +2474,71 @@ function setCallTick_(data) {
           }
         }
         return best;
+      }
+
+      /* ================= v32 — HOTEL GROUPS & AIRPORT =================
+         Hotel groups (Part 3): the drill-down, the hotel filter and the
+         hotel sort group by the same canonical name, so "Taj Vivanta
+         Panjim" and "Vivanta" are one group, "Taj Heritage" and
+         "Heritage" are one group, "Taj Horizon" and "Cidade De goa
+         Horizon" are one group. The aliases below are the spellings the
+         team's sheets actually use; anything else groups under its own
+         normalized name (never merged silently). Blank, #N/A, NA and the
+         other "unknown" values group as "No hotel listed" — still
+         openable, never hidden. The locations matcher (matchHotelLocation)
+         is untouched: it still maps a guest hotel to a locations-sheet
+         row for the address/link lines. */
+      function hotelGroupKey(raw){
+        var v = clean(raw);
+        if(!v) return "No hotel listed";
+        /* "#N/A" is the sheet's formula-error spelling of "no hotel" —
+           strip a leading # so it matches the unknown list below. */
+        var low = v.toLowerCase().replace(/^#+/, "");
+        if(HOTEL_UNKNOWN.indexOf(low)>-1) return "No hotel listed";
+        var n = normHotelName(v);
+        if(!n) return "No hotel listed";
+        if(n.indexOf("vivanta")>-1) return "Taj Vivanta Panjim";
+        if(n.indexOf("heritage")>-1) return "Taj Heritage";
+        if(n.indexOf("horizon")>-1) return "Taj Cidade Goa Horizon";
+        if(n.indexOf("golden landmark")>-1) return "Golden Landmark";
+        if(n.indexOf("ginger")>-1) return "Ginger";
+        if(n.indexOf("fortune")>-1) return "Fortune";
+        if(n.indexOf("novotel")>-1) return "Novotel";
+        if(n.indexOf("otium")>-1) return "Otium Resort by the OOterra";
+        if(n.indexOf("katson")>-1) return "Hotel Casa de Katson";
+        return v;
+      }
+      /* Airport (Part 4): the sheets have NO Airport column, so the
+         airport is derived from the Pickup Point — Dabolim first (GOI,
+         Dabolim, or the sheet's typo Debolim), else Mopa (GOX, Mopa),
+         else Other. GOI/GOX are matched as whole tokens ("going" must
+         not read as GOI); Dabolim/Debolim/Mopa are distinctive enough
+         for substring matching. If the Pickup Point yields no airport
+         but an Airport column value exists, the column is normalized
+         the same way. The normalized airport is used ONLY for the
+         filter and the airport display line — never written back to
+         the sheet, and the raw Pickup Point stays visible. */
+      function airportForGuest(g){
+        if(!g) return "Other";
+        function fromValue(raw){
+          var s = norm(raw);
+          if(!s) return "";
+          var toks = s.split(" ").filter(Boolean);
+          if(toks.indexOf("goi")>-1 || s.indexOf("dabolim")>-1 || s.indexOf("debolim")>-1) return "Dabolim Airport";
+          if(toks.indexOf("gox")>-1 || s.indexOf("mopa")>-1) return "Mopa Airport";
+          return "";
+        }
+        return fromValue(g.from) || fromValue(g.airport) || "Other";
+      }
+      /* Arrival (Part 1): only an exact "Yes"/"No" (case-insensitive)
+         counts as marked. Anything else in the Arrived column — blank,
+         or a stray value such as a phone number typed into the wrong
+         column — is treated as not marked. */
+      function normalizeArrived(v){
+        var s = clean(v).toLowerCase();
+        if(s==="yes") return "Yes";
+        if(s==="no") return "No";
+        return "";
       }
 
       /* ================= REMARKS ================= */
@@ -2712,6 +3027,167 @@ function setCallTick_(data) {
       }
       $("vstatReportedBtn").addEventListener("click", function(){ markVehicleStatus("REPORTED"); });
       $("vstatDepartedBtn").addEventListener("click", function(){ markVehicleStatus("DEPARTED"); });
+
+      /* ================= v32 — GUEST ARRIVED =================
+         The man at the airport marks each guest arrived. The sheet
+         columns are Arrived / Arrival Remark / Actual Vehicle (the
+         IFFI sheet has them; CMOT does not yet). The pattern follows
+         vehicle status exactly: one webhook action (markArrived) with
+         the {ok:true, updated:1} contract, an error box instead of a
+         false success, and a phone-local store when there is no webhook
+         (or no arrival columns) that re-applies to the loaded list so
+         the marking survives the 30-second refresh. The sheet is the
+         shared truth: a phone-local marking only fills a guest whose
+         sheet Arrived cell is blank (it covers the gviz-lag window
+         after a successful webhook write); a sheet value always wins.
+         The webhook writes ONLY the three arrival cells of the one
+         marked guest row — never any other cell. The Yes/No toggle
+         sets a pending choice; Save writes the toggle + remark +
+         actual vehicle together, in one write. */
+      var LS_LOCAL_ARRIVED = "iffi-local-arrived";
+      var pendingArrived = ""; /* Yes | No | "" — the toggle choice for the open detail */
+      function localArrivedKey(){ return LS_LOCAL_ARRIVED+"-"+evLc(activeEvent); }
+      function normalizeArrivalRec(r){
+        if(!r) return null;
+        var arrived = normalizeArrived(r.arrived);
+        if(!arrived) return null;
+        return { arrived:arrived, remark:String(r.remark==null?"":r.remark), actualVeh:String(r.actualVeh==null?"":r.actualVeh), time:String(r.time==null?"":r.time), by:String(r.by==null?"":r.by) };
+      }
+      function localArrivals(){
+        var m = lsGetJSON(localArrivedKey(), {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var rec = normalizeArrivalRec(m[k]);
+          if(rec) out[k] = rec;
+        });
+        return out;
+      }
+      function saveLocalArrival(key, rec){
+        var m = localArrivals();
+        m[key] = rec;
+        lsSetJSON(localArrivedKey(), m);
+      }
+      function applyArrivalToGuest(g, rec){
+        if(!g || !rec) return;
+        g.arrived = rec.arrived;
+        g.arrivalRemark = rec.remark;
+        g.actualVeh = rec.actualVeh;
+        g._arrivedRec = rec;
+      }
+      function applyKnownArrivals(guests){
+        /* Phone-local markings re-apply to the loaded list: a marking
+           survives the 30s refresh when there is no webhook (or the
+           sheet has no arrival columns), and covers the minute or two
+           of gviz lag after a successful webhook write. A sheet value
+           always wins — the local record only fills a blank cell. */
+        var m = localArrivals();
+        (guests||[]).forEach(function(g){
+          if(normalizeArrived(g.arrived)) return;
+          var rec = m[remarkKey(g)];
+          if(rec) applyArrivalToGuest(g, rec);
+        });
+      }
+      function renderArrival(){
+        var sec = $("arrivalSection");
+        if(!sec) return;
+        var g = state.current;
+        if(!g){ sec.style.display = "none"; return; }
+        sec.style.display = "";
+        var isSample = !!g._sample;
+        /* The toggle starts from the guest's current value (sheet or
+           phone-local); the member changes it, then Save writes the
+           toggle + remark + actual vehicle together, in one write. */
+        if(pendingArrived !== "Yes" && pendingArrived !== "No") pendingArrived = normalizeArrived(g.arrived);
+        var yb = $("arrivedYesBtn"), nb = $("arrivedNoBtn");
+        if(yb) yb.classList.toggle("primary", pendingArrived==="Yes");
+        if(nb) nb.classList.toggle("primary", pendingArrived==="No");
+        var cur = $("arrivalCurrent");
+        if(cur){
+          var rec = g._arrivedRec;
+          var val = normalizeArrived(g.arrived);
+          if(val){
+            var bits = "Arrived: <b>"+esc(val)+"</b>";
+            if(clean(g.actualVeh)) bits += " · Actual vehicle: <b>"+esc(clean(g.actualVeh))+"</b>";
+            if(clean(g.arrivalRemark)) bits += " · "+esc(clean(g.arrivalRemark));
+            if(rec && rec.by) bits += " · "+esc(rec.by);
+            if(rec && rec.time){ var d = new Date(rec.time); if(!isNaN(d.getTime())) bits += " "+hhmm(d); }
+            else bits += " · from the sheet";
+            cur.innerHTML = bits;
+          }else{
+            cur.innerHTML = '<p class="cols-note" style="margin:6px 0">Not marked yet.</p>';
+          }
+        }
+        var an = $("assignedVehNote");
+        if(an) an.textContent = clean(g.vehNo) ? "Assigned vehicle: "+clean(g.vehNo) : "No vehicle assigned yet.";
+        var noCols = $("arrivalNoColsNote");
+        if(noCols) noCols.style.display = (!state.hasArrivalCols && !isSample) ? "" : "none";
+        /* Rework N5: a guest with no date AND no phone in the sheet can
+           never be matched by the webhook (no discriminator exists), so
+           say so BEFORE the member taps Save — the marking will only
+           ever live on this phone. */
+        var noId = $("arrivalNoIdNote");
+        if(noId) noId.style.display = (!isSample && !clean(g.date) && !clean(g.phone)) ? "" : "none";
+        var localNote = $("arrivalLocalNote");
+        if(localNote) localNote.style.display = (!isSample && (!hookUrl() || !state.hasArrivalCols)) ? "" : "none";
+        setSendable($("arrivedYesBtn"), !isSample);
+        setSendable($("arrivedNoBtn"), !isSample);
+        setSendable($("arrivalSaveBtn"), !isSample);
+        $("arrivalRemarkInput").disabled = isSample;
+        $("actualVehInput").disabled = isSample;
+        $("arrivalPracticeNote").style.display = isSample ? "" : "none";
+      }
+      function markArrived(){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        if(!pendingArrived){ toast("Tap Arrived — Yes or No first"); return; }
+        var errBox = $("arrivalError");
+        if(errBox) errBox.textContent = "";
+        var rec = { arrived: pendingArrived, remark: clean($("arrivalRemarkInput").value), actualVeh: clean($("actualVehInput").value), time: new Date().toISOString(), by: currentUser.name };
+        function applied(){
+          /* The local copy is kept even after a successful webhook
+             write: it fills the cell while gviz lags behind the sheet,
+             and the sheet value takes over as soon as it arrives. */
+          saveLocalArrival(remarkKey(g), rec);
+          applyArrivalToGuest(g, rec);
+          recordAction("Guest arrived", clean(g.name), rec.arrived+(rec.actualVeh ? " · Actual vehicle "+rec.actualVeh : "")+(rec.remark ? " · "+rec.remark : ""), "Guest "+clean(g.name)+" marked Arrived "+rec.arrived);
+          render();
+          /* Re-open the detail so its static fields table shows the new
+             Arrived / remark / actual-vehicle rows (openDetail rebuilds
+             them from the guest, and resets the toggle + fields to the
+             saved values); the scroll position is kept so the member
+             stays where they were. */
+          var oi = state.guests.indexOf(g);
+          var sc = $("overlay") ? $("overlay").scrollTop : 0;
+          openDetail(oi);
+          if($("overlay")) $("overlay").scrollTop = sc;
+        }
+        if(hookUrl() && state.hasArrivalCols){
+          postToHook({ action:"markArrived", name: clean(g.name), phone: clean(g.phone), date: clean(g.date), arrived: rec.arrived, remark: rec.remark, actualVehicle: rec.actualVeh, time: rec.time, by: currentUser.name, author: currentUser.name })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                if(errBox) errBox.textContent = (data && data.error) ? data.error : "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+                return;
+              }
+              state.lastUpdated = hhmmss(new Date());
+              updateBanner();
+              applied();
+              toast("Arrival saved to the sheet", 4000);
+            }).catch(function(){
+              if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+            });
+        }else{
+          applied();
+          toast("Arrival saved on this phone" + (state.hasArrivalCols ? "" : " — add the Arrived columns to the sheet to share it with the team"), 4000);
+        }
+      }
+      $("arrivedYesBtn").addEventListener("click", function(){ pendingArrived = "Yes"; renderArrival(); });
+      $("arrivedNoBtn").addEventListener("click", function(){ pendingArrived = "No"; renderArrival(); });
+      $("arrivalSaveBtn").addEventListener("click", markArrived);
       function vehicleStatusFetchUrl(){
         var hook = hookUrl();
         if(!hook) return "";
@@ -2790,6 +3266,10 @@ function setCallTick_(data) {
       }
 
       /* ---------- Map a 2D table into guest records ---------- */
+      /* v32: arrival-column presence of the most recently parsed sheet
+         (set by tableToGuests; copied into state/bucket by loadGuests
+         and the background branch of loadFromUrl). */
+      var lastLoadHasArrivalCols = false;
       function tableToGuests(table){
         if(!table.length) return [];
         var headers = table[0].map(function(h){ return norm(h); });
@@ -2802,12 +3282,27 @@ function setCallTick_(data) {
           if(h && h.indexOf("name")===0) return "name";
           return null;
         });
+        /* v32: whether this sheet HAS the arrival columns (Arrived /
+           Arrival Remark / Actual Vehicle). Recorded per load — a sheet
+           with the columns but all-blank cells looks identical to a
+           sheet without them once parsed, so header presence is the
+           only way to tell. loadGuests copies it into state (and the
+           background branch into the bucket); the tool uses it to
+           decide whether a marking goes to the webhook (columns exist)
+           or stays phone-local (columns absent, e.g. CMOT). */
+        lastLoadHasArrivalCols = colKey.indexOf("arrived")>-1 || colKey.indexOf("arrivalRemark")>-1 || colKey.indexOf("actualVeh")>-1;
         var guests=[];
         for(var r=1;r<table.length;r++){
           var rowArr=table[r], g={ _extra:{}, _sample:false };
           FIELDS.forEach(function(f){ g[f.key]=""; });
           for(var c=0;c<headers.length;c++){
             var v = clean(rowArr[c]);
+            /* REWORK N3: keep the RAW Pickup Point cell as well — clean()
+               maps "-" to blank, so g.from alone cannot tell a truly
+               blank pickup point (151 live) from a "-" placeholder.
+               The airport filter's "Other" label counts the truly blank
+               ones, so it needs the raw value. */
+            if(colKey[c]==="from" && g.fromRaw===undefined) g.fromRaw = String(rowArr[c]==null?"":rowArr[c]).trim();
             if(colKey[c]){ if(!g[colKey[c]]) g[colKey[c]]=v; }
             else if(headers[c] && v){ g._extra[table[0][c]]=v; }
           }
@@ -2872,6 +3367,20 @@ function setCallTick_(data) {
             hw.style.display = "none";
           }
         }
+        /* v32 — data health check: the warning is persistent while the
+           stored state for the ACTIVE event is unhealthy (read from
+           localStorage per event, so it survives re-renders and event
+           switches); the quiet "Data check OK" line shows the time of
+           the last healthy check. */
+        var hw2 = $("healthWarn");
+        var hs = $("healthStatus");
+        var hst = healthState();
+        if(hw2){
+          var htxt = healthWarnText(hst);
+          if(htxt){ hw2.textContent = htxt; hw2.style.display = ""; }
+          else hw2.style.display = "none";
+        }
+        if(hs) hs.textContent = (!hst.unhealthy && hst.lastOk) ? "· Data check OK "+hst.lastOk : "";
       }
 
       /* v31.3 — removal hold. "No details should be erased until it is in
@@ -2999,7 +3508,9 @@ function setCallTick_(data) {
         }
         applyLocalLocations(guests);
         applyKnownVehicleStatuses(guests);
+        applyKnownArrivals(guests);
         state.guests = guests;
+        state.hasArrivalCols = lastLoadHasArrivalCols;
         state.source = source || {kind:"real", label:"loaded data", url:""};
         buildFilters();
         buildLocations();
@@ -3085,6 +3596,7 @@ function setCallTick_(data) {
             bk.lastReadEmpty = false;
             bk.emptyReads = 0;
             bk.guests = guests;
+            bk.hasArrivalCols = lastLoadHasArrivalCols;
             bk.source = {kind:"real", label:"the Google Sheet", url:url};
             bk.lastUpdated = hhmmss(new Date());
             bk.touched = true;
@@ -3147,6 +3659,91 @@ function setCallTick_(data) {
       }
       setInterval(autoRefresh, REFRESH_MS);
 
+      /* ================= v32 — DATA HEALTH CHECK (15 min) =================
+         The 30-second auto-refresh keeps loading; this separate check,
+         every 15 minutes, verifies the load is COMPLETE: it re-reads
+         the sheet and compares the guest count against the most guests
+         ever seen for this event (kept in localStorage). A drop means
+         rows may be hidden by a filter — the v31.3 hold already protects
+         the displayed list, this check SURFACES the drop with a banner
+         warning and ONE bell notification per unhealthy episode (only
+         on the healthy→unhealthy transition). A fetch failure is
+         unhealthy the same way. When healthy it shows a quiet
+         "Data check OK · HH:MM" in the banner and nothing in the bell.
+         HONEST LIMIT: a static page cannot see through a sheet filter
+         on FIRST load — gviz returns only the visible rows, so the
+         first load sets the baseline. The check detects DROPS against
+         history and fetch failures; it cannot conjure hidden rows or
+         prove completeness on first load. The baseline re-bases when
+         the user confirms removals (confirmPendingRemovals /
+         confirmEmptySheet — the drop was real) and when the sheet link
+         itself changes (setSheetUrlFor). The check only reads — it
+         never calls loadGuests and never changes the displayed list. */
+      var HEALTH_CHECK_MS = 900000; /* 15 minutes */
+      var LS_HEALTH_MAX = "iffi-health-maxseen";
+      var LS_HEALTH_STATE = "iffi-health-state";
+      function healthMaxKey(){ return LS_HEALTH_MAX+"-"+evLc(activeEvent); }
+      function healthStateKey(){ return LS_HEALTH_STATE+"-"+evLc(activeEvent); }
+      function healthMaxSeen(){ var n = parseInt(lsGetRaw(healthMaxKey()), 10); return isNaN(n) ? 0 : n; }
+      function healthSetMax(n){ lsSetRaw(healthMaxKey(), String(n)); }
+      function healthState(){
+        var s = lsGetJSON(healthStateKey(), null);
+        return (s && typeof s==="object") ? s : { unhealthy:false, kind:"", shown:0, max:0, time:"", lastOk:"" };
+      }
+      function healthSaveState(s){ lsSetJSON(healthStateKey(), s); }
+      function healthWarnText(s){
+        if(!s || !s.unhealthy) return "";
+        if(s.kind==="fetch") return "Data check failed at "+(s.time||"")+" — the sheet could not be read. The tool is showing the last loaded list. Tap Refresh now.";
+        return "Data check: the sheet just returned "+s.shown+" guest"+(s.shown===1?"":"s")+" but the tool has seen "+s.max+" before. The sheet may have a filter hiding rows — check the sheet, then tap Refresh now.";
+      }
+      function healthFail(kind, shown, max){
+        var s = healthState();
+        var wasUnhealthy = !!s.unhealthy;
+        s.unhealthy = true; s.kind = kind; s.shown = shown; s.max = max; s.time = hhmmss(new Date());
+        healthSaveState(s);
+        if(!wasUnhealthy){
+          addNotif("warn", kind==="fetch" ? "Data check failed — the sheet could not be read. Showing the last loaded list." : "Data check: the sheet returned fewer guests than before ("+shown+" of "+max+"). Check the sheet for a filter.", "");
+          renderBell();
+        }
+        updateBanner();
+      }
+      function healthOk(){
+        var s = healthState();
+        s.unhealthy = false; s.kind = ""; s.lastOk = hhmmss(new Date());
+        healthSaveState(s);
+        updateBanner();
+      }
+      function runHealthCheck(){
+        var url = state.source && state.source.url;
+        if(!url) return; /* nothing sheet-linked to verify */
+        var forEvent = activeEvent;
+        var csvUrl = sheetCsvUrl(url);
+        if(!csvUrl) return;
+        fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          return res.text();
+        }).then(function(text){
+          if(forEvent!==activeEvent) return; /* switched events mid-check; the next cycle covers the new one */
+          if(/^\s*</.test(text)) throw new Error("html");
+          var table = parseCSV(text);
+          /* Headers must carry a guest-name column — otherwise this is
+             not a guest sheet (or the fetch returned junk). */
+          var hdrs = table.length ? table[0].map(function(h){ return norm(h); }) : [];
+          if(hdrs.indexOf("guest name")<0 && hdrs.indexOf("name")<0) throw new Error("noheaders");
+          var guests = tableToGuests(table);
+          var max = healthMaxSeen();
+          if(!max){ healthSetMax(guests.length); healthOk(); return; }
+          if(guests.length < max){ healthFail("count", guests.length, max); return; }
+          if(guests.length > max) healthSetMax(guests.length);
+          healthOk();
+        }).catch(function(){
+          if(forEvent!==activeEvent) return;
+          healthFail("fetch", state.guests.length, healthMaxSeen());
+        });
+      }
+      setInterval(runHealthCheck, HEALTH_CHECK_MS);
+      setTimeout(runHealthCheck, 60000); /* first check a minute after load, then every 15 min */
+
       /* ---------- Option B: file upload ---------- */
       $("fileInput").addEventListener("change", function(e){
         var file = e.target.files && e.target.files[0];
@@ -3200,10 +3797,22 @@ function setCallTick_(data) {
 
       /* ---------- Filters ---------- */
       function buildFilters(){
-        var hotels={}, dates={}, airports={};
+        /* v32: the hotel dropdown lists the NORMALIZED hotel groups
+           (hotelGroupKey — "Taj Vivanta Panjim" and "Vivanta" are one
+           group, blank/#N/A/NA are "No hotel listed") with guest
+           counts, and the airport dropdown lists the airports DERIVED
+           from the Pickup Point (airportForGuest — the sheets have no
+           Airport column, which is why the old filter was always
+           empty), also with counts. The option VALUE is the group/airport
+           name, so render() matches by group, not by raw spelling. */
+        var hotels={}, dates={}, airports={}, blankPickup=0;
         state.guests.forEach(function(g){
-          var h=clean(g.hotel); if(h) hotels[h]=1;
-          var a=clean(g.airport); if(a) airports[a]=1;
+          var hg = hotelGroupKey(g.hotel); hotels[hg] = (hotels[hg]||0)+1;
+          var a = airportForGuest(g); airports[a] = (airports[a]||0)+1;
+          /* REWORK N3: "without a pickup point" means the sheet cell is
+             truly blank (raw ""), not a "-" placeholder — hence fromRaw
+             (guests built without it fall back to the cleaned value). */
+          if(a==="Other" && (g.fromRaw===undefined ? !clean(g.from) : g.fromRaw==="")) blankPickup++;
           if(g.date) dates[g.date]=1;
         });
         function az(list){
@@ -3211,8 +3820,15 @@ function setCallTick_(data) {
         }
         var hf=$("hotelFilter"), df=$("dateFilter"), af=$("airportFilter");
         var hv=hf.value, dv=df.value, av=af ? af.value : "";
-        hf.innerHTML='<option value="">All hotels</option>'+az(Object.keys(hotels)).map(function(h){ return '<option>'+esc(h)+"</option>"; }).join("");
-        if(af) af.innerHTML='<option value="">All airports</option>'+az(Object.keys(airports)).map(function(a){ return '<option>'+esc(a)+"</option>"; }).join("");
+        hf.innerHTML='<option value="">All hotels</option>'+az(Object.keys(hotels)).map(function(h){ return '<option value="'+esc(h)+'">'+esc(h)+" ("+hotels[h]+")</option>"; }).join("");
+        function airportLabel(a){
+          /* "Other" is mostly guests with NO pickup point in the sheet
+             at all — say so in the option, instead of hiding the gap
+             behind a bare count. The option VALUE stays "Other". */
+          if(a==="Other" && blankPickup>0) return "Other · "+airports[a]+" ("+blankPickup+" without a pickup point in the sheet)";
+          return a+" ("+airports[a]+")";
+        }
+        if(af) af.innerHTML='<option value="">All airports</option>'+az(Object.keys(airports)).map(function(a){ return '<option value="'+esc(a)+'">'+esc(airportLabel(a))+"</option>"; }).join("");
         df.innerHTML='<option value="">All dates</option>'+Object.keys(dates).sort().map(function(d){ return '<option>'+esc(d)+"</option>"; }).join("");
         hf.value=hv; df.value=dv; if(af) af.value=av;
       }
@@ -3475,10 +4091,20 @@ function setCallTick_(data) {
         var dir = mode === "timeDesc" ? -1 : 1;
         if(mode === "hotelAsc" || mode === "flightAsc"){
           out.sort(function(a, b){
-            var x = mode === "hotelAsc" ? String(clean(a.hotel)).toLowerCase() : String(clean(a.flight)).toLowerCase();
-            var y = mode === "hotelAsc" ? String(clean(b.hotel)).toLowerCase() : String(clean(b.flight)).toLowerCase();
+            /* v32: the hotel sort compares the NORMALIZED hotel group
+               (hotelGroupKey — "Taj Vivanta Panjim" and "Vivanta" sort
+               together), so a guest's sort position matches the filter
+               group it sits in. */
+            var x = mode === "hotelAsc" ? hotelGroupKey(a.hotel).toLowerCase() : String(clean(a.flight)).toLowerCase();
+            var y = mode === "hotelAsc" ? hotelGroupKey(b.hotel).toLowerCase() : String(clean(b.flight)).toLowerCase();
             /* v31.1: blanks last, like the time sort's nulls-last rule —
-               a blank hotel/flight is not "A". */
+               a blank hotel/flight is not "A". v32: for the hotel sort
+               the "No hotel listed" group (blank/#N/A/NA) also sorts
+               last, after every named hotel. */
+            if(mode === "hotelAsc"){
+              if(x==="no hotel listed" && y!=="no hotel listed") return 1;
+              if(y==="no hotel listed" && x!=="no hotel listed") return -1;
+            }
             if(x==="" && y!=="") return 1;
             if(y==="" && x!=="") return -1;
             if(x < y) return -1;
@@ -3671,8 +4297,8 @@ function setCallTick_(data) {
         var list = state.guests.filter(function(g){
           return typeMatches(g) && matchesQuery(g,q)
             && (!loc || guestAtLocation(g, loc))
-            && (!hf || g.hotel===hf) && (!df || g.date===df)
-            && (!af || clean(g.airport)===af)
+            && (!hf || hotelGroupKey(g.hotel)===hf) && (!df || g.date===df)
+            && (!af || airportForGuest(g)===af)
             && inPickupRange(g);
         });
         list = sortGuestList(list);
@@ -3692,6 +4318,10 @@ function setCallTick_(data) {
           var meta=[];
           if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
           if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" · "))+"</b></span>");
+          /* v32: the airport as the normalized name (Dabolim/Mopa) —
+             the raw Pickup Point stays visible in its own line below. */
+          var ap = airportForGuest(g);
+          if(ap==="Dabolim Airport" || ap==="Mopa Airport") meta.push("<span>Airport: <b>"+esc(ap)+"</b></span>");
           if(g.from) meta.push("<span>Pickup: <b>"+esc(g.from)+"</b></span>");
           if(g.hotel) meta.push("<span>Drop: <b>"+esc(g.hotel)+"</b></span>");
           var rk = (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark;
@@ -3707,12 +4337,17 @@ function setCallTick_(data) {
           }
           var vsRec = vehicleStatusFor(g);
           var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
+          /* v32: "Arrived ✓" only when the sheet (or a phone-local
+             marking) says Yes — no "Not arrived" badge, it would be
+             noise on every card. */
+          var arrivedBadge = normalizeArrived(g.arrived)==="Yes" ? ' <span class="badge arrived">Arrived ✓</span>' : "";
           var cardHtml = '<button class="card" type="button" data-idx="'+idx+'">'
             + '<span class="nm">'+esc(g.name||"Unnamed guest")
             + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
             + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
             + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
             + vsBadge
+            + arrivedBadge
             + "</span>"
             + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
             + '<span class="meta">'+meta.join("")+"</span>"
@@ -3880,7 +4515,12 @@ function setCallTick_(data) {
         state.detailOpen = true;
         $("dName").textContent = (g._sample ? "SAMPLE — " : "") + (g.name || "Unnamed guest");
         $("dDesig").textContent = [g.designation, g.type].filter(Boolean).join(" · ");
-        var rowsHtml = FIELDS.filter(function(f){ return clean(g[f.key]); }).map(function(f){
+        /* v32: the raw "Arrived" column is excluded here — the arrival
+           state is shown by the dedicated Arrived row below (and by the
+           Arrival section), so the sheet value never appears twice and
+           a junk value in the column (e.g. a phone number) is never
+           shown as if it were an arrival state. */
+        var rowsHtml = FIELDS.filter(function(f){ return f.key!=="arrived" && clean(g[f.key]); }).map(function(f){
           return "<tr><th>"+esc(f.label)+"</th><td>"+esc(clean(g[f.key]))+"</td></tr>";
         }).join("");
         Object.keys(g._extra||{}).forEach(function(k){
@@ -3895,6 +4535,18 @@ function setCallTick_(data) {
         if(locMatch){
           rowsHtml += '<tr><th>Hotel location</th><td>'+esc(locMatch.address)+(locMatch.link ? ' <a href="'+esc(locMatch.link)+'" target="_blank" rel="noopener">Open in Maps</a>' : "")+"</td></tr>";
         }
+        /* v32: the Arrived row is ALWAYS shown (Yes / No / —) so the
+           member can see at a glance whether this guest is marked; the
+           remark and actual-vehicle rows appear only when set. The
+           Airport row shows the NORMALIZED airport derived from the
+           Pickup Point (Dabolim/Mopa); the raw Pickup Point stays in
+           its own row above. */
+        var arrVal = normalizeArrived(g.arrived);
+        rowsHtml += '<tr><th>Arrived</th><td>'+(arrVal ? esc(arrVal) : "—")+"</td></tr>";
+        if(clean(g.arrivalRemark)) rowsHtml += "<tr><th>Arrival remark</th><td>"+esc(clean(g.arrivalRemark))+"</td></tr>";
+        if(clean(g.actualVeh)) rowsHtml += "<tr><th>Actual vehicle</th><td>"+esc(clean(g.actualVeh))+"</td></tr>";
+        var ap2 = airportForGuest(g);
+        if(ap2==="Dabolim Airport" || ap2==="Mopa Airport") rowsHtml += "<tr><th>Airport</th><td>"+esc(ap2)+"</td></tr>";
         $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
         var dm = driverMsg(g), gm = guestMsg(g);
         $("driverMsg").textContent = dm;
@@ -3967,6 +4619,14 @@ function setCallTick_(data) {
         $("vstatError").textContent = "";
         if($("liveLocWarn")) $("liveLocWarn").style.display = "none";
         renderRemarks();
+        /* v32: the Arrival section starts fresh for this guest — the
+           toggle from the last guest is not carried over, and the
+           remark / actual-vehicle fields show this guest's values. */
+        pendingArrived = "";
+        $("arrivalRemarkInput").value = clean(g.arrivalRemark);
+        $("actualVehInput").value = clean(g.actualVeh);
+        $("arrivalError").textContent = "";
+        renderArrival();
         $("overlay").classList.add("open");
         $("overlay").scrollTop = 0;
         document.body.style.overflow="hidden";
@@ -4763,10 +5423,17 @@ function setCallTick_(data) {
         var next = ep.pendingList || [];
         applyLocalLocations(next);
         applyKnownVehicleStatuses(next);
+        applyKnownArrivals(next);
         state.guests = next;
         bk.pendingRemoval = null;
         bk.lastReadEmpty = false;
         bk.emptyReads = 0;
+        /* v32: the drop was real and human-confirmed — re-base the
+           health check on the new list, and clear any unhealthy flag
+           for this event so the check does not keep flagging a drop
+           the team already confirmed. */
+        healthSetMax(state.guests.length);
+        var hs0 = healthState(); hs0.unhealthy = false; hs0.kind = ""; healthSaveState(hs0);
         state.lastUpdated = hhmmss(new Date());
         buildFilters();
         buildLocations();
@@ -4788,6 +5455,11 @@ function setCallTick_(data) {
         bk.pendingRemoval = null;
         bk.lastReadEmpty = false;
         bk.emptyReads = 0;
+        /* v32: the empty sheet was real and human-confirmed — re-base
+           the health check (no baseline until the sheet has rows again)
+           and clear any unhealthy flag for this event. */
+        healthSetMax(0);
+        var hs1 = healthState(); hs1.unhealthy = false; hs1.kind = ""; healthSaveState(hs1);
         state.lastUpdated = hhmmss(new Date());
         buildFilters();
         buildLocations();
@@ -5109,7 +5781,11 @@ function setCallTick_(data) {
         var idx = state.guests.indexOf(g);
         var meta = [];
         if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
-        if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" \u00B7 "))+"</b></span>");
+        if(g.date||g.time) meta.push("<span><b>"+esc([g.date,g.time].filter(Boolean).join(" · "))+"</b></span>");
+        /* v32: the airport as the normalized name (Dabolim/Mopa) —
+           the raw Pickup Point stays visible in its own line below. */
+        var ap = airportForGuest(g);
+        if(ap==="Dabolim Airport" || ap==="Mopa Airport") meta.push("<span>Airport: <b>"+esc(ap)+"</b></span>");
         if(g.from) meta.push("<span>Pickup: <b>"+esc(g.from)+"</b></span>");
         if(g.hotel) meta.push("<span>Drop: <b>"+esc(g.hotel)+"</b></span>");
         var rk = (g.remarks!=null && clean(g.remarks)) ? g.remarks : g.remark;
@@ -5119,18 +5795,21 @@ function setCallTick_(data) {
         var uTxt = usageForGuest(g);
         if(uTxt==="Dedicated"){
           var dStart = startForGuest(g), dEnd = endForGuest(g);
-          if(dStart||dEnd) meta.push("<span>Dedicated: <b>"+esc(dStart||"?")+" \u2192 "+esc(dEnd||"?")+"</b></span>");
+          if(dStart||dEnd) meta.push("<span>Dedicated: <b>"+esc(dStart||"?")+" → "+esc(dEnd||"?")+"</b></span>");
           var es2 = endingSoonInfo(g);
-          if(es2) meta.push("<span><b>Dedicated ending "+es2+" \u2014 vehicle can be re-pooled</b></span>");
+          if(es2) meta.push("<span><b>Dedicated ending "+es2+" — vehicle can be re-pooled</b></span>");
         }
         var vsRec = vehicleStatusFor(g);
         var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
+        /* v32: "Arrived ✓" only when Yes — no "Not arrived" badge. */
+        var arrivedBadge = normalizeArrived(g.arrived)==="Yes" ? ' <span class="badge arrived">Arrived ✓</span>' : "";
         var html = '<button class="card" type="button" data-idx="'+idx+'">'
           + '<span class="nm">'+esc(g.name||"Unnamed guest")
           + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
           + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
           + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
           + vsBadge
+          + arrivedBadge
           + "</span>"
           + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
           + '<span class="meta">'+meta.join("")+"</span>"
@@ -5282,7 +5961,7 @@ function setCallTick_(data) {
         var box = $("hotelsView");
         if(!box) return;
         var head = '<p class="viewhead">Hotels \u2014 locations</p>'
-          + '<p class="viewsub">Every hotel from the locations sheet, with its address and map link. Copy or share any hotel to send its details.</p>';
+          + '<p class="viewsub">Every hotel from the locations sheet, with its address and map link. Tap "View guests" on a hotel to see who is staying there. Copy or share any hotel to send its details.</p>';
         if(locationsStatus==="nolink"){
           box.innerHTML = head + '<div class="empty"><strong>No locations sheet linked</strong>Add the locations sheet link in Settings (Menu \u2192 Settings \u2192 Hotel locations sheet link).</div>';
           return;
@@ -5311,35 +5990,66 @@ function setCallTick_(data) {
       function renderHotelList(){
         var listEl = $("hotelList"), countEl = $("hotelCount");
         if(!listEl) return;
+        /* v32: while drilled into a hotel, this same container shows the
+           hotel's guests (the search row is hidden — it filters the
+           hotel list, not the drill-down). */
+        var sr = $("hotelsView") ? $("hotelsView").querySelector(".searchrow") : null;
+        if(sr) sr.style.display = hotelDrill ? "none" : "";
+        if(hotelDrill){ renderHotelDrill(); return; }
         var q = hotelsQuery.trim().toLowerCase();
+        /* v32: guest counts per normalized hotel group, for the
+           "View guests (N)" buttons. The group key is used (not the
+           locations-sheet spelling), so "Taj Vivanta Panjim" and
+           "Vivanta" count together. */
+        var counts = {};
+        state.guests.forEach(function(g){ var gk = hotelGroupKey(g.hotel); counts[gk] = (counts[gk]||0)+1; });
         var list = hotelLocations.filter(function(h){
           if(!q) return true;
           return h.name.toLowerCase().indexOf(q)>-1 || h.address.toLowerCase().indexOf(q)>-1;
         });
         if(countEl) countEl.innerHTML = "<strong>"+list.length+"</strong> hotel"+(list.length===1?"":"s")+(q ? " matching your search" : "");
-        if(!list.length){
+        if(!list.length && !(counts["No hotel listed"] && (!q || "no hotel listed".indexOf(q)>-1))){
           listEl.innerHTML = '<div class="empty"><strong>No hotels match</strong>Try a different search.</div>';
           return;
         }
-        listEl.innerHTML = '<div class="results" style="margin-top:0">' + list.map(function(h){
+        var cards = list.map(function(h){
           var i = hotelLocations.indexOf(h);
+          var gk = hotelGroupKey(h.name);
+          var cnt = counts[gk]||0;
           return '<div class="hotelcard"><div class="hname">'+esc(h.name)+"</div>"
             + (h.address ? '<div class="haddr">'+esc(h.address)+"</div>" : "")
             + '<div class="rowflex" style="margin-top:10px">'
             + (h.link ? '<a class="btn small" href="'+esc(h.link)+'" target="_blank" rel="noopener">Open in Maps</a>' : "")
             + '<button class="btn small" type="button" data-hcopy="'+i+'">Copy</button>'
             + '<button class="btn small" type="button" data-hshare="'+i+'">Share</button>'
+            + '<button class="btn small" type="button" data-hdrill="'+esc(gk)+'">View guests ('+cnt+')</button>'
             + "</div></div>";
-        }).join("") + "</div>";
+        });
+        /* v32: the "No hotel listed" group (blank / #N/A / NA hotel) is
+           OPENABLE like any hotel — it is how the member finds the
+           guests with no hotel in the sheet. */
+        if(counts["No hotel listed"] && (!q || "no hotel listed".indexOf(q)>-1)){
+          cards.push('<div class="hotelcard"><div class="hname">No hotel listed</div>'
+            + '<div class="haddr">Guests with no hotel in the sheet (blank, #N/A or NA).</div>'
+            + '<div class="rowflex" style="margin-top:10px">'
+            + '<button class="btn small" type="button" data-hdrill="No hotel listed">View guests ('+counts["No hotel listed"]+')</button>'
+            + "</div></div>");
+        }
+        listEl.innerHTML = '<div class="results" style="margin-top:0">' + cards.join("") + "</div>";
         var cps = listEl.querySelectorAll("[data-hcopy]");
         for(var a=0;a<cps.length;a++) cps[a].addEventListener("click", function(){
           var h = hotelLocations[+this.getAttribute("data-hcopy")];
-          if(h) copyText(h.name+"\n"+h.address+"\n"+h.link, "Hotel copied \u2014 paste it anywhere");
+          if(h) copyText(h.name+"\n"+h.address+"\n"+h.link, "Hotel copied — paste it anywhere");
         });
         var shs = listEl.querySelectorAll("[data-hshare]");
         for(var b=0;b<shs.length;b++) shs[b].addEventListener("click", function(){
           var h = hotelLocations[+this.getAttribute("data-hshare")];
           if(h) shareHotel(h);
+        });
+        var drs = listEl.querySelectorAll("[data-hdrill]");
+        for(var c=0;c<drs.length;c++) drs[c].addEventListener("click", function(){
+          hotelDrill = this.getAttribute("data-hdrill");
+          renderHotelList();
         });
       }
       /* ================= v31 — MEMBERS TAB =================
@@ -5368,7 +6078,13 @@ function setCallTick_(data) {
         }
         var note = "";
         if(!rosterHasAllocation){
-          note = '<div class="uploadwarn" role="status" style="margin:0 0 10px">The roster sheet has no \u201CAllocation\u201D column yet — add one (header: Allocation) and fill each member\u2019s posting; it will appear here on the next refresh.</div>';
+          note = '<div class="uploadwarn" role="status" style="margin:0 0 10px">The roster sheet has no \u201CAllocation\u201D column yet \u2014 add one (header: Allocation) and fill each member\u2019s posting; it will appear here on the next refresh.</div>';
+        }
+        /* v32: one-line note while the roster has no hierarchy columns —
+           the Supervisor / Manager / Lead lines below show "—" until
+           then. Nothing is invented. */
+        if(!rosterHasHierarchy){
+          note += '<div class="uploadwarn" role="status" style="margin:0 0 10px">Add Supervisor / Manager / Lead columns to the Team Member Allocation sheet to show them here (with Supervisor Contact / Manager Contact / Lead Contact for their numbers).</div>';
         }
         var rows = roster.slice().sort(function(a,b){
           var x = String(a.name||"").toLowerCase(), y = String(b.name||"").toLowerCase();
@@ -5378,10 +6094,27 @@ function setCallTick_(data) {
           + '<p class="count" style="margin:0 2px 10px"><strong>'+rows.length+'</strong> member'+(rows.length===1?"":"s")+'</p>'
           + '<div class="results" style="margin-top:0">' + rows.map(function(m){
             var tel = intlNumber(m.mobile, "");
+            var wa = validWaNumber(m.mobile);
+            /* v32: Preference (roster "Preference" — what the member
+               asked for in the signup form, NOT a posting; the posting
+               is the Allocation line above) + Shift ("Shift
+               Preference") — "—" when blank. The hierarchy lines are
+               HIDDEN while the roster has no Supervisor / Manager /
+               Lead columns — never an invented name, and no "—" noise
+               on every card. WhatsApp uses the SAME
+               number validation as guest WhatsApp (validWaNumber); an
+               invalid number gets an honest note, not a dead link. */
+            var hier = [];
+            hier.push("Supervisor: <b>"+esc(clean(m.supervisor) || "—")+"</b>" + (clean(m.supervisorContact) ? " ("+esc(clean(m.supervisorContact))+")" : ""));
+            hier.push("Manager: <b>"+esc(clean(m.manager) || "—")+"</b>" + (clean(m.managerContact) ? " ("+esc(clean(m.managerContact))+")" : ""));
+            hier.push("Lead: <b>"+esc(clean(m.lead) || "—")+"</b>" + (clean(m.leadContact) ? " ("+esc(clean(m.leadContact))+")" : ""));
             return '<div class="memberrow"><span class="dname">'+esc(m.name||"Member")+"</span>"
               + '<div class="vmeta" style="margin-top:3px">Role: <b>'+esc(m.role||"Member")+'</b> · Posting: <b>'+esc(clean(m.allocation) || "Not assigned yet")+"</b></div>"
+              + '<div class="vmeta" style="margin-top:3px">Prefers: <b>'+esc(clean(m.preference) || "—")+'</b> · Shift: <b>'+esc(clean(m.shift) || "—")+"</b></div>"
+              + (rosterHasHierarchy ? '<div class="vmeta" style="margin-top:3px">'+hier.join(" · ")+"</div>" : "")
               + '<div class="rowflex" style="margin-top:10px">'
               + (tel ? '<a class="btn" href="tel:+'+tel+'">Call '+esc(m.mobile)+"</a>" : '<span class="vmeta">'+esc(m.mobile||"No number")+"</span>")
+              + (wa ? '<a class="btn" href="https://wa.me/91'+wa+'" target="_blank" rel="noopener">WhatsApp</a>' : '<span class="vmeta">WhatsApp: no valid number</span>')
               + "</div></div>";
           }).join("") + "</div>";
       }
@@ -5828,7 +6561,7 @@ function setCallTick_(data) {
         else if(v==="today") renderToday();
         else if(v==="vehicles"){ fetchLegs(true); renderVehicles(); }
         else if(v==="drivers"){ fetchCallTicks(); renderDrivers(); }
-        else if(v==="hotels") renderHotels();
+        else if(v==="hotels"){ hotelDrill = ""; renderHotels(); }
         else if(v==="members") renderMembers();
         else if(v==="map"){ fetchLivePositions(true); renderMap(); }
       }
