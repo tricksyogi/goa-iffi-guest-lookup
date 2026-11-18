@@ -288,7 +288,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v32</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v33</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -586,10 +586,19 @@
           <div>
             <h3>Guest arrived — marking arrivals</h3>
             <ul>
-              <li>Open a guest and use the <strong>Guest arrived</strong> section: tap <strong>Arrived — Yes</strong> (or No), add a remark if there is one, and enter the <strong>Actual Vehicle</strong> number if the guest was sent in a different vehicle than the assigned one — then tap <strong>Save arrival</strong>. Any logged-in member can mark arrivals.</li>
-              <li>When the event's webhook is set, the marking saves into the sheet's <strong>Arrived / Arrival Remark / Actual Vehicle</strong> columns on that guest's row only. Without a webhook (or while the sheet has no such columns) it saves on this phone only and says so — add the three columns to the sheet (headers: Arrived, Arrival Remark, Actual Vehicle) and set the webhook to share arrivals with the team.</li>
+              <li>Open a guest and use the <strong>Guest arrived</strong> section: tap <strong>Arrived — Yes</strong> (or No), add a remark if there is one, and enter the <strong>Actual Vehicle</strong> number if the guest was sent in a different vehicle than the assigned one — then tap <strong>Save arrival</strong>. <strong>Vehicle arrived — Yes</strong> (or No) marks that this guest's vehicle has reached the pickup point; it is saved with the same Save — alone, or together with the guest arrival. A vehicle can arrive before its guest does, so the Save works when either toggle is set. Only the fields you actually changed are sent — a vehicle-only Save never touches the guest arrival (or remark / actual vehicle) already in the sheet, so a teammate's mark cannot be erased by a stale phone view. It is a per-guest marking — the per-vehicle status (Mark Vehicle Reported / Mark Vehicle Departed) is set from <strong>Vehicles</strong> by vehicle number and is unchanged. Any logged-in member can mark arrivals.</li>
+              <li>When the event's webhook is set, the marking saves into the sheet's <strong>Arrived / Arrival Remark / Actual Vehicle / Vehicle Arrived</strong> columns on that guest's row only. Without a webhook (or while the sheet has no such columns) it saves on this phone only and says so — add the four columns to the sheet (headers: Arrived, Arrival Remark, Actual Vehicle, Vehicle Arrived) and set the webhook to share arrivals with the team.</li>
               <li>A marking saved on this phone only is <strong>not</strong> pushed to the sheet later — when the webhook is set (or the arrival columns are added), open the guest and tap <strong>Save arrival</strong> again to share it with the team.</li>
-              <li>Arrived guests show an <strong>“Arrived ✓”</strong> badge on their card. The detail view always shows an Arrived row (Yes / No / —) and the remark and actual vehicle when set.</li>
+              <li>Arrived guests show an <strong>“Arrived ✓”</strong> badge on their card, and guests whose vehicle arrived show a <strong>“Vehicle ✓”</strong> badge. The detail view always shows an Arrived row and a Vehicle Arrived row (Yes / No / —) and the remark and actual vehicle when set.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Details sent — tick marks shared with the team</h3>
+            <ul>
+              <li>After you have actually sent the driver details (by WhatsApp, call or in person), tap <strong>Mark details sent to driver</strong> under the driver message. After you have sent the guest details, tap <strong>Mark details sent to guest</strong> under the guest message. The tick is <strong>manual</strong>: tapping a WhatsApp / Copy / Share button only records the tap in the Share Log — it never ticks anything, because a tap is not proof the details were sent. Tap the tick again to untick it (it writes “No”).</li>
+              <li>Each tick has its own column in the sheet — <strong>Driver Details Sent</strong> and <strong>Guest Details Sent</strong> — separate from the arrival columns, so everyone who opens the sheet sees the same tick everyone who opens the tool sees. The cards show a <strong>“Driver ✓”</strong> or <strong>“Guest ✓”</strong> badge when the tick is set, and the detail view shows the tick when set. The webhook also records who ticked it and when in the sheet's Activity log.</li>
+              <li>Without a webhook (or while the sheet has no such columns — CMOT has none yet) the tick saves on this phone only and says so, and the badge shows on this phone. A phone-only tick is <strong>not</strong> pushed to the sheet later — when the webhook is set (or the columns are added), open the guest and tap the tick again to share it with the team.</li>
+              <li>When the sheet value is loaded it replaces any phone-only tick — the sheet is the truth — so the tick survives the 30-second refresh.</li>
             </ul>
           </div>
           <div>
@@ -610,7 +619,7 @@
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Your sheet data stays as you gave it</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, updating only the Arrived, Arrival Remark and Actual Vehicle cells of the one guest row a member marks arrived, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, updating only the Arrived, Arrival Remark, Actual Vehicle and Vehicle Arrived cells of the one guest row a member marks arrived, updating only the Driver Details Sent or Guest Details Sent cell of the one guest row a member ticks, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
@@ -782,7 +791,32 @@ function doPost(e) {
     if (arrUpdated !== 1) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Guest not found" })).setMimeType(ContentService.MimeType.JSON);
     }
-    logActivity_(data.by || data.author || "", "Guest arrived", data.name || "", (data.arrived || "") + (data.actualVehicle ? " · Actual vehicle " + data.actualVehicle : "") + (data.remark ? " · " + data.remark : ""), data.time);
+    /* REWORK: build the log detail from the fields actually sent (parts
+       join) — a vehicle-only or remark-only Save must not leave a leading
+       " · " or a blank detail in the sheet's Activity tab. */
+    var arrDetail = [];
+    if (data.arrived) arrDetail.push(data.arrived);
+    if (data.vehicleArrived) arrDetail.push("Vehicle " + data.vehicleArrived);
+    if (data.actualVehicle) arrDetail.push("Actual vehicle " + data.actualVehicle);
+    if (data.remark) arrDetail.push(data.remark);
+    logActivity_(data.by || data.author || "", "Guest arrived", data.name || "", arrDetail.join(" · "), data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "markDetailsSent") {
+    var tickUpdated = markDetailsSent_(data);
+    if (tickUpdated === -3) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Unknown details type" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (tickUpdated === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Details-sent columns not in this sheet" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (tickUpdated === 2) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "More than one matching row" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (tickUpdated !== 1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Guest not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    logActivity_(data.by || data.author || "", data.which === "guest" ? "Guest details sent" : "Driver details sent", data.name || "", "Marked " + (data.sent || ""), data.time);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
   }
   if (data.action === "updateMember") {
@@ -1012,48 +1046,29 @@ function setVehicleStatus_(data) {
   return 1;
 }
 
-/* v32: mark a guest arrived. Finds the guest's row in the FIRST sheet
-   (the guest sheet) by Guest Name + Date, falling back to Guest Name +
-   Contact Number (phones compared by digits only, via normMobile_).
-   Dates are compared as day-month ("19-nov") so a sheet Date cell and
-   a "19-Nov" / "19-Nov-2026" string match. Writes ONLY the Arrived /
-   Arrival Remark / Actual Vehicle cells of that one row — never any
-   other cell. Returns 1 when exactly one row was written, 0 when no
-   row matches, 2 when more than one row matches every discriminator
-   tried (ambiguous — the caller reports that distinctly, never as
-   "Guest not found"), -1 when the sheet has no arrival columns. The
-   tool only claims success on {ok:true, updated:1}, so a stale deploy
-   produces a visible error, never a false success. */
-function markArrived_(data) {
+/* v33: shared guest-row matcher, extracted verbatim from the v32
+   markArrived_ narrowing (the matching code moved here unchanged;
+   markArrived_ is now a thin wrapper around it). Finds the guest's row
+   in the FIRST sheet (the guest sheet) by Guest Name + Date, falling
+   back to Guest Name + Contact Number (phones compared by digits only,
+   via normMobile_). Dates are compared as day-month ("19-nov") so a
+   sheet Date cell and a "19-Nov" / "19-Nov-2026" string match. Narrow
+   by EVERY discriminator the tool sent, instead of OR-ing them: a date
+   match and a phone match are two views of the SAME row, not two votes.
+   Date first — it is the discriminator for a guest with two rows under
+   one phone (e.g. 20-Nov and 26-Nov); phone narrows a multi-row date
+   match, and is the fallback when the date matches nothing (wrong date
+   + right unique phone still works). Returns the 0-based row index
+   (header = 0) when exactly one row matches, -1 when none matches, -2
+   when more than one row matches every discriminator tried (ambiguous).
+   nameIdx/dateIdx/phoneIdx are 0-based header positions; dateIdx or
+   phoneIdx may be -1 when the sheet has no such column (then that
+   discriminator simply never matches). */
+function findGuestRow_(rows, nameIdx, dateIdx, phoneIdx, data) {
   var name = String(data.name == null ? "" : data.name).trim().toLowerCase();
-  if (!name) return 0;
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheets()[0];
-  var rows = sh.getDataRange().getValues();
-  if (!rows.length) return 0;
-  var headers = rows[0].map(function(h){ return String(h == null ? "" : h).trim().toLowerCase(); });
-  var nameIdx = headers.indexOf("guest name");
-  if (nameIdx &lt; 0) nameIdx = headers.indexOf("name");
-  var dateIdx = headers.indexOf("date");
-  var phoneIdx = headers.indexOf("contact number");
-  if (phoneIdx &lt; 0) phoneIdx = headers.indexOf("phone");
-  var arrivedIdx = headers.indexOf("arrived");
-  if (arrivedIdx &lt; 0) arrivedIdx = headers.indexOf("guest arrived");
-  var remarkIdx = headers.indexOf("arrival remark");
-  if (remarkIdx &lt; 0) remarkIdx = headers.indexOf("arrived remark");
-  var vehIdx = headers.indexOf("actual vehicle");
-  if (vehIdx &lt; 0) vehIdx = headers.indexOf("sent in vehicle");
-  if (vehIdx &lt; 0) vehIdx = headers.indexOf("actual vehicle no");
-  if (arrivedIdx &lt; 0 || remarkIdx &lt; 0 || vehIdx &lt; 0) return -1;
+  if (!name) return -1;
   var date = String(data.date == null ? "" : data.date).trim().toLowerCase().replace(/[-/]\d{4}$/, "");
   var phone = normMobile_(data.phone);
-  /* Narrow by EVERY discriminator the tool sent, instead of OR-ing
-     them: a date match and a phone match are two views of the SAME
-     row, not two votes. Date first — it is the discriminator for a
-     guest with two rows under one phone (e.g. 20-Nov and 26-Nov);
-     phone narrows a multi-row date match, and is the fallback when
-     the date matches nothing (wrong date + right unique phone still
-     works). */
   var dateMatches = [], phoneMatches = [];
   for (var i = 1; i &lt; rows.length; i++) {
     if (String(rows[i][nameIdx] == null ? "" : rows[i][nameIdx]).trim().toLowerCase() !== name) continue;
@@ -1080,11 +1095,97 @@ function markArrived_(data) {
     if (phoneMatches.length === 1) chosen = phoneMatches[0];
     else if (phoneMatches.length &gt; 1) ambiguous = true;
   }
-  if (chosen &lt; 0) return ambiguous ? 2 : 0;
-  var r = chosen + 1;
-  sh.getRange(r, arrivedIdx + 1).setValue(data.arrived || "");
-  sh.getRange(r, remarkIdx + 1).setValue(data.remark || "");
-  sh.getRange(r, vehIdx + 1).setValue(data.actualVehicle || "");
+  if (chosen &lt; 0) return ambiguous ? -2 : -1;
+  return chosen;
+}
+
+/* v32: mark a guest arrived. Writes ONLY the Arrived / Arrival Remark /
+   Actual Vehicle cells of that one row — never any other cell. v33: the
+   Arrival section saves the Vehicle Arrived toggle in the same single
+   write — data.vehicleArrived is written to the "Vehicle Arrived"
+   column ONLY when the column exists AND the payload carries the field
+   (an older client posting without it leaves the cell untouched).
+   REWORK (v33): an empty/missing field means "no change", NEVER
+   "clear" — each cell is written ONLY when the payload carries a
+   non-empty value for it. The tool only sends fields the coordinator
+   actually changed, but an older client (or a stale phone view) may
+   still send "" for a field it did not touch: writing that "" would
+   erase a teammate's mark (proven: sheet Arrived "Yes" + vehicle-only
+   Save from a stale view overwrote it with ""). So a vehicle-only Save
+   can only ever touch the Vehicle Arrived cell. Returns 1 when exactly
+   one row was written, 0 when no row matches, 2 when more than one
+   row matches every discriminator tried (ambiguous — the caller
+   reports that distinctly, never as "Guest not found"), -1 when the
+   sheet has no arrival columns. The tool only claims success on
+   {ok:true, updated:1}, so a stale deploy produces a visible error,
+   never a false success. */
+function markArrived_(data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheets()[0];
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return 0;
+  var headers = rows[0].map(function(h){ return String(h == null ? "" : h).trim().toLowerCase(); });
+  var nameIdx = headers.indexOf("guest name");
+  if (nameIdx &lt; 0) nameIdx = headers.indexOf("name");
+  var dateIdx = headers.indexOf("date");
+  var phoneIdx = headers.indexOf("contact number");
+  if (phoneIdx &lt; 0) phoneIdx = headers.indexOf("phone");
+  var arrivedIdx = headers.indexOf("arrived");
+  if (arrivedIdx &lt; 0) arrivedIdx = headers.indexOf("guest arrived");
+  var remarkIdx = headers.indexOf("arrival remark");
+  if (remarkIdx &lt; 0) remarkIdx = headers.indexOf("arrived remark");
+  var vehIdx = headers.indexOf("actual vehicle");
+  if (vehIdx &lt; 0) vehIdx = headers.indexOf("sent in vehicle");
+  if (vehIdx &lt; 0) vehIdx = headers.indexOf("actual vehicle no");
+  if (arrivedIdx &lt; 0 || remarkIdx &lt; 0 || vehIdx &lt; 0) return -1;
+  var vehArrIdx = headers.indexOf("vehicle arrived");
+  var found = findGuestRow_(rows, nameIdx, dateIdx, phoneIdx, data);
+  if (found === -2) return 2;
+  if (found &lt; 0) return 0;
+  var r = found + 1;
+  /* REWORK: skip-write guard — an empty/missing value means "no
+     change", never "clear". Each cell is written only for a non-empty
+     payload value (trimmed). A deliberate "No" still writes ("No" is
+     non-empty); a blank never erases a teammate's "Yes". */
+  var arrivedVal = String(data.arrived == null ? "" : data.arrived).trim();
+  var remarkVal = String(data.remark == null ? "" : data.remark).trim();
+  var vehVal = String(data.actualVehicle == null ? "" : data.actualVehicle).trim();
+  var vehArrVal = String(data.vehicleArrived == null ? "" : data.vehicleArrived).trim();
+  if (arrivedVal) sh.getRange(r, arrivedIdx + 1).setValue(arrivedVal);
+  if (remarkVal) sh.getRange(r, remarkIdx + 1).setValue(remarkVal);
+  if (vehVal) sh.getRange(r, vehIdx + 1).setValue(vehVal);
+  if (vehArrIdx &gt;= 0 &amp;&amp; vehArrVal) sh.getRange(r, vehArrIdx + 1).setValue(vehArrVal);
+  return 1;
+}
+
+/* v33: mark the Driver/Guest details-sent tick. data.which is "driver"
+   or "guest" and selects the column ("Driver Details Sent" /
+   "Guest Details Sent"); anything else is rejected with -3. Same shared
+   matcher as markArrived_ (findGuestRow_): Guest Name + Date, falling
+   back to Guest Name + Contact Number. Writes ONLY that one tick cell
+   of the one matched row — never any other cell. Returns 1 when exactly
+   one row was written, 0 when no row matches, 2 when ambiguous, -1
+   when the sheet has no such tick column, -3 for an unknown which. */
+function markDetailsSent_(data) {
+  var which = String(data.which == null ? "" : data.which).trim().toLowerCase();
+  var colName = which === "guest" ? "guest details sent" : which === "driver" ? "driver details sent" : "";
+  if (!colName) return -3;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheets()[0];
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return 0;
+  var headers = rows[0].map(function(h){ return String(h == null ? "" : h).trim().toLowerCase(); });
+  var nameIdx = headers.indexOf("guest name");
+  if (nameIdx &lt; 0) nameIdx = headers.indexOf("name");
+  var dateIdx = headers.indexOf("date");
+  var phoneIdx = headers.indexOf("contact number");
+  if (phoneIdx &lt; 0) phoneIdx = headers.indexOf("phone");
+  var tickIdx = headers.indexOf(colName);
+  if (tickIdx &lt; 0) return -1;
+  var found = findGuestRow_(rows, nameIdx, dateIdx, phoneIdx, data);
+  if (found === -2) return 2;
+  if (found &lt; 0) return 0;
+  sh.getRange(found + 1, tickIdx + 1).setValue(data.sent || "");
   return 1;
 }
 
@@ -1327,13 +1428,18 @@ function setCallTick_(data) {
         <div class="vehstatus" id="arrivalSection" style="display:none">
           <div class="secthead"><h3>Guest arrived</h3><span class="badge phoneonly" id="arrivalLocalNote" style="display:none">Saved on this phone only</span></div>
           <div id="arrivalCurrent"></div>
-          <p class="cols-note" style="margin:4px 0 0">Mark this guest when they reach the airport. If they were sent in a different vehicle, enter that vehicle's number below.</p>
+          <p class="cols-note" style="margin:4px 0 0">Mark this guest when they reach the airport, and mark the vehicle too when it reaches the pickup point. If they were sent in a different vehicle, enter that vehicle's number below. One Save writes the whole section.</p>
           <p class="cols-note" id="arrivalNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Arrived / Arrival Remark / Actual Vehicle columns yet — markings save on this phone only until the columns are added to the sheet.</p>
           <p class="cols-note" id="arrivalNoIdNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This guest has no date or phone in the sheet, so this can only save on this phone — add a date or phone to the sheet row to share the marking with the team.</p>
           <div class="rowflex" style="margin-top:10px">
             <button class="btn" id="arrivedYesBtn" type="button">Arrived — Yes</button>
             <button class="btn" id="arrivedNoBtn" type="button">Arrived — No</button>
           </div>
+          <div class="rowflex" id="vehArrivedRow" style="margin-top:10px">
+            <button class="btn" id="vehArrivedYesBtn" type="button">Vehicle arrived — Yes</button>
+            <button class="btn" id="vehArrivedNoBtn" type="button">Vehicle arrived — No</button>
+          </div>
+          <p class="cols-note" id="vehArrivedNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Vehicle Arrived column yet — the vehicle marking saves on this phone only until the column is added to the sheet.</p>
           <div class="remark-add" style="margin-top:10px">
             <input type="text" id="arrivalRemarkInput" placeholder="Arrival remark — e.g. met at gate, delayed" autocomplete="off" aria-label="Arrival remark" />
           </div>
@@ -1359,6 +1465,13 @@ function setCallTick_(data) {
             <a class="btn" id="previewCallDriverBtn" href="#" aria-label="Call driver">Call</a>
             <button class="btn" id="previewShareDriverBtn" type="button" aria-label="Share driver message">Share</button>
           </div>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn" id="driverSentBtn" type="button">Mark details sent to driver</button>
+            <span class="badge phoneonly" id="driverSentLocalNote" style="display:none">Saved on this phone only</span>
+          </div>
+          <p class="cols-note" id="driverSentState" style="margin:6px 0 0"></p>
+          <p class="cols-note" id="driverSentNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Driver Details Sent column yet — the tick saves on this phone only until the column is added to the sheet.</p>
+          <div class="status err" id="driverSentError" role="alert"></div>
         </div>
         <div class="msgbox">
           <h3>Message for guest (preview)</h3>
@@ -1370,6 +1483,13 @@ function setCallTick_(data) {
             <a class="btn" id="previewCallGuestBtn" href="#" aria-label="Call guest">Call</a>
             <button class="btn" id="previewShareGuestBtn" type="button" aria-label="Share guest message">Share</button>
           </div>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn" id="guestSentBtn" type="button">Mark details sent to guest</button>
+            <span class="badge phoneonly" id="guestSentLocalNote" style="display:none">Saved on this phone only</span>
+          </div>
+          <p class="cols-note" id="guestSentState" style="margin:6px 0 0"></p>
+          <p class="cols-note" id="guestSentNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Guest Details Sent column yet — the tick saves on this phone only until the column is added to the sheet.</p>
+          <div class="status err" id="guestSentError" role="alert"></div>
         </div>
 
         <div style="margin-top:16px">
@@ -1542,7 +1662,10 @@ function setCallTick_(data) {
         {key:"checkout",    label:"Check-out",    syn:["checkout","check-out","check out","check-out date","check out date"]},
         {key:"arrived",     label:"Arrived",      syn:["arrived","guest arrived"]},
         {key:"arrivalRemark", label:"Arrival Remark", syn:["arrival remark","arrived remark"]},
-        {key:"actualVeh",   label:"Actual Vehicle", syn:["actual vehicle","sent in vehicle","actual vehicle no","actual vehicle number"]}
+        {key:"actualVeh",   label:"Actual Vehicle", syn:["actual vehicle","sent in vehicle","actual vehicle no","actual vehicle number"]},
+        {key:"vehicleArrived", label:"Vehicle Arrived", syn:["vehicle arrived"]},
+        {key:"driverSent",  label:"Driver Details Sent", syn:["driver details sent","driver sent"]},
+        {key:"guestSent",   label:"Guest Details Sent", syn:["guest details sent","guest sent"]}
       ];
       var FIELD_BY_KEY = {};
       FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
@@ -1576,7 +1699,7 @@ function setCallTick_(data) {
       var EVENTS = ["CMOT","IFFI"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
-      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false }; }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false, hasTickCols:false }; }
       var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
@@ -2176,12 +2299,14 @@ function setCallTick_(data) {
         b.guests = state.guests; b.source = state.source; b.lastUpdated = state.lastUpdated; b.roster = roster; b.touched = true;
         b.vstat = vehicleStatusMap;
         b.hasArrivalCols = !!state.hasArrivalCols;
+        b.hasTickCols = !!state.hasTickCols;
         closeDetail();
         closeAdmin();
         activeEvent = newEv;
         var nb = eventBuckets[newEv];
         state.guests = nb.guests; state.source = nb.source; state.lastUpdated = nb.lastUpdated;
         state.hasArrivalCols = !!nb.hasArrivalCols;
+        state.hasTickCols = !!nb.hasTickCols;
         roster = nb.roster;
         vehicleStatusMap = nb.vstat || {};
         state.current = null; state.currentKey = "";
@@ -2288,6 +2413,7 @@ function setCallTick_(data) {
             return '<button class="card" type="button" data-idx="'+idx+'">'
               + '<span class="nm">'+esc(g.name||"Unnamed guest")
               + (normalizeArrived(g.arrived)==="Yes" ? ' <span class="badge arrived">Arrived ✓</span>' : "")
+              + tickBadges(g)
               + "</span>"
               + '<span class="meta">'+meta.join("")+"</span>"
               + "</button>";
@@ -3042,10 +3168,13 @@ function setCallTick_(data) {
          after a successful webhook write); a sheet value always wins.
          The webhook writes ONLY the three arrival cells of the one
          marked guest row — never any other cell. The Yes/No toggle
-         sets a pending choice; Save writes the toggle + remark +
-         actual vehicle together, in one write. */
+         sets a pending choice; Save writes the changed fields
+         together, in one write — and only the changed fields: an
+         untouched toggle/field is never sent, so a vehicle-only Save
+         can never overwrite a teammate's Arrived mark with a blank. */
       var LS_LOCAL_ARRIVED = "iffi-local-arrived";
       var pendingArrived = ""; /* Yes | No | "" — the toggle choice for the open detail */
+      var arrivedTouched = false; /* REWORK: true only once the member taps Arrived Yes/No in this detail — the toggle initialises from the guest's current value, which is the STALE view's value, not the sheet's, so an untouched toggle must never be sent */
       function localArrivedKey(){ return LS_LOCAL_ARRIVED+"-"+evLc(activeEvent); }
       function normalizeArrivalRec(r){
         if(!r) return null;
@@ -3088,6 +3217,83 @@ function setCallTick_(data) {
           if(rec) applyArrivalToGuest(g, rec);
         });
       }
+      /* v33 — shared tick marks (Vehicle Arrived, Driver Details Sent,
+         Guest Details Sent). Same shape as the arrival store above:
+         per-event localStorage, keyed by remarkKey, sheet-wins per
+         field (a local Yes only fills a guest whose sheet tick cell is
+         blank). A local "No" is never stored — "No" and blank both
+         display as not-ticked, and a phone-local No must never hide
+         the team's sheet Yes. The store is separate from the arrival
+         store so the v32 arrival format (and every phone already
+         holding it) is untouched. */
+      var LS_LOCAL_TICKS = "iffi-local-ticks";
+      var pendingVehicleArrived = ""; /* Yes | No | "" — the vehicle toggle choice for the open detail */
+      var vehicleArrivedTouched = false; /* REWORK: true only once the member taps Vehicle Arrived Yes/No in this detail */
+      function localTicksKey(){ return LS_LOCAL_TICKS+"-"+evLc(activeEvent); }
+      function normalizeTickRec(r){
+        if(!r) return null;
+        var out = { time:String(r.time==null?"":r.time), by:String(r.by==null?"":r.by) };
+        var has = false;
+        ["vehicleArrived","driverSent","guestSent"].forEach(function(k){
+          var v = normalizeArrived(r[k]);
+          if(v==="Yes"){ out[k]=v; has=true; }
+        });
+        return has ? out : null;
+      }
+      function localTicks(){
+        var m = lsGetJSON(localTicksKey(), {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var rec = normalizeTickRec(m[k]);
+          if(rec) out[k] = rec;
+        });
+        return out;
+      }
+      function saveLocalTick(key, rec){
+        /* Merge with the stored record (a tick save sets one field at a
+           time), then drop the record entirely when it holds no Yes at
+           all — so unticking the last tick leaves no stale "Yes" behind. */
+        var m = localTicks();
+        var prev = m[key] || {};
+        var merged = {
+          vehicleArrived: rec.vehicleArrived || prev.vehicleArrived,
+          driverSent: rec.driverSent || prev.driverSent,
+          guestSent: rec.guestSent || prev.guestSent,
+          time: rec.time || prev.time, by: rec.by || prev.by
+        };
+        var kept = normalizeTickRec(merged);
+        if(kept) m[key] = kept; else delete m[key];
+        lsSetJSON(localTicksKey(), m);
+      }
+      function applyTickToGuest(g, rec){
+        if(!g || !rec) return;
+        if(rec.vehicleArrived) g.vehicleArrived = rec.vehicleArrived;
+        if(rec.driverSent) g.driverSent = rec.driverSent;
+        if(rec.guestSent) g.guestSent = rec.guestSent;
+        g._tickRec = rec;
+      }
+      function applyKnownTicks(guests){
+        var m = localTicks();
+        (guests||[]).forEach(function(g){
+          var rec = m[remarkKey(g)];
+          if(!rec) return;
+          if(!normalizeArrived(g.vehicleArrived) && rec.vehicleArrived) g.vehicleArrived = rec.vehicleArrived;
+          if(!normalizeArrived(g.driverSent) && rec.driverSent) g.driverSent = rec.driverSent;
+          if(!normalizeArrived(g.guestSent) && rec.guestSent) g.guestSent = rec.guestSent;
+          g._tickRec = rec;
+        });
+      }
+      /* v33: the three tick badges, shown only when Yes — same
+         "show only set badges" rule as "Arrived ✓". Used on search
+         cards, Today cards and hotel drill-down cards. */
+      function tickBadges(g){
+        var b = "";
+        if(normalizeArrived(g.vehicleArrived)==="Yes") b += ' <span class="badge arrived">Vehicle ✓</span>';
+        if(normalizeArrived(g.driverSent)==="Yes") b += ' <span class="badge arrived">Driver ✓</span>';
+        if(normalizeArrived(g.guestSent)==="Yes") b += ' <span class="badge arrived">Guest ✓</span>';
+        return b;
+      }
       function renderArrival(){
         var sec = $("arrivalSection");
         if(!sec) return;
@@ -3102,12 +3308,27 @@ function setCallTick_(data) {
         var yb = $("arrivedYesBtn"), nb = $("arrivedNoBtn");
         if(yb) yb.classList.toggle("primary", pendingArrived==="Yes");
         if(nb) nb.classList.toggle("primary", pendingArrived==="No");
+        /* v33: the Vehicle Arrived toggle rides on the same Save — it
+           starts from the guest's current value, like the guest toggle.
+           The row hides while the sheet has no Vehicle Arrived column
+           (then the toggle stays untouched and nothing is sent for it). */
+        if(pendingVehicleArrived !== "Yes" && pendingVehicleArrived !== "No") pendingVehicleArrived = normalizeArrived(g.vehicleArrived);
+        var vyb = $("vehArrivedYesBtn"), vnb = $("vehArrivedNoBtn");
+        if(vyb) vyb.classList.toggle("primary", pendingVehicleArrived==="Yes");
+        if(vnb) vnb.classList.toggle("primary", pendingVehicleArrived==="No");
+        var vrow = $("vehArrivedRow");
+        if(vrow) vrow.style.display = state.hasTickCols ? "" : "none";
+        var vn = $("vehArrivedNoColsNote");
+        if(vn) vn.style.display = (!state.hasTickCols && !isSample) ? "" : "none";
         var cur = $("arrivalCurrent");
         if(cur){
           var rec = g._arrivedRec;
           var val = normalizeArrived(g.arrived);
-          if(val){
-            var bits = "Arrived: <b>"+esc(val)+"</b>";
+          var vval = normalizeArrived(g.vehicleArrived);
+          if(val || vval){
+            var bits = "";
+            if(val) bits += "Arrived: <b>"+esc(val)+"</b>";
+            if(vval) bits += (bits ? " · " : "") + "Vehicle: <b>"+esc(vval)+"</b>";
             if(clean(g.actualVeh)) bits += " · Actual vehicle: <b>"+esc(clean(g.actualVeh))+"</b>";
             if(clean(g.arrivalRemark)) bits += " · "+esc(clean(g.arrivalRemark));
             if(rec && rec.by) bits += " · "+esc(rec.by);
@@ -3132,6 +3353,8 @@ function setCallTick_(data) {
         if(localNote) localNote.style.display = (!isSample && (!hookUrl() || !state.hasArrivalCols)) ? "" : "none";
         setSendable($("arrivedYesBtn"), !isSample);
         setSendable($("arrivedNoBtn"), !isSample);
+        setSendable($("vehArrivedYesBtn"), !isSample);
+        setSendable($("vehArrivedNoBtn"), !isSample);
         setSendable($("arrivalSaveBtn"), !isSample);
         $("arrivalRemarkInput").disabled = isSample;
         $("actualVehInput").disabled = isSample;
@@ -3142,17 +3365,62 @@ function setCallTick_(data) {
         if(!g) return;
         if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
         if(!currentUser){ toast("Log in first"); return; }
-        if(!pendingArrived){ toast("Tap Arrived — Yes or No first"); return; }
+        /* REWORK (v33): only the fields the coordinator actually
+           CHANGED are sent. The toggles initialise from the guest's
+           current value — but that value is the STALE view's value (a
+           teammate may have marked the guest arrived moments ago and
+           gviz has not caught up yet), so an untouched toggle must
+           never be sent: it is sent as undefined and JSON drops it,
+           and the server leaves that cell alone. Same for the remark /
+           actual-vehicle fields: they are pre-filled with the guest's
+           current values, so "touched" means the value now differs
+           from the loaded value. A vehicle-only Save therefore sends
+           ONLY vehicleArrived — a teammate's Arrived "Yes" in the
+           sheet can never be overwritten by a blank. */
+        var remarkVal = clean($("arrivalRemarkInput").value);
+        var actualVehVal = clean($("actualVehInput").value);
+        var remarkTouched = remarkVal !== clean(g.arrivalRemark);
+        var actualVehTouched = actualVehVal !== clean(g.actualVeh);
+        if(!arrivedTouched && !vehicleArrivedTouched && !remarkTouched && !actualVehTouched){ toast("Tap Arrived — Yes or No, or Vehicle arrived — Yes or No, first"); return; }
         var errBox = $("arrivalError");
         if(errBox) errBox.textContent = "";
-        var rec = { arrived: pendingArrived, remark: clean($("arrivalRemarkInput").value), actualVeh: clean($("actualVehInput").value), time: new Date().toISOString(), by: currentUser.name };
+        var rec = { arrived: arrivedTouched ? pendingArrived : undefined, remark: remarkTouched ? remarkVal : undefined, actualVeh: actualVehTouched ? actualVehVal : undefined, time: new Date().toISOString(), by: currentUser.name };
+        var vehArr = vehicleArrivedTouched ? pendingVehicleArrived : undefined; /* "Yes" | "No" | undefined — v33: saved with the same single Save as the guest arrival */
         function applied(){
-          /* The local copy is kept even after a successful webhook
-             write: it fills the cell while gviz lags behind the sheet,
-             and the sheet value takes over as soon as it arrives. */
-          saveLocalArrival(remarkKey(g), rec);
-          applyArrivalToGuest(g, rec);
-          recordAction("Guest arrived", clean(g.name), rec.arrived+(rec.actualVeh ? " · Actual vehicle "+rec.actualVeh : "")+(rec.remark ? " · "+rec.remark : ""), "Guest "+clean(g.name)+" marked Arrived "+rec.arrived);
+          /* The local copy mirrors exactly what was sent: only changed
+             fields. A vehicle-only Save never touches the guest's
+             local arrival record or arrived fields — the sheet value
+             takes over as soon as it arrives, and a phone-local
+             marking only ever fills a blank cell (see
+             applyKnownArrivals). */
+          if(arrivedTouched || remarkTouched || actualVehTouched){
+            var displayRec = {
+              arrived: arrivedTouched ? pendingArrived : normalizeArrived(g.arrived),
+              remark: remarkTouched ? remarkVal : clean(g.arrivalRemark),
+              actualVeh: actualVehTouched ? actualVehVal : clean(g.actualVeh),
+              time: rec.time, by: rec.by
+            };
+            if(displayRec.arrived){ saveLocalArrival(remarkKey(g), displayRec); applyArrivalToGuest(g, displayRec); }
+            else { g.arrivalRemark = displayRec.remark; g.actualVeh = displayRec.actualVeh; }
+          }
+          if(vehicleArrivedTouched && vehArr){ saveLocalTick(remarkKey(g), { vehicleArrived: vehArr, time: rec.time, by: rec.by }); applyTickToGuest(g, { vehicleArrived: vehArr }); }
+          /* The activity text names only what was actually marked — a
+             vehicle-only Save must not read "marked Arrived " with a
+             blank value, and a remark-only Save must not read "marked "
+             with nothing after it (parts join — no leading separator). */
+          var detailParts = [];
+          if(arrivedTouched && rec.arrived) detailParts.push(rec.arrived);
+          if(vehicleArrivedTouched && vehArr) detailParts.push("Vehicle " + vehArr);
+          if(actualVehTouched && rec.actualVeh) detailParts.push("Actual vehicle " + rec.actualVeh);
+          if(remarkTouched && rec.remark) detailParts.push(rec.remark);
+          var textParts = [];
+          if(arrivedTouched && rec.arrived) textParts.push("Arrived " + rec.arrived);
+          if(vehicleArrivedTouched && vehArr) textParts.push("Vehicle " + vehArr);
+          if(actualVehTouched && rec.actualVeh) textParts.push("Actual vehicle " + rec.actualVeh);
+          if(remarkTouched && rec.remark) textParts.push("remark: " + rec.remark);
+          var markedDetail = detailParts.join(" · ");
+          var markedText = "Guest " + clean(g.name) + " marked " + textParts.join(" · ");
+          recordAction("Guest arrived", clean(g.name), markedDetail, markedText);
           render();
           /* Re-open the detail so its static fields table shows the new
              Arrived / remark / actual-vehicle rows (openDetail rebuilds
@@ -3165,7 +3433,12 @@ function setCallTick_(data) {
           if($("overlay")) $("overlay").scrollTop = sc;
         }
         if(hookUrl() && state.hasArrivalCols){
-          postToHook({ action:"markArrived", name: clean(g.name), phone: clean(g.phone), date: clean(g.date), arrived: rec.arrived, remark: rec.remark, actualVehicle: rec.actualVeh, time: rec.time, by: currentUser.name, author: currentUser.name })
+          /* REWORK: only changed fields are sent — untouched fields
+             are undefined and JSON.stringify drops them, so the server
+             never receives a blank for a field nobody touched.
+             vehicleArrived is additionally sent only when the tick
+             columns exist. */
+          postToHook({ action:"markArrived", name: clean(g.name), phone: clean(g.phone), date: clean(g.date), arrived: rec.arrived, remark: rec.remark, actualVehicle: rec.actualVeh, vehicleArrived: state.hasTickCols ? vehArr : undefined, time: rec.time, by: currentUser.name, author: currentUser.name })
             .then(function(res){ return res.text(); }).then(function(txt){
               var data = null;
               try{ data = JSON.parse(txt); }catch(e){}
@@ -3185,9 +3458,94 @@ function setCallTick_(data) {
           toast("Arrival saved on this phone" + (state.hasArrivalCols ? "" : " — add the Arrived columns to the sheet to share it with the team"), 4000);
         }
       }
-      $("arrivedYesBtn").addEventListener("click", function(){ pendingArrived = "Yes"; renderArrival(); });
-      $("arrivedNoBtn").addEventListener("click", function(){ pendingArrived = "No"; renderArrival(); });
+      $("arrivedYesBtn").addEventListener("click", function(){ pendingArrived = "Yes"; arrivedTouched = true; renderArrival(); });
+      $("arrivedNoBtn").addEventListener("click", function(){ pendingArrived = "No"; arrivedTouched = true; renderArrival(); });
+      $("vehArrivedYesBtn").addEventListener("click", function(){ pendingVehicleArrived = "Yes"; vehicleArrivedTouched = true; renderArrival(); });
+      $("vehArrivedNoBtn").addEventListener("click", function(){ pendingVehicleArrived = "No"; vehicleArrivedTouched = true; renderArrival(); });
       $("arrivalSaveBtn").addEventListener("click", markArrived);
+      /* v33 — details-sent ticks. A tick is MANUAL and explicit: tapping
+         a WhatsApp / Copy / Share button only logs the tap in the Share
+         Log (never claimed as confirmed delivery), so it never ticks
+         anything. The coordinator taps the tick AFTER actually sending
+         the details; the tap flips the tick and saves it at once (one
+         webhook write per tap, or phone-local when there is no webhook
+         or no tick columns). Tapping again unticks (writes "No"). A
+         failed save reverts the tick and shows the server's error. */
+      function renderTicks(){
+        var g = state.current;
+        if(!g) return;
+        var isSample = !!g._sample;
+        [["driver","driverSent","driverSentBtn","driverSentState","driverSentLocalNote","driverSentNoColsNote"],
+         ["guest","guestSent","guestSentBtn","guestSentState","guestSentLocalNote","guestSentNoColsNote"]].forEach(function(cfg){
+          var which = cfg[0], key = cfg[1];
+          var btn = $(cfg[2]), st = $(cfg[3]), ln = $(cfg[4]), nc = $(cfg[5]);
+          var val = normalizeArrived(g[key]);
+          var rec = g._tickRec;
+          if(btn){
+            btn.textContent = val==="Yes" ? "✓ Details sent to "+which : "Mark details sent to "+which;
+            btn.classList.toggle("primary", val==="Yes");
+            setSendable(btn, !isSample);
+          }
+          if(st){
+            if(val==="Yes"){
+              var bits = "Sent";
+              if(rec && rec.by) bits += " · "+esc(rec.by);
+              if(rec && rec.time){ var d = new Date(rec.time); if(!isNaN(d.getTime())) bits += " "+hhmm(d); }
+              else bits += " · from the sheet";
+              st.innerHTML = bits;
+            }else{
+              st.textContent = "Not sent yet.";
+            }
+          }
+          if(ln) ln.style.display = (!isSample && (!hookUrl() || !state.hasTickCols)) ? "" : "none";
+          if(nc) nc.style.display = (!state.hasTickCols && !isSample) ? "" : "none";
+        });
+      }
+      function markDetailsSent(which){
+        var g = state.current;
+        if(!g) return;
+        if(g._sample){ toast("Practice data — load the real sheet to send"); return; }
+        if(!currentUser){ toast("Log in first"); return; }
+        var key = which==="guest" ? "guestSent" : "driverSent";
+        var cur = normalizeArrived(g[key]);
+        var next = cur==="Yes" ? "No" : "Yes";
+        var errBox = $(which==="guest" ? "guestSentError" : "driverSentError");
+        if(errBox) errBox.textContent = "";
+        var rec = { time: new Date().toISOString(), by: currentUser.name };
+        rec[key] = next;
+        function applied(){
+          saveLocalTick(remarkKey(g), rec);
+          applyTickToGuest(g, rec);
+          recordAction(which==="guest" ? "Guest details sent" : "Driver details sent", clean(g.name), next, "Guest "+clean(g.name)+" — "+which+" details sent: "+next);
+          render();
+          var oi = state.guests.indexOf(g);
+          var sc = $("overlay") ? $("overlay").scrollTop : 0;
+          openDetail(oi);
+          if($("overlay")) $("overlay").scrollTop = sc;
+        }
+        if(hookUrl() && state.hasTickCols){
+          postToHook({ action:"markDetailsSent", name: clean(g.name), phone: clean(g.phone), date: clean(g.date), which: which, sent: next, time: rec.time, by: currentUser.name, author: currentUser.name })
+            .then(function(res){ return res.text(); }).then(function(txt){
+              var data = null;
+              try{ data = JSON.parse(txt); }catch(e){}
+              if(!data || data.ok!==true || data.updated!==1){
+                if(errBox) errBox.textContent = (data && data.error) ? data.error : "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+                return;
+              }
+              state.lastUpdated = hhmmss(new Date());
+              updateBanner();
+              applied();
+              toast("Tick saved to the sheet", 4000);
+            }).catch(function(){
+              if(errBox) errBox.textContent = "Could not save — the webhook may be the old version. Redeploy the Apps Script as a new version (see Help → Remarks setup)";
+            });
+        }else{
+          applied();
+          toast("Tick saved on this phone" + (state.hasTickCols ? "" : " — add the details-sent columns to the sheet to share it with the team"), 4000);
+        }
+      }
+      $("driverSentBtn").addEventListener("click", function(){ markDetailsSent("driver"); });
+      $("guestSentBtn").addEventListener("click", function(){ markDetailsSent("guest"); });
       function vehicleStatusFetchUrl(){
         var hook = hookUrl();
         if(!hook) return "";
@@ -3270,6 +3628,7 @@ function setCallTick_(data) {
          (set by tableToGuests; copied into state/bucket by loadGuests
          and the background branch of loadFromUrl). */
       var lastLoadHasArrivalCols = false;
+      var lastLoadHasTickCols = false;
       function tableToGuests(table){
         if(!table.length) return [];
         var headers = table[0].map(function(h){ return norm(h); });
@@ -3291,6 +3650,11 @@ function setCallTick_(data) {
            decide whether a marking goes to the webhook (columns exist)
            or stays phone-local (columns absent, e.g. CMOT). */
         lastLoadHasArrivalCols = colKey.indexOf("arrived")>-1 || colKey.indexOf("arrivalRemark")>-1 || colKey.indexOf("actualVeh")>-1;
+        /* v33: whether this sheet HAS the tick columns (Vehicle Arrived /
+           Driver Details Sent / Guest Details Sent) — same header-presence
+           reasoning as the arrival columns above. The ticks are separate
+           columns from the arrival columns, so they get their own flag. */
+        lastLoadHasTickCols = colKey.indexOf("vehicleArrived")>-1 || colKey.indexOf("driverSent")>-1 || colKey.indexOf("guestSent")>-1;
         var guests=[];
         for(var r=1;r<table.length;r++){
           var rowArr=table[r], g={ _extra:{}, _sample:false };
@@ -3509,8 +3873,10 @@ function setCallTick_(data) {
         applyLocalLocations(guests);
         applyKnownVehicleStatuses(guests);
         applyKnownArrivals(guests);
+        applyKnownTicks(guests);
         state.guests = guests;
         state.hasArrivalCols = lastLoadHasArrivalCols;
+        state.hasTickCols = lastLoadHasTickCols;
         state.source = source || {kind:"real", label:"loaded data", url:""};
         buildFilters();
         buildLocations();
@@ -3597,6 +3963,7 @@ function setCallTick_(data) {
             bk.emptyReads = 0;
             bk.guests = guests;
             bk.hasArrivalCols = lastLoadHasArrivalCols;
+            bk.hasTickCols = lastLoadHasTickCols;
             bk.source = {kind:"real", label:"the Google Sheet", url:url};
             bk.lastUpdated = hhmmss(new Date());
             bk.touched = true;
@@ -4339,7 +4706,8 @@ function setCallTick_(data) {
           var vsBadge = vsRec ? ' <span class="badge '+(vsRec.status==="DEPARTED" ? "vstatdep" : "vstatrep")+'">'+esc(vehicleStatusLabel(vsRec))+"</span>" : "";
           /* v32: "Arrived ✓" only when the sheet (or a phone-local
              marking) says Yes — no "Not arrived" badge, it would be
-             noise on every card. */
+             noise on every card. v33: the tick badges follow the same
+             rule (Vehicle / Driver / Guest ✓ only when Yes). */
           var arrivedBadge = normalizeArrived(g.arrived)==="Yes" ? ' <span class="badge arrived">Arrived ✓</span>' : "";
           var cardHtml = '<button class="card" type="button" data-idx="'+idx+'">'
             + '<span class="nm">'+esc(g.name||"Unnamed guest")
@@ -4348,6 +4716,7 @@ function setCallTick_(data) {
             + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
             + vsBadge
             + arrivedBadge
+            + tickBadges(g)
             + "</span>"
             + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
             + '<span class="meta">'+meta.join("")+"</span>"
@@ -4519,8 +4888,11 @@ function setCallTick_(data) {
            state is shown by the dedicated Arrived row below (and by the
            Arrival section), so the sheet value never appears twice and
            a junk value in the column (e.g. a phone number) is never
-           shown as if it were an arrival state. */
-        var rowsHtml = FIELDS.filter(function(f){ return f.key!=="arrived" && clean(g[f.key]); }).map(function(f){
+           shown as if it were an arrival state. v33: the three tick
+           columns are excluded for the same reason — each has its own
+           dedicated row below, and a junk value there must never show
+           as if it were a tick. */
+        var rowsHtml = FIELDS.filter(function(f){ return f.key!=="arrived" && f.key!=="vehicleArrived" && f.key!=="driverSent" && f.key!=="guestSent" && clean(g[f.key]); }).map(function(f){
           return "<tr><th>"+esc(f.label)+"</th><td>"+esc(clean(g[f.key]))+"</td></tr>";
         }).join("");
         Object.keys(g._extra||{}).forEach(function(k){
@@ -4545,6 +4917,15 @@ function setCallTick_(data) {
         rowsHtml += '<tr><th>Arrived</th><td>'+(arrVal ? esc(arrVal) : "—")+"</td></tr>";
         if(clean(g.arrivalRemark)) rowsHtml += "<tr><th>Arrival remark</th><td>"+esc(clean(g.arrivalRemark))+"</td></tr>";
         if(clean(g.actualVeh)) rowsHtml += "<tr><th>Actual vehicle</th><td>"+esc(clean(g.actualVeh))+"</td></tr>";
+        /* v33: the Vehicle Arrived row is ALWAYS shown (Yes / No / —)
+           like the Arrived row; the two details-sent rows appear only
+           when Yes — an unticked state is the normal state and needs
+           no row of its own (the tick button under each message shows
+           it). */
+        var vehArrVal = normalizeArrived(g.vehicleArrived);
+        rowsHtml += '<tr><th>Vehicle Arrived</th><td>'+(vehArrVal ? esc(vehArrVal) : "—")+"</td></tr>";
+        if(normalizeArrived(g.driverSent)==="Yes") rowsHtml += "<tr><th>Driver Details Sent</th><td>Yes</td></tr>";
+        if(normalizeArrived(g.guestSent)==="Yes") rowsHtml += "<tr><th>Guest Details Sent</th><td>Yes</td></tr>";
         var ap2 = airportForGuest(g);
         if(ap2==="Dabolim Airport" || ap2==="Mopa Airport") rowsHtml += "<tr><th>Airport</th><td>"+esc(ap2)+"</td></tr>";
         $("dFields").innerHTML = rowsHtml || '<tr><td>No details in this row.</td></tr>';
@@ -4623,10 +5004,18 @@ function setCallTick_(data) {
            toggle from the last guest is not carried over, and the
            remark / actual-vehicle fields show this guest's values. */
         pendingArrived = "";
+        pendingVehicleArrived = "";
+        arrivedTouched = false;
+        vehicleArrivedTouched = false;
         $("arrivalRemarkInput").value = clean(g.arrivalRemark);
         $("actualVehInput").value = clean(g.actualVeh);
         $("arrivalError").textContent = "";
         renderArrival();
+        /* v33: the two details-sent ticks start fresh for this guest
+           too — the buttons, state lines and any old error clear. */
+        if($("driverSentError")) $("driverSentError").textContent = "";
+        if($("guestSentError")) $("guestSentError").textContent = "";
+        renderTicks();
         $("overlay").classList.add("open");
         $("overlay").scrollTop = 0;
         document.body.style.overflow="hidden";
@@ -5424,6 +5813,7 @@ function setCallTick_(data) {
         applyLocalLocations(next);
         applyKnownVehicleStatuses(next);
         applyKnownArrivals(next);
+        applyKnownTicks(next);
         state.guests = next;
         bk.pendingRemoval = null;
         bk.lastReadEmpty = false;
@@ -5810,6 +6200,7 @@ function setCallTick_(data) {
           + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
           + vsBadge
           + arrivedBadge
+          + tickBadges(g)
           + "</span>"
           + (g.designation ? '<span class="desig">'+esc(g.designation)+"</span>" : "")
           + '<span class="meta">'+meta.join("")+"</span>"

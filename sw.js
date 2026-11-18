@@ -2,7 +2,7 @@
    Caches ONLY the app shell (the page itself, manifest, icons).
    NEVER intercepts sheet CSV, webhook GET/POST, or CDN fetches —
    all data is network-only, so the tool stays connected/live. */
-const CACHE = 'iffi-lookup-shell-v32';
+const CACHE = 'iffi-lookup-shell-v33';
 const SHELL_FILES = ['/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
