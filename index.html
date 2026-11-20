@@ -50,6 +50,19 @@
       .databanner.real .dot{background:var(--ok)}
       .databanner.sample{background:#dc2626;color:#fff;border-color:#dc2626}
       .databanner.sample .dot{background:#fff}
+      /* v37 — guest-sheet load states (Day Wise first paint read as a
+         failure: the banner said NO DATA LOADED while the fetch was
+         still in flight). While a fetch is running with no data yet,
+         the banner says LOADING (amber, pulsing dot); a failed fetch
+         says COULD NOT LOAD (red), and the empty state below names the
+         sheet/gid that failed. */
+      .databanner.loading{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+      .databanner.loading .dot{background:var(--warn);animation:bannerblink 1.1s infinite}
+      .databanner.loaderror{background:#dc2626;color:#fff;border-color:#dc2626}
+      .databanner.loaderror .dot{background:#fff}
+      @keyframes bannerblink{50%{opacity:.2}}
+      .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-2px}
+      @keyframes spin{to{transform:rotate(360deg)}}
       .databanner .src{font-weight:600;overflow-wrap:anywhere}
       .databanner .upd{font-weight:600}
       .databanner .spacer{flex:1}
@@ -254,6 +267,9 @@
       .vtab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       @media(min-width:760px){.vtab{flex:1 1 20%}}
       .badge.usage{background:var(--surface2);color:var(--ink);border:1px solid var(--line);text-transform:none;letter-spacing:0}
+      /* v37 — Day Wise "Status" column (OK / HOTEL TBD / SHARING / OVER
+         INVENTORY): shown as a small badge only when it is not OK. */
+      .badge.statuswarn{background:var(--warn-soft);color:var(--warn);text-transform:none;letter-spacing:0}
       .badge.ignored{background:var(--surface2);color:var(--muted);border:1px dashed var(--line);text-transform:none;letter-spacing:0}
       .bellcount{background:#dc2626;color:#fff;border-radius:999px;padding:1px 8px;font-weight:700;font-size:.82rem;margin-left:2px}
       .scrim{position:fixed;inset:0;background:rgba(10,8,5,.5);z-index:80;display:none}
@@ -289,7 +305,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v36</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v37</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -2193,7 +2209,36 @@ function activityRows_() {
          null and the tool says so instead of reading another tab. */
       function daywiseGid(){ return String(lsGetRaw(LS_DAYWISE_GID)||"").trim(); }
       function setDaywiseGid(v){ v = String(v==null?"":v).trim(); if(v) lsSetRaw(LS_DAYWISE_GID, v); else lsDel(LS_DAYWISE_GID); var inp = $("daywiseGidInput"); if(inp) inp.value = v; }
-      function daywiseCsvUrl(url){
+      var LS_DAYWISE_GIDS = "iffi-daywise-gids";
+      /* v37 — Day Wise is ONE TAB PER DATE (19–25 Nov 2026), so a single
+         hardcoded gid would keep showing yesterday's tab. The team link
+         carries the per-date tab gids (?gid_dw_19nov=… … ?gid_dw_25nov=…);
+         the tool fetches TODAY's tab (IST) when its gid is known and
+         falls back to the plain ?gid_daywise= otherwise. The tool cannot
+         list tabs, so the mapping comes from the link params only — tab
+         titles use two formats ("21-Nov" and "22 Nov") and are never
+         matched. The date filter is untouched: it filters the LOADED
+         list, while the per-date gid only decides WHICH TAB is fetched. */
+      function daywiseGids(){
+        try{ var p = JSON.parse(lsGetRaw(LS_DAYWISE_GIDS)||"{}"); return (p && typeof p==="object") ? p : {}; }catch(e){ return {}; }
+      }
+      function setDaywiseGids(map){
+        var m = {};
+        Object.keys(map||{}).forEach(function(k){ var v = String(map[k]||"").trim(); if(v) m[String(k).toLowerCase()] = v; });
+        if(Object.keys(m).length) lsSetRaw(LS_DAYWISE_GIDS, JSON.stringify(m)); else lsDel(LS_DAYWISE_GIDS);
+      }
+      function daywiseDateKey(d){
+        /* IST date key ("21nov") for a Date; defaults to now. Uses the
+           same UTC+5:30 shift as istNow() so a device set to another
+           timezone still picks the Goa day. */
+        var t = d ? new Date(d.getTime() + (5*60+30)*60000) : istNow();
+        return t.getUTCDate() + MONTHS[t.getUTCMonth()].toLowerCase();
+      }
+      function daywiseGidForDate(d){
+        return String((daywiseGids()[daywiseDateKey(d)])||"").trim();
+      }
+      function daywiseGidToday(){ return daywiseGidForDate(new Date()); }
+      function daywiseCsvUrl(url, forDate){
         /* REWORK v36 (Sr Dev gate D2): the Load-data box passes the
            PASTED link to loadFromUrl — daywiseCsvUrl used to ignore it
            and read the STORED link, so a different pasted link fetched
@@ -2206,6 +2251,14 @@ function activityRows_() {
         var gid = daywiseGid();
         var gm = String(url).match(/#gid=(\d+)/);
         if(gm) gid = gm[1];
+        else{
+          /* v37: a per-date gid for the day being loaded (today, IST,
+             unless a test passes forDate) wins over the plain fallback
+             gid — the sheet is one tab per date, so yesterday's tab
+             must not load again tomorrow. */
+          var dg = daywiseGidForDate(forDate || new Date());
+          if(dg) gid = dg;
+        }
         if(!m || !gid) return null;
         return "https://docs.google.com/spreadsheets/d/"+m[1]+"/export?format=csv&gid="+encodeURIComponent(gid);
       }
@@ -2263,7 +2316,12 @@ function activityRows_() {
       var EVENTS = ["CMOT","IFFI","DAYWISE"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
-      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false, hasTickCols:false }; }
+      function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false, hasTickCols:false, loadState:"idle", loadError:"" }; }
+      /* v37 — per-event guest-sheet load state: "idle" (never attempted),
+         "loading" (fetch in flight), "ok" (fetch resolved), "error"
+         (fetch failed; loadError names the sheet/gid that failed). The
+         main page reads it so a fetch in flight never paints as "no
+         data", and a failed fetch never reads as "ask the admin". */
       var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket(), DAYWISE: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
@@ -2306,8 +2364,22 @@ function activityRows_() {
           el.textContent = "No guest data loaded for "+activeEvent+". The team link does not carry the "+activeEvent+" sheet yet — admin: add ?sheet_"+evLc(activeEvent)+"=<sheet link> to the team link, or paste the sheet link in Menu → Settings → "+activeEvent+" sheet link.";
           return;
         }
-        if(activeEvent==="DAYWISE" && !daywiseGid()){
+        if(activeEvent==="DAYWISE" && !daywiseGid() && !daywiseGidToday()){
           el.textContent = "Day Wise Guest sheet linked, but the tab gid is missing — admin: add ?gid_daywise=1182126454 to the team link, or paste the tab gid in Menu → Settings → Day Wise tab gid.";
+          return;
+        }
+        /* v37 — a fetch in flight is not "no data": the loading block in
+           the results area says so, and this text is only a fallback if
+           the empty state is ever shown while loading. A failed fetch
+           names the sheet/gid that failed instead of the generic
+           "ask the admin for the team link" text. */
+        var lb = eventBuckets[activeEvent];
+        if(lb && lb.loadState==="loading"){
+          el.textContent = "Loading "+activeEvent+" sheet…";
+          return;
+        }
+        if(lb && lb.loadState==="error" && lb.loadError){
+          el.textContent = lb.loadError;
           return;
         }
         el.textContent = "No guest data loaded for "+activeEvent+". Open the team link shared by the admin — it carries the "+activeEvent+" sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.";
@@ -4538,8 +4610,20 @@ function activityRows_() {
            are phone-only. */
         var pn = $("phoneOnlyNote");
         if(pn) pn.style.display = hookUrl() ? "none" : "";
-        b.classList.remove("real","sample");
-        if(state.source.kind==="sample"){
+        b.classList.remove("real","sample","loading","loaderror");
+        /* v37 — load states (Day Wise first paint read as a failure):
+           with no data yet, a fetch in flight shows LOADING and a
+           failed fetch shows COULD NOT LOAD — never "NO DATA LOADED".
+           Once guests are loaded these branches never fire, so a
+           30-second refresh never flips the banner away from the list. */
+        var lb = eventBuckets[activeEvent];
+        if(!state.guests.length && lb && lb.loadState==="loading"){
+          b.classList.add("loading");
+          t.textContent="LOADING "+activeEvent+" SHEET…";
+        }else if(!state.guests.length && lb && lb.loadState==="error"){
+          b.classList.add("loaderror");
+          t.textContent="COULD NOT LOAD "+activeEvent+" SHEET";
+        }else if(state.source.kind==="sample"){
           b.classList.add("sample");
           t.textContent="SAMPLE DATA — DO NOT SEND";
         }else if(state.source.kind==="real" && state.guests.length){
@@ -4635,6 +4719,13 @@ function activityRows_() {
       function chgNotifId(n){ return "c|"+remarkKey(n)+"|"+vehKey(n.vehNo); }
 
       function loadGuests(guests, source){
+        /* v37 — any accepted load (sheet, upload, sample) resolves the
+           fetch: the event's load state is "ok" from here on, so the
+           loading banner / loading block can never linger over data,
+           and a later failure is reported against the loaded list
+           instead of painting over it. */
+        eventBuckets[activeEvent].loadState = "ok";
+        eventBuckets[activeEvent].loadError = "";
         /* Bell: diff the freshly loaded sheet against what this phone was
            already showing — a vehicle changed, an entry added, an entry
            removed. Only sheet-link loads on both sides can diff (an
@@ -4764,6 +4855,29 @@ function activityRows_() {
         if(!m) return null;
         return "https://docs.google.com/spreadsheets/d/"+m[1]+"/gviz/tq?tqx=out:csv";
       }
+      /* v37 — the distinct load-failure text: names the sheet (and, for
+         Day Wise, the tab gid) that failed, and the reason when known,
+         so a failed fetch never reads as "ask the admin for the team
+         link". The retry it names (Menu → Load data) is the one that
+         works before any source URL exists — the banner Refresh button
+         only appears once a source has loaded. */
+      function guestLoadErrorText(forEvent, url, csvUrl, err){
+        var what = "the "+forEvent+" sheet";
+        /* Name the gid that was actually tried (the per-date gid when
+           one resolved, else the fallback) — never the wrong tab. */
+        var gm = String(csvUrl||"").match(/[?&]gid=(\d+)/);
+        if(forEvent==="DAYWISE" && gm) what += " (tab gid "+gm[1]+")";
+        else if(forEvent==="DAYWISE" && daywiseGid()) what += " (tab gid "+daywiseGid()+")";
+        var m = String(url||"").match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        var msg = "Could not load "+what;
+        if(m) msg += " — sheet "+m[1];
+        var reason = (err && err.message) ? String(err.message) : "";
+        if(reason==="html") msg += " — the sheet returned a web page instead of data (check that it is shared as “Anyone with the link can view”)";
+        else if(/^HTTP \d+/.test(reason)) msg += " — the sheet returned "+reason;
+        else if(reason) msg += " — "+reason;
+        msg += ". Check your connection, then retry from Menu → Load data or reopen the team link.";
+        return msg;
+      }
       function loadFromUrl(url, quiet, silent){
         var forEvent = activeEvent;
         /* v36 — Day Wise Guest reads its own tab by gid through the
@@ -4781,6 +4895,13 @@ function activityRows_() {
           if(!quiet) setStatus("That doesn't look like a Google Sheet link. Copy the full link from the sheet's address bar or Share dialog.", "err");
           return;
         }
+        /* v37 — the fetch is in flight: record it on the event's bucket
+           and repaint at once when this event has no data yet, so the
+           first paint shows "Loading…" instead of "NO DATA LOADED".
+           With data already showing, nothing repaints (the list stays). */
+        eventBuckets[forEvent].loadState = "loading";
+        eventBuckets[forEvent].loadError = "";
+        if(forEvent===activeEvent && !state.guests.length){ updateEmptyState(); updateBanner(); render(); }
         if(!silent) setStatus("Loading sheet…");
         fetch(freshUrl(csvUrl), {cache:"no-store"}).then(function(res){
           if(!res.ok) throw new Error("HTTP "+res.status);
@@ -4797,6 +4918,7 @@ function activityRows_() {
             /* The user switched events while this sheet was loading — keep the
                data with its own event instead of mixing it into the new one. */
             var bk = eventBuckets[forEvent];
+            bk.loadState = "ok"; bk.loadError = "";
             var prevBk = bk.guests || [];
             if(prevBk.length && !guests.length){
               /* An empty background read never means everyone was deleted
@@ -4845,9 +4967,20 @@ function activityRows_() {
              already painted the banner before the stamp was set. */
           if(loadGuests(guests, {kind:"real", label:"the Google Sheet", url:url})){ state.lastUpdated = hhmmss(new Date()); updateBanner(); }
           loadRoster(url);
-        }).catch(function(){
+        }).catch(function(err){
+          /* v37 — a failed fetch is an error state on the event's bucket,
+             not a silent return to "no data": the banner and the empty
+             state name the sheet/gid that failed. Recorded for background
+             events too, so switching to that event later shows the error
+             instead of the generic text. */
+          var ebk = eventBuckets[forEvent];
+          ebk.loadState = "error";
+          ebk.loadError = guestLoadErrorText(forEvent, url, csvUrl, err);
           if(forEvent!==activeEvent) return;
           if(!silent) setStatus("Could not read that sheet. Make sure it is shared as “Anyone with the link can view”, then try again — or download it as .xlsx/.csv and use Option B.", "err");
+          updateEmptyState();
+          updateBanner();
+          render();
         });
       }
       /* ---------- v35 — SHUTTLE CARS: sheet link, gids, webhook, loading ----------
@@ -5689,7 +5822,14 @@ function activityRows_() {
         });
         list = sortGuestList(list);
         var box=$("results");
-        $("emptyState").style.display = state.guests.length ? "none":"block";
+        /* v37 — while the sheet fetch is in flight with no data yet, the
+           empty state stays hidden and the results area shows an explicit
+           loading block instead: the first paint must never read as a
+           failure. The empty state returns only once the fetch has
+           resolved (zero rows) or failed. */
+        var lb = eventBuckets[activeEvent];
+        var guestLoading = !state.guests.length && lb && lb.loadState==="loading";
+        $("emptyState").style.display = (state.guests.length || guestLoading) ? "none":"block";
         if(!state.guests.length){
           $("countLine").innerHTML = "";
         }else{
@@ -5704,7 +5844,10 @@ function activityRows_() {
           cntHtml += " — tap a card for full details and send options.";
           $("countLine").innerHTML = cntHtml;
         }
-        box.innerHTML = list.map(function(g){
+        if(guestLoading){
+          box.innerHTML = '<div class="empty" style="grid-column:1/-1"><span class="spin" aria-hidden="true"></span> <strong>Loading '+esc(activeEvent)+' sheet…</strong><br>Fetching the guest list — please wait a moment.</div>';
+        }else{
+          box.innerHTML = list.map(function(g){
           var idx = state.guests.indexOf(g);
           var meta=[];
           if(g.flight) meta.push("<span>Flight <b>"+esc(g.flight)+"</b></span>");
@@ -5738,6 +5881,7 @@ function activityRows_() {
             + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
             + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
             + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
+            + statusBadge(g)
             + ignoreBadge(g)
             + vsBadge
             + arrivedBadge
@@ -5748,7 +5892,8 @@ function activityRows_() {
             + "</button>";
           var trackHtml = clean(g.liveLocation) ? '<div class="card-track"><a class="btn small trackBtn" href="'+esc(clean(g.liveLocation))+'" target="_blank" rel="noopener">Track</a></div>' : "";
           return '<div class="cardcell">'+cardHtml+trackHtml+"</div>";
-        }).join("");
+          }).join("");
+        }
         if(state.guests.length && !list.length){
           box.innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>No guest matches</strong>Check the spelling, or clear the search and filters.</div>';
         }
@@ -7277,6 +7422,16 @@ function activityRows_() {
 
       /* ================= v29 — VIEWS (Guests / Today / Vehicles / Drivers) ================= */
       var vehiclesFilter = "all";
+      /* v37 — Day Wise "Status" column (OK / HOTEL TBD / SHARING / OVER
+         INVENTORY): the field already parses (FIELDS "status" synonym)
+         but was never shown. A small badge, only when it is not OK —
+         "OK" on every card would be noise. CMOT/IFFI sheets have no
+         Status column, so no badge ever appears there. */
+      function statusBadge(g){
+        var s = clean(g && g.status);
+        if(!s || /^ok$/i.test(s)) return "";
+        return ' <span class="badge statuswarn">'+esc(s)+"</span>";
+      }
       function guestCardHtml(g){
         var idx = state.guests.indexOf(g);
         var meta = [];
@@ -7308,6 +7463,7 @@ function activityRows_() {
           + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
           + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
           + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
+          + statusBadge(g)
           + vsBadge
           + arrivedBadge
           + tickBadges(g)
@@ -8682,6 +8838,16 @@ function activityRows_() {
         /* v36 — Day Wise Guest tab gid (?gid_daywise=), for the export read. */
         var gidDaywiseParam = params ? params.get("gid_daywise") : null;
         if(gidDaywiseParam) setDaywiseGid(gidDaywiseParam);
+        /* v37 — per-date Day Wise tab gids (?gid_dw_19nov= … ?gid_dw_25nov=):
+           merged into the stored map (a link without them leaves the
+           stored map untouched); today (IST) picks its tab, gid_daywise
+           stays the fallback for dates with no per-date gid. */
+        var dwMap = daywiseGids();
+        ["19nov","20nov","21nov","22nov","23nov","24nov","25nov"].forEach(function(k){
+          var v = params ? params.get("gid_dw_"+k) : null;
+          if(v) dwMap[k] = String(v).trim();
+        });
+        setDaywiseGids(dwMap);
         $("sheetInputCmot").value = sheetUrlFor("CMOT");
         $("sheetInputIffi").value = sheetUrlFor("IFFI");
         $("sheetInputDaywise").value = sheetUrlFor("DAYWISE");
