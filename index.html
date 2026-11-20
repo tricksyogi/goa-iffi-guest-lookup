@@ -288,7 +288,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v33</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v35</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -338,6 +338,7 @@
         <button type="button" class="vtab" id="tabDrivers" aria-pressed="false">Today's drivers</button>
         <button type="button" class="vtab" id="tabHotels" aria-pressed="false">Hotels</button>
         <button type="button" class="vtab" id="tabMembers" aria-pressed="false">Members</button>
+        <button type="button" class="vtab" id="tabShuttle" aria-pressed="false">Shuttle Cars</button>
         <button type="button" class="vtab" id="tabMap" aria-pressed="false">Live Map</button>
       </div>
 
@@ -398,6 +399,28 @@
         </label>
         <div class="rowflex" style="margin-top:8px">
           <button class="btn" id="locationsSaveBtn" type="button">Save locations sheet link</button>
+        </div>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Shuttle Cars sheet (shared — both events)</h3>
+        <p class="hint" style="margin-bottom:8px">ONE shared sheet holds the shuttle cars for the opening ceremony — one tab, <strong>Shuttle 20th-28th</strong> (S No. | Vehicle Start Date | Vehicle End Date | Cordinator Name | Cordinator No. | Reporting Hotel | Reporting Time | Vehicle Usage | Vehicle Type | Vehicle No. | Driver Name | Driver No. | Deployed | Position | Position Updated By | Position Updated At). The coordinator of a row is that car's person responsible and its supervisor; the members are the coordinators + drivers from the car rows (a separate Members tab is optional — if one exists with rows, it is used instead). The tool reads it live every 30 seconds through the <strong>export</strong> endpoint, so a basic filter on the sheet can never hide cars from the tool — but the export needs the tab's real sheet ID (gid): open the sheet, click the tab, and copy the number after <code>#gid=</code> in the address bar (571032344 for this sheet). Without the gid the tool falls back to reading the tab by name, which a sheet filter CAN hide. The shuttle webhook URL (from the Shuttle Cars Apps Script, in Help → Shuttle Cars webhook setup) shares the Deployed and Position markings with the whole team; without it they save on this phone only.</p>
+        <label class="setlabel" for="shuttleInput">Shuttle Cars sheet link
+          <input type="url" id="shuttleInput" placeholder="Paste the Shuttle Cars Google Sheet link…" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <label class="setlabel" for="shuttleGidCarsInput" style="flex:1">Cars tab gid
+            <input type="text" id="shuttleGidCarsInput" placeholder="e.g. 615176193" autocomplete="off" inputmode="numeric" />
+          </label>
+          <label class="setlabel" for="shuttleGidMembersInput" style="flex:1">Members tab gid (optional — members are derived from the car rows without it)
+            <input type="text" id="shuttleGidMembersInput" placeholder="e.g. 123456789" autocomplete="off" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="shuttleSaveBtn" type="button">Save Shuttle Cars sheet link</button>
+        </div>
+        <label class="setlabel" for="shuttleHookInput">Shuttle Cars webhook URL
+          <input type="url" id="shuttleHookInput" placeholder="Paste Shuttle Cars webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn primary" id="shuttleHookSaveBtn" type="button">Save Shuttle Cars webhook URL</button>
         </div>
         <h3 style="font-size:.95rem;margin:18px 0 6px">Change my PIN</h3>
         <p class="hint" style="margin-bottom:8px">When the team list is active, your password is your <strong>year of birth</strong> and cannot be changed here — ask the admin to correct your date of birth in the Team list if it is wrong. This change only applies to the admin fallback login (no team list), where it changes the admin PIN on this phone.</p>
@@ -511,6 +534,7 @@
       <div id="driversView" style="display:none"></div>
       <div id="hotelsView" style="display:none"></div>
       <div id="membersView" style="display:none"></div>
+      <div id="shuttleView" style="display:none"></div>
       <div id="mapView" style="display:none"></div>
 
       <!-- ============ HELP ============ -->
@@ -619,7 +643,7 @@
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Your sheet data stays as you gave it</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, updating only the Arrived, Arrival Remark, Actual Vehicle and Vehicle Arrived cells of the one guest row a member marks arrived, updating only the Driver Details Sent or Guest Details Sent cell of the one guest row a member ticks, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0">This tool never deletes or rewrites guest rows or team-list rows it did not create. The only things it ever writes to the sheet are: a new row appended to the Remarks tab when someone adds a remark, a new row appended to the Live Locations log, the Live Location Link on the vehicle rows you point it to, a new row appended to the Team tab when the admin adds a member, deleting exactly the one Team row the admin removes, updating only the Date of Birth cell of the one Team row whose password the admin resets, updating only the Arrived, Arrival Remark, Actual Vehicle and Vehicle Arrived cells of the one guest row a member marks arrived, updating only the Driver Details Sent or Guest Details Sent cell of the one guest row a member ticks, updating only the Deployed cell of the one shuttle car row a member marks deployed, updating only the Position, Position Updated By and Position Updated At cells of the one shuttle car row a member marks a position on, a new row appended to the Vehicle Status tab when a vehicle is marked, a new row appended to the Vehicle Legs tab for each marked trip, a new row appended to the Driver Calls tab for each “Called” tick, a new row appended to the Notifications tab for each team action, and a new row appended to the Activity tab logging every one of those writes with who did it and when. Everything else in the sheet is only read, never changed.</p>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to driver (line-wise)</h3>
@@ -659,12 +683,13 @@ Driver Number: {Driver Contact}</div>
           </ul>
         </div>
         <div style="margin-top:14px">
-          <h3 style="font-size:.98rem;margin:0 0 6px">The four views (tabs above the guest list)</h3>
+          <h3 style="font-size:.98rem;margin:0 0 6px">The views (tabs above the guest list)</h3>
           <ul style="margin:0;padding-left:18px;font-size:.92rem;color:var(--ink2)">
             <li><strong>Guests</strong> — the full list with search. All filters (location, type, hotel, airport, date, sort, pickup-time range) are in the <strong>Menu</strong> (&#9776; Menu &#8594; Filters) — the main page stays just search + list.</li>
             <li><strong>Aaj ke arrivals</strong> — only today's guests (IST), in time order, with vehicle and driver status.</li>
             <li><strong>Vehicles</strong> — every vehicle of the selected event in one place: driver, phone, its guests, hotel, usage type, current status and latest trip. Filter by status: on arrival duty / with guest / on shuttle / idle.</li>
             <li><strong>Today's drivers</strong> — every driver on duty today in one list: one tap to <strong>Call</strong>, one tap to send the ready-made <strong>WhatsApp</strong> day message, and a <strong>Called &#10003;</strong> tick once you have spoken to them. The tick saves with your name and the time (in the sheet when the webhook is set, otherwise on this phone — labelled as such). Calls cannot be auto-dialled for free — the tap <em>is</em> the call button.</li>
+            <li><strong>Shuttle Cars</strong> — the opening-ceremony shuttle cars, read live from the shared <strong>Shuttle Cars sheet</strong> (one tab, “Shuttle 20th-28th” — members are the coordinators + drivers from the car rows) every 30 seconds through the export endpoint, so a sheet filter can never hide a car. Tap a hotel chip to see that hotel's cars and members (Cars | Members toggle); filter by hotel, supervisor, person responsible, deployed status or position; search by vehicle, driver, member or phone. Tap a car to mark it <strong>Deployed</strong> or to <strong>Mark Position</strong> (At Venue / Arrived at Hotel / Departed / En Route / Available at Hotel) — the position and your name and the time are saved (server time when the shuttle webhook is set, device time on this phone only until then). The <strong>Vehicle Positions</strong> board shows every car with where it is and who last updated it.</li>
           </ul>
         </div>
         <div style="margin-top:14px">
@@ -720,6 +745,7 @@ Driver Number: {Driver Contact}</div>
             <li>If the webhook was deployed before admin password reset was supported, redeploy the same Apps Script project as a <strong>new version</strong> so the updateMember action goes live (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running and password resets will not save, and the tool will show the redeploy-as-new-version error instead of claiming success. On success updateMember returns <code>{ok:true, updated:1}</code> (updated = number of Team rows changed, 1 on success); if no row matches it returns <code>{ok:false, error:"Member not found"}</code>. The tool only claims success when it receives <code>{ok:true, updated:1}</code>.</li>
             <li>The same webhook also saves <strong>vehicle status</strong>: in a guest's detail view, once the sheet has a vehicle number for that guest, any logged-in member can tap <strong>Mark Vehicle Reported</strong> when the vehicle reports, and then <strong>Mark Vehicle Departed</strong> once the guest is on board and the vehicle leaves (Departed can only be marked after Reported). The status is saved through the webhook's setVehicleStatus action into a <strong>“Vehicle Status”</strong> tab (columns Vehicle | Status | Time | By — the script creates the tab with those headers if it does not exist), is keyed by vehicle number so every guest row with that vehicle shows the same status, and loads back for all members on page open and on every refresh. On success setVehicleStatus returns <code>{ok:true, updated:1}</code> and the tool only claims success when it receives exactly that. If the webhook was deployed before vehicle status was supported, redeploy the same Apps Script project as a <strong>new version</strong> (Deploy → Manage deployments → Edit → Version: New version) — otherwise the old code keeps running, vehicle statuses will not save to the sheet, and the tool will show the redeploy-as-new-version error instead of claiming success. Until the webhook is set, a marked status is saved on that member's phone only and is labelled as such.</li>
             <li><strong>Members tab (v31):</strong> every logged-in member can see who is posted where — Name, mobile (tap-to-call), Role and Allocation, read from the Team Member Allocation sheet's Allocation column. An empty Allocation shows “Not assigned yet” and is never guessed. If the sheet has no Allocation column, the tab says so instead of failing.</li>
+            <li><strong>Shuttle Cars tab (v35):</strong> the opening-ceremony shuttle cars from the shared Shuttle Cars sheet — hotel-wise chips with a Cars | Members toggle, filters (hotel, supervisor, person responsible, deployed status, position) and search, a <strong>Deployed</strong> tick and a <strong>Mark Position</strong> action on every car (At Venue (ESG Inox Parking) / Arrived at Hotel / Departed / En Route / Available at Hotel, with the updater's name and the automatic time), and a <strong>Vehicle Positions</strong> live board showing every car with its current position and “Last updated by” (name + role + time + where the car was). A new, removed or changed car or member — and any position change — shows in the bell on the next 30-second refresh. The shuttle sheet is read through the export endpoint (filter-proof) and needs the Cars tab gid in the team link (the Members gid is optional — without a Members tab, members are derived from the car rows); the Deployed and Position markings are shared through the Shuttle Cars webhook (Help → Shuttle Cars webhook setup) and save on this phone only until it is deployed.</li>
             <li><strong>Live Map tab (v31):</strong> all vehicles on one map. Positions come from each driver's phone — send the driver the vehicle's “Start tracking” link and they tap once; the phone posts its position to the sheet's “Live Locations” tab every 2 minutes (needs the webhook deployed). A Google Maps share link cannot be read for coordinates, so it stays as the per-vehicle Track button instead. A vehicle with no position for over 15 minutes is marked “Stale”. The tab also has “Add live location link” to paste a Maps link for any vehicle.</li>
             <li><strong>Share log (v31):</strong> in Admin view — every Copy / WhatsApp / Share tap on a driver or guest message, newest first, with date, time (IST), guest, sent-to, channel, shared-by and vehicle. It records the tap only (“opened WhatsApp”); it does <strong>not</strong> confirm the message was sent. Without a webhook it is kept on that phone only.</li>
           </ol>
@@ -1324,6 +1350,368 @@ function setCallTick_(data) {
             <button class="btn" id="gasToggleBtn" type="button" aria-expanded="false" aria-controls="gasCode">Show Apps Script code</button>
             <button class="btn" id="gasCopyBtn" type="button">Copy the Apps Script code</button>
           </div>
+          <div style="margin-top:14px">
+            <h3 style="font-size:.98rem;margin:0 0 6px">Shuttle Cars webhook setup</h3>
+            <p style="font-size:.92rem;color:var(--ink2);margin:0 0 8px">The Deployed tick and the Position marking reach the whole team through a <strong>separate</strong> Apps Script bound to the Shuttle Cars sheet (not the guest sheet's script — the two sheets never mix). In the Shuttle Cars sheet (one tab, “Shuttle 20th-28th” — the script finds the car tab by its Vehicle No. column, no Cars or Members tab is created): Extensions &rarr; Apps Script, paste the code below, Deploy &rarr; New deployment &rarr; Web app &rarr; Execute as Me, Who has access: Anyone. Copy the <code>/exec</code> URL into Menu &rarr; Settings &rarr; Shuttle Cars webhook URL (or the team link's <code>?hook_shuttle=</code> param). The script writes only the Deployed cell, or the Position / Position Updated By / Position Updated At cells, of the one matched car row, and logs every marking in the sheet's Activity tab (the only tab it ever adds). Until it is deployed, markings save on each member's phone only.</p>
+            <div class="rowflex" style="margin-top:8px">
+              <button class="btn" id="gasShuttleToggleBtn" type="button" aria-expanded="false" aria-controls="gasCodeShuttle">Show Shuttle Cars Apps Script code</button>
+              <button class="btn" id="gasShuttleCopyBtn" type="button">Copy the Shuttle Cars Apps Script code</button>
+            </div>
+            <div class="fmt" id="gasCodeShuttle" style="margin-top:10px;display:none">/* Shuttle Cars — Apps Script v35 (standalone, bound to the Shuttle Cars sheet)
+   Modelled exactly on Goa-IFFI-Apps-Script-v33.gs: the same narrowing
+   matcher, the same {ok:true, updated:1} success contract, and the same
+   skip-write guard (an empty/missing field means "no change", NEVER
+   "clear"). The tool reads the cars through the sheet's export
+   endpoint (filter-proof); this script is only the WRITE path for the
+   Deployed tick and the Position marking, plus the read views below
+   and the Activity log the team history lives in.
+
+   THE REAL SHEET (20 Nov 2026): "opening ceremony shuttle", ONE tab
+   "Shuttle 20th-28th" with headers S No. | Vehicle Start Date |
+   Vehicle End Date | Cordinator Name | Cordinator No. |
+   Reporting Hotel | Reporting Time | Vehicle Usage | Vehicle Type |
+   Vehicle No. | Driver Name | Driver No. | Deployed | Position |
+   Position Updated By | Position Updated At. There is NO separate
+   Cars or Members tab — the script finds the car tab by its Vehicle
+   column (the first tab carrying one) and NEVER creates tabs on read;
+   only the Activity tab is ever created. A Members tab is optional:
+   without one, doGet view=members returns [] and the tool derives
+   the members (coordinators + drivers) from the car rows. Column
+   lookup is by header NAME (normalised like the tool's norm()), so
+   column order and the real header spellings ("Vehicle No.",
+   "Reporting Hotel", "Driver No.", "Cordinator Name") all work.
+
+   DEPLOY: Extensions -&gt; Apps Script in the Shuttle Cars sheet, paste
+   this file, Deploy -&gt; New deployment -&gt; Web app -&gt; Execute as Me,
+   Who has access: Anyone. Copy the /exec URL into the tool:
+   Menu -&gt; Settings -&gt; Shuttle Cars webhook URL (or the team link's
+   ?hook_shuttle= param). Until it is deployed, Deployed and Position
+   markings save on each member's phone only. */
+
+function doGet(e) {
+  var view = e &amp;&amp; e.parameter &amp;&amp; e.parameter.view;
+  if (view === "members") {
+    return ContentService.createTextOutput(JSON.stringify(members_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (view === "activity") {
+    return ContentService.createTextOutput(JSON.stringify(activityRows_())).setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify(cars_())).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  if (data.action === "markCarDeployed") {
+    var d = markCarDeployed_(data);
+    if (d === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Deployed column not in this sheet" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d === 2) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "More than one matching row" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d !== 1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Car not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    logActivity_(data.by || data.author || "", "Shuttle car deployed", data.vehicle || "", data.deployed || "", data.time);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (data.action === "markCarPosition") {
+    var p = markCarPosition_(data);
+    if (p === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Position columns not in this sheet" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (p === 2) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "More than one matching row" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (p !== 1) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Car not found" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    /* Server time is authoritative for the marking: the client's device
+       time is never trusted for the sheet cell. */
+    logActivity_(data.by || data.author || "", "Shuttle car position", data.vehicle || "", data.position || "", new Date().toISOString());
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, updated: 1 })).setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Unknown action" })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function normMobile_(v) {
+  var d = String(v == null ? "" : v).replace(/\D/g, "");
+  if (d.length === 12 &amp;&amp; d.indexOf("91") === 0) d = d.slice(2);
+  else if (d.length === 11 &amp;&amp; d.charAt(0) === "0") d = d.slice(1);
+  return d;
+}
+
+/* Header normalisation — EXACTLY the tool's norm(): lowercase, the
+   characters .() become spaces, whitespace collapses, trim. So the
+   sheet's "Vehicle No." normalises to "vehicle no", "Driver No." to
+   "driver no", "Reporting Hotel" to "reporting hotel" — the same
+   strings the synonym lists below use. */
+function norm_(v) {
+  return String(v == null ? "" : v).toLowerCase().replace(/[().]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function tabSheet_(name, headers) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+  } else if (sh.getLastRow() === 0) {
+    sh.appendRow(headers);
+  }
+  return sh;
+}
+
+/* The car tab is found, never assumed: the first tab whose header row
+   carries a Vehicle column (normalised). The real sheet has ONE tab
+   ("Shuttle 20th-28th"); a sheet with separate Cars/Members tabs
+   still resolves to its Cars tab. NO tab is ever created on read —
+   a missing car tab falls back to the first tab (so a misconfigured
+   sheet reports "column not in this sheet" instead of silently
+   creating an empty Cars tab and writing into it). */
+function carsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  if (!sheets.length) return null;
+  for (var s = 0; s &lt; sheets.length; s++) {
+    var vals = sheets[s].getDataRange().getValues();
+    if (!vals.length || !vals[0].length) continue;
+    var headers = vals[0].map(function(h){ return norm_(h); });
+    if (carCol_(headers, ["vehicle number", "vehicle no", "vehicle"]) &gt;= 0) return sheets[s];
+  }
+  return sheets[0];
+}
+
+function membersSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName("Members");
+}
+
+function cell_(rows, i, idx) {
+  if (idx &lt; 0 || !rows[i]) return "";
+  var v = rows[i][idx];
+  return String(v == null ? "" : v).trim();
+}
+
+function cars_() {
+  var sh = carsSheet_();
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return [];
+  var headers = rows[0].map(function(h){ return norm_(h); });
+  var idx = {
+    vehicle: carCol_(headers, ["vehicle number", "vehicle no", "vehicle"]),
+    type: carCol_(headers, ["vehicle type", "type"]),
+    driver: carCol_(headers, ["driver name", "driver"]),
+    driverPhone: carCol_(headers, ["driver phone", "driver contact", "driver number", "driver mobile", "driver no"]),
+    hotel: carCol_(headers, ["hotel", "reporting hotel"]),
+    person: carCol_(headers, ["person responsible", "responsible", "person", "cordinator name", "coordinator name", "coordinator"]),
+    supervisor: carCol_(headers, ["supervisor"]),
+    supervisorPhone: carCol_(headers, ["supervisor phone", "supervisor contact", "supervisor number", "supervisor mobile", "cordinator no", "coordinator no", "coordinator number"]),
+    deployed: carCol_(headers, ["deployed"]),
+    position: carCol_(headers, ["position", "car position", "current position"]),
+    positionBy: carCol_(headers, ["position updated by", "updated by", "position by"]),
+    positionAt: carCol_(headers, ["position updated at", "updated at", "position at"])
+  };
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    var vehicle = cell_(rows, i, idx.vehicle);
+    var driver = cell_(rows, i, idx.driver);
+    var driverPhone = cell_(rows, i, idx.driverPhone);
+    if (!vehicle &amp;&amp; !driver &amp;&amp; !driverPhone) continue;
+    out.push({ vehicle: vehicle, type: cell_(rows, i, idx.type), driver: driver, driverPhone: driverPhone, hotel: cell_(rows, i, idx.hotel), person: cell_(rows, i, idx.person), supervisor: cell_(rows, i, idx.supervisor), supervisorPhone: cell_(rows, i, idx.supervisorPhone), deployed: cell_(rows, i, idx.deployed), position: cell_(rows, i, idx.position), positionBy: cell_(rows, i, idx.positionBy), positionAt: cell_(rows, i, idx.positionAt) });
+  }
+  return out;
+}
+
+function members_() {
+  var sh = membersSheet_();
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return [];
+  var headers = rows[0].map(function(h){ return norm_(h); });
+  var idx = {
+    name: carCol_(headers, ["member name", "name"]),
+    phone: carCol_(headers, ["phone", "mobile", "mobile number", "contact number"]),
+    hotel: carCol_(headers, ["hotel", "reporting hotel"]),
+    supervisor: carCol_(headers, ["supervisor"]),
+    role: carCol_(headers, ["role"])
+  };
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    var name = cell_(rows, i, idx.name);
+    var phone = cell_(rows, i, idx.phone);
+    if (!name &amp;&amp; !phone) continue;
+    out.push({ name: name, phone: phone, hotel: cell_(rows, i, idx.hotel), supervisor: cell_(rows, i, idx.supervisor), role: cell_(rows, i, idx.role) });
+  }
+  return out;
+}
+
+/* Shared car-row matcher (same shape as the v33 findGuestRow_ narrowing).
+   Finds the car's row in the car tab by Vehicle Number, narrowed by
+   Hotel and then by Driver Phone (phones compared by digits only, via
+   normMobile_). Narrow by EVERY discriminator the tool sent, instead
+   of OR-ing them: a hotel match and a phone match are two views of the
+   SAME row, not two votes. Vehicle first — it is the car's identity;
+   hotel narrows a vehicle number that appears twice (same car listed
+   under two hotels — the real sheet's GA07T2780 is Fortune/Dzire 4
+   and INOX/Dzire 15, same driver, same phone; only the hotel tells
+   them apart); phone narrows a multi-row hotel match. A hotel that
+   matches nothing is ignored (stale data must not fail the
+   write); a phone that matches nothing likewise. Returns the 0-based
+   row index (header = 0) when exactly one row matches, -1 when no row
+   carries that vehicle number (or the sheet has no Vehicle column),
+   -2 when more than one row matches every discriminator tried
+   (ambiguous). vehicleIdx is a 0-based header position; hotelIdx /
+   phoneIdx may be -1 when the sheet has no such column (then that
+   discriminator simply never matches). */
+function findCarRow_(rows, vehicleIdx, hotelIdx, phoneIdx, data) {
+  if (vehicleIdx &lt; 0) return -1;
+  var vehicle = norm_(data.vehicle);
+  if (!vehicle) return -1;
+  var hotel = norm_(data.hotel);
+  var phone = normMobile_(data.driverPhone);
+  var cands = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    if (norm_(rows[i][vehicleIdx]) === vehicle) cands.push(i);
+  }
+  if (!cands.length) return -1;
+  if (cands.length === 1) return cands[0];
+  if (hotel &amp;&amp; hotelIdx &gt;= 0) {
+    var narrowed = cands.filter(function(i){ return norm_(rows[i][hotelIdx]) === hotel; });
+    if (narrowed.length === 1) return narrowed[0];
+    if (narrowed.length &gt; 1) cands = narrowed;
+  }
+  if (phone &amp;&amp; phoneIdx &gt;= 0) {
+    var phoned = cands.filter(function(i){ return normMobile_(rows[i][phoneIdx]) === phone; });
+    if (phoned.length === 1) return phoned[0];
+    if (phoned.length &gt; 1) return -2;
+  }
+  return -2;
+}
+
+function carsHeaders_() {
+  var sh = carsSheet_();
+  if (!sh) return { rows: [], headers: [], sheet: null };
+  var rows = sh.getDataRange().getValues();
+  if (!rows.length) return { rows: rows, headers: [], sheet: sh };
+  var headers = rows[0].map(function(h){ return norm_(h); });
+  return { rows: rows, headers: headers, sheet: sh };
+}
+
+function carCol_(headers, names) {
+  for (var n = 0; n &lt; names.length; n++) {
+    var idx = headers.indexOf(names[n]);
+    if (idx &gt;= 0) return idx;
+  }
+  return -1;
+}
+
+/* Mark a shuttle car Deployed / Available. Writes ONLY the Deployed
+   cell of that one row — never any other cell. Skip-write guard (same
+   as the v33 markArrived_ rework): an empty/missing value means "no
+   change", NEVER "clear" — the cell is written only for a non-empty
+   payload value (trimmed). A deliberate "No" still writes ("No" is
+   non-empty); a blank never erases a teammate's "Yes". Returns 1 when
+   exactly one row was written, 0 when no row matches, 2 when ambiguous,
+   -1 when the sheet has no Deployed column. The tool only claims
+   success on {ok:true, updated:1}, so a stale deploy produces a
+   visible error, never a false success. */
+function markCarDeployed_(data) {
+  var got = carsHeaders_();
+  var rows = got.rows, headers = got.headers;
+  if (!rows.length || !got.sheet) return 0;
+  var vehicleIdx = carCol_(headers, ["vehicle number", "vehicle no", "vehicle"]);
+  var hotelIdx = carCol_(headers, ["hotel", "reporting hotel"]);
+  var phoneIdx = carCol_(headers, ["driver phone", "driver number", "phone", "driver no"]);
+  var depIdx = carCol_(headers, ["deployed"]);
+  if (depIdx &lt; 0) return -1;
+  var found = findCarRow_(rows, vehicleIdx, hotelIdx, phoneIdx, data);
+  if (found === -2) return 2;
+  if (found &lt; 0) return 0;
+  var depVal = String(data.deployed == null ? "" : data.deployed).trim();
+  if (depVal) got.sheet.getRange(found + 1, depIdx + 1).setValue(depVal);
+  return 1;
+}
+
+/* Mark a car's position. Writes ONLY the Position / Position Updated
+   By / Position Updated At cells of that one row — never any other
+   cell. Same skip-write guard as markCarDeployed_ for the Position
+   value itself: an empty/missing position means "no change", never
+   "clear". But the three cells are ONE mark — when a position IS
+   written, By and At are replaced with it in place (By cleared when
+   the client sent no identity, At always server time — Asia/Kolkata,
+   ISO with +05:30; the client's device time is never trusted for the
+   sheet cell, the phone-local fallback in the tool uses device time
+   only until the webhook is deployed), so the row keeps only the most
+   recent mark and never a stale updater.
+   Returns 1 when exactly one row was written, 0 when no row matches,
+   2 when ambiguous, -1 when the sheet has no Position column. */
+function markCarPosition_(data) {
+  var got = carsHeaders_();
+  var rows = got.rows, headers = got.headers;
+  if (!rows.length || !got.sheet) return 0;
+  var vehicleIdx = carCol_(headers, ["vehicle number", "vehicle no", "vehicle"]);
+  var hotelIdx = carCol_(headers, ["hotel", "reporting hotel"]);
+  var phoneIdx = carCol_(headers, ["driver phone", "driver number", "phone", "driver no"]);
+  var posIdx = carCol_(headers, ["position"]);
+  if (posIdx &lt; 0) return -1;
+  var byIdx = carCol_(headers, ["position updated by", "updated by"]);
+  var atIdx = carCol_(headers, ["position updated at", "updated at"]);
+  var found = findCarRow_(rows, vehicleIdx, hotelIdx, phoneIdx, data);
+  if (found === -2) return 2;
+  if (found &lt; 0) return 0;
+  var posVal = String(data.position == null ? "" : data.position).trim();
+  var byVal = String(data.by == null ? "" : data.by).trim() || String(data.author == null ? "" : data.author).trim();
+  if (posVal) {
+    var sh = got.sheet;
+    sh.getRange(found + 1, posIdx + 1).setValue(posVal);
+    /* The three cells are ONE mark: a new position REPLACES the previous
+       Position / Position Updated By / Position Updated At in place — the
+       car row keeps only the most recent mark, never a history of old
+       positions. By is written even when the client sent no identity
+       (cleared) so a stale name is never shown as the updater of the new
+       position; At is always server time. An empty position writes
+       nothing at all (skip-write guard — a mark with no position is not
+       a mark). */
+    if (byIdx &gt;= 0) sh.getRange(found + 1, byIdx + 1).setValue(byVal);
+    if (atIdx &gt;= 0) {
+      var atStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd'T'HH:mm:ss'+05:30'");
+      sh.getRange(found + 1, atIdx + 1).setValue(atStr);
+    }
+  }
+  return 1;
+}
+
+function activitySheet_() { return tabSheet_("Activity", ["Date", "Time", "By", "Action", "Vehicle/Guest", "Details"]); }
+
+function istParts_(timeVal) {
+  var dt = new Date(timeVal);
+  if (isNaN(dt.getTime())) return { date: String(timeVal || ""), time: "" };
+  var ist = new Date(dt.getTime() + (5 * 60 + 30) * 60 * 1000);
+  return { date: ist.toISOString().slice(0, 10), time: ist.toISOString().slice(11, 19) };
+}
+
+function logActivity_(by, action, target, details, timeVal) {
+  try {
+    var p = istParts_(timeVal || new Date().toISOString());
+    activitySheet_().appendRow([p.date, p.time, by || "", action || "", target || "", details || ""]);
+  } catch (err) {}
+}
+
+function activityRows_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Activity");
+  if (!sh) return [];
+  var rows = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i &lt; rows.length; i++) {
+    out.push({ date: rows[i][0], time: rows[i][1], by: rows[i][2], action: rows[i][3], target: rows[i][4], details: rows[i][5] });
+  }
+  return out;
+}
+</div>
+          </div>
         </div>
       </section>
 
@@ -1518,6 +1906,55 @@ function setCallTick_(data) {
       </div>
     </div>
 
+    <!-- ============ SHUTTLE CAR DETAIL (v35) ============ -->
+    <div class="overlay" id="shuttleOverlay" role="dialog" aria-modal="true" aria-labelledby="shName">
+      <div class="sheet">
+        <div class="toprow">
+          <button class="btn small" id="shuttleBackBtn" type="button">← Back to shuttle cars</button>
+          <button class="xbtn" id="shuttleCloseBtn" type="button" aria-label="Close">✕</button>
+        </div>
+        <h2 id="shName">Vehicle</h2>
+        <div class="desig" id="shDesig"></div>
+        <div class="actions">
+          <a class="btn" id="shCallDriverBtn" href="#">Call Driver</a>
+          <a class="btn" id="shWaDriverBtn" href="#" target="_blank" rel="noopener">WhatsApp Driver</a>
+        </div>
+        <table class="fields" id="shuttleFields"></table>
+
+        <div class="vehstatus" id="shuttleDeploySection">
+          <div class="secthead"><h3>Deployed</h3><span class="badge phoneonly" id="shuttleDeployLocalNote" style="display:none">Saved on this phone only</span></div>
+          <div id="shuttleDeployCurrent"></div>
+          <p class="cols-note" style="margin:4px 0 0">Deployed = this car is out on shuttle duty. Mark it once the car is on duty — one Save writes this section.</p>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn" id="shuttleDeployYesBtn" type="button">Deployed — Yes</button>
+            <button class="btn" id="shuttleDeployNoBtn" type="button">Deployed — No</button>
+          </div>
+          <p class="cols-note" id="shuttleDeployNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Deployed column yet — the marking saves on this phone only until the column is added to the sheet.</p>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn primary" id="shuttleDeploySaveBtn" type="button">Save deployed</button>
+          </div>
+          <div class="status err" id="shuttleDeployError" role="alert"></div>
+        </div>
+
+        <div class="vehstatus" id="shuttlePositionSection">
+          <div class="secthead"><h3>Mark Position</h3><span class="badge phoneonly" id="shuttlePositionLocalNote" style="display:none">Saved on this phone only</span></div>
+          <div id="shuttlePositionCurrent"></div>
+          <p class="cols-note" style="margin:4px 0 0">Position = where the car is right now. Pick one, then Save — the position, your name and the time are recorded (the time comes from the server when the webhook is set, otherwise from this phone).</p>
+          <div class="rowflex" style="margin-top:10px;flex-wrap:wrap">
+            <button class="btn" id="shPosVenueBtn" type="button">At Venue (ESG Inox Parking)</button>
+            <button class="btn" id="shPosArrivedBtn" type="button">Arrived at Hotel</button>
+            <button class="btn" id="shPosEnRouteBtn" type="button">Departed / En Route</button>
+            <button class="btn" id="shPosAvailBtn" type="button">Available at Hotel</button>
+          </div>
+          <p class="cols-note" id="shuttlePositionNoColsNote" style="display:none;color:var(--warn);font-weight:600;margin-top:6px">This sheet has no Position columns yet — the marking saves on this phone only until the columns are added to the sheet.</p>
+          <div class="rowflex" style="margin-top:10px">
+            <button class="btn primary" id="shuttlePositionSaveBtn" type="button">Save position</button>
+          </div>
+          <div class="status err" id="shuttlePositionError" role="alert"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ ADMIN — ALL REMARKS (full screen) ============ -->
     <div class="overlay adminov" id="adminOverlay" role="dialog" aria-modal="true" aria-labelledby="admin-h">
       <div class="sheet">
@@ -1686,7 +2123,43 @@ function setCallTick_(data) {
       var LS_LOCAL_ACTIVITY = "iffi-local-activity";
       var LS_LOCAL_CALLTICKS = "iffi-local-callticks";
       var LS_LOCATIONS = "iffi-hotel-locations-url";
+      var LS_SHUTTLE = "iffi-shuttle-sheet-url";
+      var LS_SHUTTLE_GID_CARS = "iffi-shuttle-gid-cars";
+      var LS_SHUTTLE_GID_MEMBERS = "iffi-shuttle-gid-members";
+      var LS_SHUTTLE_HOOK = "iffi-shuttle-hook-url";
+      var LS_LOCAL_SHUTTLE_DEPLOYED = "iffi-local-shuttle-deployed";
+      var LS_LOCAL_SHUTTLE_POSITION = "iffi-local-shuttle-position";
       var REFRESH_MS = 30000;
+
+      /* ================= v35 — SHUTTLE CARS (opening ceremony) =================
+         ONE shared sheet (both events, like the roster/locations sheets):
+         tab "Cars" + tab "Members". Read live every 30 s through the
+         EXPORT endpoint (filter-proof, see shuttleExportUrl) with a gviz
+         fallback when a tab gid is not set. Phone-local markings live in
+         their own stores (LS_LOCAL_SHUTTLE_*) and are never auto-pushed —
+         exactly like the v33 phone-local ticks. */
+      var shuttleCars = [];
+      var shuttleMembers = [];
+      var shuttleSheetCars = []; /* last SHEET values, no phone-local marks — the bell diff baseline */
+      var shuttleSheetMembers = [];
+      var shuttleStatus = "nolink"; /* nolink | loading | error | ok */
+      var shuttleSource = {kind:"none", label:"", url:""};
+      var shuttleLoaded = false; /* first successful sheet load done — the bell diff needs a previous list */
+      var shuttleHasDeployedCol = false;
+      var shuttleHasPositionCols = false;
+      var shuttleRowsRead = 0; /* non-blank data rows the last Cars parse saw */
+      var shuttleSkippedRows = []; /* rows that could not become a car (no vehicle/driver/phone) */
+      var shuttleMembersDerived = false; /* members came from the car rows, not a Members tab */
+      var shuttleHotelFilter = "", shuttleSupervisorFilter = "", shuttlePersonFilter = "", shuttleDeployedFilter = "all", shuttlePositionFilter = "all";
+      var shuttleQuery = "";
+      var shuttleMode = "cars"; /* cars | positions — the sub-view inside the Shuttle Cars section */
+      var shuttleHotelDrill = ""; /* hotelGroupKey or "" — the hotel detail inside the Cars sub-view */
+      var shuttleDrillTab = "cars"; /* cars | members — the toggle inside a hotel drill-down */
+      var shuttleCurrent = null; /* the car open in the shuttle detail overlay */
+      var shuttlePendingDeployed = ""; /* Yes | No | "" */
+      var shuttleDeployedTouched = false;
+      var shuttlePendingPosition = ""; /* one of SHUTTLE_POSITIONS or "" */
+      var shuttlePositionTouched = false;
 
       /* ================= EVENTS (CMOT / IFFI) =================
          Two events, planned separately. Each event keeps its OWN sheet link
@@ -2522,6 +2995,25 @@ function setCallTick_(data) {
           ? "Hotel locations sheet link saved \u2014 it is shared by both CMOT and IFFI. Loading the hotel list now."
           : "Hotel locations sheet link cleared \u2014 the Hotels tab will ask for the link.", "ok");
         loadLocations();
+      });
+
+      /* v35 — Save the ONE shared Shuttle Cars sheet link + its tab gids.
+         These write only the shuttle keys — they never touch either
+         event's sheet link, webhook URL, or the roster link. */
+      $("shuttleSaveBtn").addEventListener("click", function(){
+        setShuttleLinkUrl($("shuttleInput").value.trim());
+        setShuttleGidCars($("shuttleGidCarsInput").value.trim());
+        setShuttleGidMembers($("shuttleGidMembersInput").value.trim());
+        setSettingsStatus(shuttleLinkUrl()
+          ? "Shuttle Cars sheet link saved \u2014 it is shared by both CMOT and IFFI. Loading the shuttle cars now."
+          : "Shuttle Cars sheet link cleared \u2014 the Shuttle Cars tab will ask for the link.", "ok");
+        loadShuttle();
+      });
+      $("shuttleHookSaveBtn").addEventListener("click", function(){
+        setShuttleHookUrl($("shuttleHookInput").value.trim());
+        setSettingsStatus(shuttleHookUrl()
+          ? "Shuttle Cars webhook URL saved \u2014 Deployed and Position markings now reach the sheet for the whole team."
+          : "Shuttle Cars webhook URL cleared \u2014 Deployed and Position markings save on this phone only.", "ok");
       });
 
       /* ---------- Hotel matching (guest sheet name -> locations row) ----------
@@ -3675,6 +4167,205 @@ function setCallTick_(data) {
         return guests;
       }
 
+      /* ---------- v35 — SHUTTLE CARS: column mapping (ONE place) ----------
+         Every shuttle column is mapped HERE and nowhere else: if the sheet
+         renames a column, change the one syn list below and the whole
+         section follows. Headers are matched case-insensitively after
+         norm(); unknown columns are ignored (never shown, never written).
+         The export endpoint returns RAW cell text (unlike gviz, which
+         drops non-conforming values) — so "TBC"-style strings, junk and
+         blanks all arrive as-is and the normalizers below decide what
+         counts (only an exact Yes/No counts as deployed). */
+      var SHUTTLE_CARS_FIELDS = [
+        {key:"vehicle", label:"Vehicle Number", syn:["vehicle number","vehicle no","vehicle","vehicle no."]},
+        {key:"vehType", label:"Vehicle Type", syn:["vehicle type","type"]},
+        {key:"driver", label:"Driver Name", syn:["driver name","driver"]},
+        {key:"driverPhone", label:"Driver Phone", syn:["driver phone","driver contact","driver number","driver mobile","driver no"]},
+        {key:"hotel", label:"Hotel", syn:["hotel","reporting hotel"]},
+        {key:"person", label:"Person Responsible", syn:["person responsible","responsible","person","cordinator name","coordinator name","coordinator"]},
+        {key:"supervisor", label:"Supervisor", syn:["supervisor"]},
+        {key:"supervisorPhone", label:"Supervisor Phone", syn:["supervisor phone","supervisor contact","supervisor number","supervisor mobile","cordinator no","coordinator no","coordinator number"]},
+        {key:"deployed", label:"Deployed", syn:["deployed"]},
+        {key:"position", label:"Position", syn:["position","car position","current position"]},
+        {key:"positionBy", label:"Position Updated By", syn:["position updated by","updated by","position by"]},
+        {key:"positionAt", label:"Position Updated At", syn:["position updated at","updated at","position at"]}
+      ];
+      var SHUTTLE_MEMBERS_FIELDS = [
+        {key:"name", label:"Member Name", syn:["member name","name"]},
+        {key:"phone", label:"Phone", syn:["phone","mobile","mobile number","contact number"]},
+        {key:"hotel", label:"Hotel", syn:["hotel","reporting hotel"]},
+        {key:"supervisor", label:"Supervisor", syn:["supervisor"]},
+        {key:"role", label:"Role", syn:["role"]}
+      ];
+      function shuttleColKeys(headers, fields){
+        return headers.map(function(h){
+          for(var i=0;i<fields.length;i++){
+            for(var j=0;j<fields[i].syn.length;j++){
+              if(norm(fields[i].syn[j])===h) return fields[i].key;
+            }
+          }
+          return null;
+        });
+      }
+      var lastLoadShuttleDeployedCol = false;
+      var lastLoadShuttlePositionCols = false;
+      /* v35 rework — what the last Cars parse saw, for the honest empty
+         states: how many non-blank data rows the sheet returned, and
+         which of them could not become a car (a row with a vehicle type
+         / hotel / coordinator but no vehicle number, driver or driver
+         phone — a real car awaiting assignment, never silently dropped).
+         A row with nothing car-like at all (the sheet's own note row)
+         is not recorded — it is an annotation, not data. */
+      var lastLoadShuttleRowsRead = 0;
+      var lastLoadShuttleSkipped = [];
+      function tableToShuttleCars(table){
+        if(!table.length) return [];
+        var headers = table[0].map(function(h){ return norm(h); });
+        var colKey = shuttleColKeys(headers, SHUTTLE_CARS_FIELDS);
+        /* Header presence (not cell values) decides whether the sheet HAS
+           the write columns — same reasoning as hasArrivalCols /
+           hasTickCols: a sheet with the columns but all-blank cells looks
+           identical to a sheet without them once parsed. */
+        lastLoadShuttleDeployedCol = colKey.indexOf("deployed") > -1;
+        lastLoadShuttlePositionCols = colKey.indexOf("position") > -1 || colKey.indexOf("positionBy") > -1 || colKey.indexOf("positionAt") > -1;
+        lastLoadShuttleRowsRead = 0;
+        lastLoadShuttleSkipped = [];
+        var cars = [];
+        for(var r=1;r<table.length;r++){
+          var rowArr = table[r] || [];
+          var rowBlank = true;
+          for(var b=0;b<rowArr.length;b++){ if(clean(rowArr[b])){ rowBlank = false; break; } }
+          if(rowBlank) continue;
+          lastLoadShuttleRowsRead++;
+          var c = {};
+          SHUTTLE_CARS_FIELDS.forEach(function(f){ c[f.key] = ""; });
+          for(var k=0;k<headers.length;k++){
+            if(colKey[k]){ var v = clean(table[r][k]); if(!c[colKey[k]]) c[colKey[k]] = v; }
+          }
+          /* v35 rework (user, 20 Nov 05:04 IST): the coordinator IS the
+             responsible person AND the supervisor — when the sheet has no
+             Supervisor column, the person responsible fills it, so the
+             supervisor filter and the role resolution work off the
+             coordinator. A sheet WITH a Supervisor column keeps its own
+             value (the post-pass only fills a blank). */
+          if(!c.supervisor && c.person) c.supervisor = c.person;
+          if(!c.vehicle && !c.driver && !c.driverPhone){
+            if(c.vehType || c.hotel || c.person) lastLoadShuttleSkipped.push({type:c.vehType, hotel:c.hotel, person:c.person});
+            continue;
+          }
+          c._key = shuttleCarKey(c);
+          cars.push(c);
+        }
+        return cars;
+      }
+      /* v35 rework — derived members: when the sheet has no Members tab
+         (or it reads empty), the members ARE the people on the car rows
+         — the coordinator of each row (role "Supervisor", supervisor =
+         themself) and the driver of each row (role "Driver", supervisor =
+         the row's coordinator), deduplicated by name+phone per hotel
+         group. A driver with neither a name nor a phone is not a person
+         and is skipped (a car with no driver assigned yet). A real
+         Members tab with rows always wins over this derived list. */
+      function deriveShuttleMembers(cars){
+        var seen = {}, out = [];
+        (cars || []).forEach(function(c){
+          var hotel = clean(c.hotel);
+          var gk = hotelGroupKey(hotel);
+          var coord = clean(c.person), coordPhone = clean(c.supervisorPhone);
+          if(coord || coordPhone){
+            var ck = "c|" + norm(coord) + "|" + digits(coordPhone) + "|" + gk;
+            if(!seen[ck]){ seen[ck] = 1; out.push({name:coord, phone:coordPhone, hotel:hotel, supervisor:coord, role:"Supervisor", _key:shuttleMemberKey({name:coord, phone:coordPhone})}); }
+          }
+          var drv = clean(c.driver), drvPhone = clean(c.driverPhone);
+          if(drv || drvPhone){
+            var dk = "d|" + norm(drv) + "|" + digits(drvPhone) + "|" + gk;
+            if(!seen[dk]){ seen[dk] = 1; out.push({name:drv, phone:drvPhone, hotel:hotel, supervisor:coord, role:"Driver", _key:shuttleMemberKey({name:drv, phone:drvPhone})}); }
+          }
+        });
+        return out;
+      }
+      function tableToShuttleMembers(table){
+        if(!table.length) return [];
+        var headers = table[0].map(function(h){ return norm(h); });
+        var colKey = shuttleColKeys(headers, SHUTTLE_MEMBERS_FIELDS);
+        var members = [];
+        for(var r=1;r<table.length;r++){
+          var m = {};
+          SHUTTLE_MEMBERS_FIELDS.forEach(function(f){ m[f.key] = ""; });
+          for(var k=0;k<headers.length;k++){
+            if(colKey[k]){ var v = clean(table[r][k]); if(!m[colKey[k]]) m[colKey[k]] = v; }
+          }
+          if(!m.name && !m.phone) continue;
+          m._key = shuttleMemberKey(m);
+          members.push(m);
+        }
+        return members;
+      }
+      function shuttleCarKey(c){
+        return (String(c && c.vehicle || "").trim().toUpperCase().replace(/\s+/g," ")) + "|" + normHotelName(c && c.hotel || "");
+      }
+      function shuttleMemberKey(m){
+        return norm(m && m.name || "") + "|" + digits(m && m.phone || "");
+      }
+      /* Deployed (v35): only an exact "Yes"/"No" (case-insensitive)
+         counts — blank, or any other value, means not deployed. Same
+         guard as normalizeArrived, so a junk value in the Deployed
+         column can never show as a deployed car. */
+      function normalizeDeployed(v){
+        var s = clean(v).toLowerCase();
+        if(s === "yes") return "Yes";
+        if(s === "no") return "No";
+        return "";
+      }
+      function shuttleCarDeployed(c){ return normalizeDeployed(c && c.deployed) === "Yes"; }
+      /* The four position options the tool offers (v35 additional spec).
+         "Arrived at Hotel" is recorded as "Arrived — <the car's Hotel>"
+         (or plain "Arrived at Hotel" when the car has no hotel). */
+      var SHUTTLE_POSITIONS = ["At Venue (ESG Inox Parking)", "Arrived at Hotel", "Departed / En Route", "Available at Hotel"];
+      /* v35 clarification (20 Nov 04:46 IST): the updater of a marking
+         is the login identity — the roster NAME first, else the logged-in
+         MOBILE. A marking must never record a blank updater. */
+      function shuttleActorName(){
+        if(!currentUser) return "";
+        return clean(currentUser.name) || clean(currentUser.mobile) || "";
+      }
+      function shuttlePositionValue(option, car){
+        if(option === "Arrived at Hotel"){
+          var h = clean(car && car.hotel);
+          return h ? "Arrived — " + h : "Arrived at Hotel";
+        }
+        return option;
+      }
+      function shuttlePositionTime(v){
+        var s = clean(v);
+        if(!s) return "";
+        var d = new Date(s);
+        if(!isNaN(d.getTime())) return fmtDT(d);
+        return s;
+      }
+      /* Who last updated this car's position, and with what role.
+         Supervisor wins: a name that appears in any Supervisor column
+         is a supervisor. Otherwise the role comes from the shuttle
+         Members tab (its Role column), then from the team roster, and
+         a name found nowhere is a Volunteer — nobody's role is ever
+         invented from nothing. */
+      function shuttleUpdaterRole(name){
+        var n = norm(name);
+        if(!n) return "";
+        var i;
+        for(i=0;i<shuttleCars.length;i++){ if(norm(shuttleCars[i].supervisor)===n) return "Supervisor"; }
+        for(i=0;i<shuttleMembers.length;i++){
+          if(norm(shuttleMembers[i].supervisor)===n) return "Supervisor";
+          if(norm(shuttleMembers[i].name)===n && clean(shuttleMembers[i].role)) return clean(shuttleMembers[i].role);
+        }
+        if(typeof roster!=="undefined" && roster){
+          for(i=0;i<roster.length;i++){
+            if(norm(roster[i].name)===n && clean(roster[i].role)) return clean(roster[i].role);
+          }
+        }
+        return "Volunteer";
+      }
+
       /* ---------- Data banner ---------- */
       function updateBanner(){
         var b=$("dataBanner"), t=$("dataBannerText");
@@ -3981,6 +4672,130 @@ function setCallTick_(data) {
           if(!silent) setStatus("Could not read that sheet. Make sure it is shared as “Anyone with the link can view”, then try again — or download it as .xlsx/.csv and use Option B.", "err");
         });
       }
+      /* ---------- v35 — SHUTTLE CARS: sheet link, gids, webhook, loading ----------
+         The shuttle sheet is ONE shared sheet (both events). Its tabs are
+         read through the EXPORT endpoint, NOT gviz: export returns the
+         raw sheet and IGNORES basic filters (proven 19 Nov 2026: with a
+         Date filter on, gviz dropped to 276 rows while export still
+         showed all 533; CORS verified — the final export response sends
+         Access-Control-Allow-Origin: *, so fetch() from this page works).
+         The export URL 307-redirects; fetch follows it. gid MUST be the
+         tab's real sheetId — gid=0 returns an HTML error page (proven).
+         When a gid is absent the tool falls back to the gviz URL for
+         that tab by NAME (current behaviour) and the empty state says
+         so — a sheet filter CAN hide rows through gviz. */
+      function shuttleLinkUrl(){ return String(lsGetRaw(LS_SHUTTLE) || "").trim(); }
+      function setShuttleLinkUrl(u){
+        u = String(u==null?"":u).trim();
+        if(u) lsSetRaw(LS_SHUTTLE, u); else lsDel(LS_SHUTTLE);
+      }
+      function shuttleGidCars(){ return String(lsGetRaw(LS_SHUTTLE_GID_CARS) || "").trim(); }
+      function setShuttleGidCars(g){ g = String(g==null?"":g).trim(); if(g) lsSetRaw(LS_SHUTTLE_GID_CARS, g); else lsDel(LS_SHUTTLE_GID_CARS); }
+      function shuttleGidMembers(){ return String(lsGetRaw(LS_SHUTTLE_GID_MEMBERS) || "").trim(); }
+      function setShuttleGidMembers(g){ g = String(g==null?"":g).trim(); if(g) lsSetRaw(LS_SHUTTLE_GID_MEMBERS, g); else lsDel(LS_SHUTTLE_GID_MEMBERS); }
+      function shuttleHookUrl(){ return String(lsGetRaw(LS_SHUTTLE_HOOK) || "").trim(); }
+      function setShuttleHookUrl(u){ u = String(u==null?"":u).trim(); if(u) lsSetRaw(LS_SHUTTLE_HOOK, u); else lsDel(LS_SHUTTLE_HOOK); }
+      function shuttleSheetId(url){ var m = String(url).match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/); return m ? m[1] : ""; }
+      function shuttleExportUrl(url, gid){
+        var id = shuttleSheetId(url);
+        if(!id || !gid) return null;
+        return "https://docs.google.com/spreadsheets/d/" + id + "/export?format=csv&gid=" + encodeURIComponent(String(gid).trim());
+      }
+      function shuttleGvizUrl(url, tabName){
+        var id = shuttleSheetId(url);
+        if(!id) return null;
+        return "https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tabName);
+      }
+      function shuttleTabUrl(url, gid, tabName){
+        /* Export when the tab gid is known (filter-proof); gviz by tab
+           name when it is not (a sheet filter CAN hide rows — the empty
+           state says so). */
+        return shuttleExportUrl(url, gid) || shuttleGvizUrl(url, tabName);
+      }
+      function postToShuttleHook(payload){
+        return fetch(shuttleHookUrl(), {
+          method:"POST",
+          headers:{ "Content-Type":"text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+      }
+      function loadShuttle(quiet, cb){
+        var url = shuttleLinkUrl();
+        if(!url){
+          shuttleStatus = "nolink";
+          shuttleSource = {kind:"none", label:"", url:""};
+          if(typeof cb==="function") cb(false);
+          if(state.view==="shuttle") renderShuttle();
+          return;
+        }
+        shuttleStatus = "loading";
+        if(state.view==="shuttle") renderShuttle();
+        var carsUrl = shuttleTabUrl(url, shuttleGidCars(), "Cars");
+        var membersUrl = shuttleTabUrl(url, shuttleGidMembers(), "Members");
+        function fetchTab(u, mapFn){
+          if(!u) return Promise.resolve(null);
+          return fetch(freshUrl(u), {cache:"no-store"}).then(function(res){
+            if(!res.ok) throw new Error("HTTP "+res.status);
+            return res.text();
+          }).then(function(t){
+            if(/^\s*</.test(t)) throw new Error("html");
+            return mapFn(parseCSV(t));
+          });
+        }
+        /* v35 rework: the Members fetch is OPTIONAL — the real sheet has
+           no Members tab, and a failed Members read must never sink the
+           Cars load. A null Members result keeps the previous list; an
+           empty one is derived from the car rows below. */
+        Promise.all([fetchTab(carsUrl, tableToShuttleCars), fetchTab(membersUrl, tableToShuttleMembers).catch(function(){ return null; })]).then(function(pair){
+          var cars = pair[0], members = pair[1];
+          /* A tab that failed to load (null) keeps its previous list —
+             one bad tab must not wipe the other tab's data. */
+          if(cars === null) cars = shuttleSheetCars;
+          if(members === null) members = shuttleSheetMembers;
+          /* v35 rework: no Members tab (or it read empty) — derive the
+             members from the car rows (coordinators + drivers). A real
+             Members tab with rows always wins over the derived list. */
+          var membersDerived = false;
+          if(!members.length && cars.length){ members = deriveShuttleMembers(cars); membersDerived = true; }
+          var firstLoad = !shuttleLoaded;
+          /* Empty read: never report removals — hold the previous lists
+             (same conservative rule as the guest empty-read hold). A
+             genuinely emptied tab shows again once a later read brings
+             rows back; the empty state says the tab read empty. */
+          if(!cars.length && !members.length && (shuttleSheetCars.length || shuttleSheetMembers.length)){
+            shuttleStatus = "error";
+            if(state.view==="shuttle") renderShuttle();
+            if(typeof cb==="function") cb(false);
+            return;
+          }
+          /* Diff sheet values against sheet values (never against lists
+             carrying phone-local marks — a local Yes absent from the
+             sheet would otherwise read as a change). */
+          if(!firstLoad && (shuttleSheetCars.length || shuttleSheetMembers.length)){
+            diffShuttleForBell(shuttleSheetCars, cars, shuttleSheetMembers, members);
+          }
+          shuttleSheetCars = cars.map(function(c){ var o={}; for(var k in c) o[k]=c[k]; return o; });
+          shuttleSheetMembers = members.map(function(m){ var o={}; for(var k in m) o[k]=m[k]; return o; });
+          shuttleCars = cars; shuttleMembers = members;
+          shuttleHasDeployedCol = lastLoadShuttleDeployedCol;
+          shuttleHasPositionCols = lastLoadShuttlePositionCols;
+          shuttleRowsRead = lastLoadShuttleRowsRead;
+          shuttleSkippedRows = lastLoadShuttleSkipped.slice();
+          shuttleMembersDerived = membersDerived;
+          applyKnownShuttleDeployed(shuttleCars);
+          applyKnownShuttlePosition(shuttleCars);
+          shuttleStatus = "ok";
+          shuttleSource = {kind:"real", label:"the Shuttle Cars sheet", url:url};
+          shuttleLoaded = true;
+          if(state.view==="shuttle") renderShuttle();
+          if(typeof cb==="function") cb(true);
+        }).catch(function(){
+          shuttleStatus = "error";
+          if(state.view==="shuttle") renderShuttle();
+          if(!quiet) toast("Could not read the Shuttle Cars sheet — check the link and gids in Settings");
+          if(typeof cb==="function") cb(false);
+        });
+      }
       $("loadUrlBtn").addEventListener("click", function(){
         var url = $("sheetUrl").value.trim();
         if(!url){ setStatus("Paste the Google Sheet link first.", "err"); return; }
@@ -3994,6 +4809,7 @@ function setCallTick_(data) {
           loadRoster("");
         }
         loadLocations();
+        loadShuttle();
         fetchRemarks(true);
         fetchVehicleStatuses(true);
         fetchLegs(true);
@@ -4014,6 +4830,9 @@ function setCallTick_(data) {
            a hotel added to the locations sheet appears without any tool
            change. */
         loadLocations();
+        /* The shared Shuttle Cars sheet re-loads in the same cycle, so a
+           car or member added to it appears without any tool change. */
+        loadShuttle(true);
         if(hookUrl()) fetchRemarks(true);
         if(hookUrl()) fetchVehicleStatuses(true);
         if(hookUrl()) fetchLivePositions(true);
@@ -5404,6 +6223,24 @@ function setCallTick_(data) {
           });
         }
       })();
+      $("gasShuttleCopyBtn").addEventListener("click", function(){ copyText($("gasCodeShuttle").textContent, "Shuttle Cars Apps Script code copied — paste it into Apps Script"); });
+      (function(){
+        var toggleBtn = $("gasShuttleToggleBtn"), codeEl = $("gasCodeShuttle");
+        if(toggleBtn && codeEl){
+          toggleBtn.addEventListener("click", function(){
+            var isHidden = codeEl.style.display==="none";
+            if(isHidden){
+              codeEl.style.display="";
+              toggleBtn.textContent="Hide Shuttle Cars Apps Script code";
+              toggleBtn.setAttribute("aria-expanded","true");
+            }else{
+              codeEl.style.display="none";
+              toggleBtn.textContent="Show Shuttle Cars Apps Script code";
+              toggleBtn.setAttribute("aria-expanded","false");
+            }
+          });
+        }
+      })();
 
 
       /* ================= v29 — USAGE TYPE, TODAY (IST), VEHICLE AGGREGATES =================
@@ -5802,6 +6639,73 @@ function setCallTick_(data) {
          Both actions are per-event (they act on the active event's
          bucket) and report each removal exactly once, with the same
          "Entry removed" wording the bell has always used. */
+      /* v35 — bell diff for shuttle cars + members. Identity: cars by
+         vehicle number + hotel (multiset — the same vehicle number can
+         appear twice, e.g. two duties); members by name + phone.
+         Added / removed / changed (hotel, driver, deployed status,
+         position) each produce one bell notification, same wording shape
+         as the guest diff. Export reads are filter-proof, so a row
+         missing from a successful read is genuinely gone — no
+         manual-confirm hold is needed here (unlike the gviz guest diff);
+         an EMPTY read is still held by loadShuttle and never diffed. */
+      function diffShuttleForBell(oldCars, newCars, oldMembers, newMembers){
+        function carChanged(a, b){
+          if(normHotelName(a.hotel) !== normHotelName(b.hotel)) return "hotel";
+          if(clean(a.driver) !== clean(b.driver)) return "driver";
+          if(normalizeDeployed(a.deployed) !== normalizeDeployed(b.deployed)) return "deployed";
+          if(clean(a.position) !== clean(b.position)) return "position";
+          return "";
+        }
+        var oldMap = {}, newMap = {};
+        (oldCars||[]).forEach(function(c){ var k = shuttleCarKey(c); (oldMap[k] = oldMap[k] || []).push(c); });
+        (newCars||[]).forEach(function(c){ var k = shuttleCarKey(c); (newMap[k] = newMap[k] || []).push(c); });
+        Object.keys(newMap).forEach(function(k){
+          var news = newMap[k], olds = oldMap[k];
+          if(!olds){
+            news.forEach(function(n){ addNotif("sheet", "Shuttle car added: " + (clean(n.vehicle)||"Unnamed vehicle") + (clean(n.hotel) ? " · " + clean(n.hotel) : ""), "Sheet", true); });
+            return;
+          }
+          var used = {};
+          news.forEach(function(n){
+            var match = null, mi = -1, i, j;
+            for(i=0;i<olds.length;i++){
+              if(used[i]) continue;
+              if(clean(olds[i].driver) === clean(n.driver)){ match = olds[i]; mi = i; break; }
+            }
+            if(match===null){
+              for(j=0;j<olds.length;j++){ if(!used[j]){ match = olds[j]; mi = j; break; } }
+            }
+            if(match===null){
+              addNotif("sheet", "Shuttle car added: " + (clean(n.vehicle)||"Unnamed vehicle") + (clean(n.hotel) ? " · " + clean(n.hotel) : ""), "Sheet", true);
+              return;
+            }
+            used[mi] = 1;
+            var ch = carChanged(match, n);
+            if(ch === "deployed"){
+              addNotif("sheet", "Shuttle car " + (clean(n.vehicle)||"") + (shuttleCarDeployed(n) ? " deployed" : " now available") + (clean(n.hotel) ? " · " + clean(n.hotel) : ""), "Sheet", true);
+            }else if(ch === "position"){
+              addNotif("sheet", "Position changed for " + (clean(n.vehicle)||"a shuttle car") + ": " + (clean(match.position) || "not marked") + " → " + (clean(n.position) || "not marked"), "Sheet", true);
+            }else if(ch){
+              addNotif("sheet", "Shuttle car changed: " + (clean(n.vehicle)||"Unnamed vehicle") + " · " + ch, "Sheet", true);
+            }
+          });
+          olds.forEach(function(o, i){
+            if(!used[i]) addNotif("sheet", "Shuttle car removed: " + (clean(o.vehicle)||"Unnamed vehicle") + (clean(o.hotel) ? " · " + clean(o.hotel) : ""), "Sheet", true);
+          });
+        });
+        Object.keys(oldMap).forEach(function(k){
+          if(!newMap[k]) oldMap[k].forEach(function(o){ addNotif("sheet", "Shuttle car removed: " + (clean(o.vehicle)||"Unnamed vehicle") + (clean(o.hotel) ? " · " + clean(o.hotel) : ""), "Sheet", true); });
+        });
+        var oldM = {}, newM = {};
+        (oldMembers||[]).forEach(function(m){ var k = shuttleMemberKey(m); (oldM[k] = oldM[k] || []).push(m); });
+        (newMembers||[]).forEach(function(m){ var k = shuttleMemberKey(m); (newM[k] = newM[k] || []).push(m); });
+        Object.keys(newM).forEach(function(k){
+          if(!oldM[k]) newM[k].forEach(function(m){ addNotif("sheet", "Shuttle member added: " + (clean(m.name)||"Unnamed member") + (clean(m.hotel) ? " · " + clean(m.hotel) : ""), "Sheet", true); });
+        });
+        Object.keys(oldM).forEach(function(k){
+          if(!newM[k]) oldM[k].forEach(function(m){ addNotif("sheet", "Shuttle member removed: " + (clean(m.name)||"Unnamed member") + (clean(m.hotel) ? " · " + clean(m.hotel) : ""), "Sheet", true); });
+        });
+      }
       function confirmPendingRemovals(){
         if(!currentUser) return false;
         var bk = eventBuckets[activeEvent];
@@ -6510,6 +7414,540 @@ function setCallTick_(data) {
           }).join("") + "</div>";
       }
 
+      /* ================= v35 — SHUTTLE CARS: phone-local stores =================
+         Same pattern as the v33 phone-local ticks: the sheet is the
+         truth — a local mark only fills a blank sheet cell, is
+         re-applied on refresh, and is NEVER auto-pushed when a webhook
+         appears later. Only a "Yes" deployed is stored locally: a local
+         "No" must never hide the team's sheet "Yes". A position record
+         holds position + by + device time (the webhook writes server
+         time instead — see markCarPosition in the .gs). */
+      function localShuttleDeployed(){
+        var m = lsGetJSON(LS_LOCAL_SHUTTLE_DEPLOYED, {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var r = m[k];
+          if(r && normalizeDeployed(r.deployed)==="Yes") out[k] = {deployed:"Yes", time:String(r.time||""), by:String(r.by||"")};
+        });
+        return out;
+      }
+      function saveLocalShuttleDeployed(key, deployed, time, by){
+        var m = localShuttleDeployed();
+        if(normalizeDeployed(deployed)==="Yes") m[key] = {deployed:"Yes", time:time||"", by:by||""};
+        else delete m[key];
+        lsSetJSON(LS_LOCAL_SHUTTLE_DEPLOYED, m);
+      }
+      function applyKnownShuttleDeployed(cars){
+        var m = localShuttleDeployed();
+        (cars||[]).forEach(function(c){
+          var rec = m[c._key];
+          if(!rec) return;
+          if(!normalizeDeployed(c.deployed)){ c.deployed = "Yes"; c._deployRec = rec; }
+        });
+      }
+      function localShuttlePosition(){
+        var m = lsGetJSON(LS_LOCAL_SHUTTLE_POSITION, {});
+        if(!m || typeof m!=="object" || Array.isArray(m)) return {};
+        var out = {};
+        Object.keys(m).forEach(function(k){
+          var r = m[k];
+          if(r && clean(r.position)) out[k] = {position:clean(r.position), by:String(r.by||""), time:String(r.time||"")};
+        });
+        return out;
+      }
+      function saveLocalShuttlePosition(key, position, by, time){
+        var m = localShuttlePosition();
+        if(clean(position)) m[key] = {position:clean(position), by:by||"", time:time||""};
+        else delete m[key];
+        lsSetJSON(LS_LOCAL_SHUTTLE_POSITION, m);
+      }
+      function applyKnownShuttlePosition(cars){
+        var m = localShuttlePosition();
+        (cars||[]).forEach(function(c){
+          var rec = m[c._key];
+          if(!rec) return;
+          if(!clean(c.position)){ c.position = rec.position; c.positionBy = rec.by; c.positionAt = rec.time; c._posRec = rec; }
+        });
+      }
+
+      /* ---------- v35 — SHUTTLE CARS: grouping + filtering ---------- */
+      function shuttleSupervisorHotels(name){
+        /* v35 rework — the hotels a supervisor is coordinator of: the
+           hotel groups of every car whose person responsible or
+           supervisor is that name. A supervisor filter shows ALL the
+           members at those hotels, not only the rows carrying the
+           supervisor's name (one hotel's rows may carry several
+           coordinators — X, Y and Z are all at that hotel). */
+        var n = norm(name), out = [];
+        shuttleCars.forEach(function(c){
+          if(norm(c.person) === n || norm(c.supervisor) === n){
+            var gk = hotelGroupKey(c.hotel);
+            if(out.indexOf(gk) === -1) out.push(gk);
+          }
+        });
+        return out;
+      }
+      function shuttleHotelGroups(){
+        /* Distinct hotels across Cars + Members, grouped by the same
+           hotelGroupKey as the guest hotels ("Taj Vivanta Panjim" and
+           "Vivanta" are one group; blank / #N/A / NA → "No hotel listed"). */
+        var counts = {};
+        shuttleCars.forEach(function(c){ var gk = hotelGroupKey(c.hotel); counts[gk] = counts[gk] || {cars:0, members:0}; counts[gk].cars++; });
+        shuttleMembers.forEach(function(m){ var gk = hotelGroupKey(m.hotel); counts[gk] = counts[gk] || {cars:0, members:0}; counts[gk].members++; });
+        return counts;
+      }
+      function shuttleFilteredCars(){
+        var q = shuttleQuery.trim().toLowerCase();
+        return shuttleCars.filter(function(c){
+          if(shuttleHotelFilter && hotelGroupKey(c.hotel) !== shuttleHotelFilter) return false;
+          /* v35 rework: the coordinator IS the supervisor, so a
+             supervisor filter matches either column — a car counts for
+             its coordinator whether the sheet spells them as the person
+             responsible or as the supervisor. */
+          if(shuttleSupervisorFilter && norm(c.supervisor) !== norm(shuttleSupervisorFilter) && norm(c.person) !== norm(shuttleSupervisorFilter)) return false;
+          if(shuttlePersonFilter && norm(c.person) !== norm(shuttlePersonFilter)) return false;
+          if(shuttleDeployedFilter === "deployed" && !shuttleCarDeployed(c)) return false;
+          if(shuttleDeployedFilter === "available" && shuttleCarDeployed(c)) return false;
+          if(shuttlePositionFilter !== "all"){
+            if(shuttlePositionFilter === "notmarked"){ if(clean(c.position)) return false; }
+            else if(clean(c.position) !== shuttlePositionFilter) return false;
+          }
+          if(q){
+            var hay = [c.vehicle, c.driver, c.driverPhone, c.hotel, c.person, c.supervisor, c.supervisorPhone, c.vehType, c.position].join(" ").toLowerCase();
+            if(hay.indexOf(q) === -1) return false;
+          }
+          return true;
+        });
+      }
+      function shuttleFilteredMembers(){
+        var q = shuttleQuery.trim().toLowerCase();
+        return shuttleMembers.filter(function(m){
+          if(shuttleHotelFilter && hotelGroupKey(m.hotel) !== shuttleHotelFilter) return false;
+          /* v35 rework — a supervisor filter shows ALL of that
+             supervisor's members AND cars: a member counts when their
+             supervisor IS the name, or when their hotel is one of the
+             hotels that supervisor is coordinator of. (One hotel's rows
+             may carry several coordinators — all of them are at that
+             hotel, so all of the hotel's members show for each of them.) */
+          if(shuttleSupervisorFilter){
+            var sup = norm(shuttleSupervisorFilter);
+            var supHotels = shuttleSupervisorHotels(sup);
+            if(norm(m.supervisor) !== sup && supHotels.indexOf(hotelGroupKey(m.hotel)) === -1) return false;
+          }
+          if(q){
+            var hay = [m.name, m.phone, m.hotel, m.supervisor, m.role].join(" ").toLowerCase();
+            if(hay.indexOf(q) === -1) return false;
+          }
+          return true;
+        });
+      }
+      function shuttlePositionLine(c){
+        if(!clean(c.position)) return "";
+        var by = clean(c.positionBy);
+        var at = clean(c.positionAt);
+        var role = by ? shuttleUpdaterRole(by) : "";
+        var bits = "Position: <b>" + esc(clean(c.position)) + "</b>";
+        /* The who is never left blank silently: a position with no
+           recorded updater says so. */
+        bits += " · by " + esc(by || "not recorded") + (role ? " · " + esc(role) : "");
+        if(at) bits += " · " + esc(shuttlePositionTime(at));
+        return '<div class="vmeta">' + bits + "</div>";
+      }
+      function shuttleCarCardHtml(c){
+        var idx = shuttleCars.indexOf(c);
+        var tel = intlNumber(c.driverPhone, "");
+        var wa = validWaNumber(c.driverPhone);
+        var html = '<div class="vehcard"><span class="vno">' + esc(clean(c.vehicle) || "No vehicle no.") + "</span>"
+          + (clean(c.vehType) ? ' <span class="badge usage">' + esc(clean(c.vehType)) + "</span>" : "")
+          + (shuttleCarDeployed(c) ? ' <span class="badge arrived">Deployed ✓</span>' : ' <span class="badge">Available</span>')
+          + (clean(c.position) ? ' <span class="badge">' + esc(clean(c.position)) + "</span>" : "")
+          + '<div class="vmeta">Driver: <b>' + esc(clean(c.driver) || "—") + "</b>" + (clean(c.driverPhone) ? " · " + esc(clean(c.driverPhone)) : "") + "</div>"
+          + '<div class="vmeta">Hotel: <b>' + esc(clean(c.hotel) || "—") + "</b> · Person: <b>" + esc(clean(c.person) || "—") + "</b></div>"
+          + '<div class="vmeta">Supervisor: <b>' + esc(clean(c.supervisor) || "—") + "</b>" + (clean(c.supervisorPhone) ? " (" + esc(clean(c.supervisorPhone)) + ")" : "") + "</div>"
+          + shuttlePositionLine(c)
+          + '<div class="rowflex" style="margin-top:10px">'
+          + '<button class="btn small primary" type="button" data-shuttle-open="' + idx + '">Open car</button>'
+          + (tel ? '<a class="btn small" href="tel:+' + tel + '">Call driver</a>' : "")
+          + (wa ? '<a class="btn small" href="https://wa.me/91' + wa + '" target="_blank" rel="noopener">WhatsApp</a>' : "")
+          + "</div></div>";
+        return html;
+      }
+      function shuttleMemberRowHtml(m){
+        /* v35 staging fix (Sr Dev re-review condition 1): a phone cell can
+           hold two numbers ("7028635826 / 8530222405" — Anish Shimpe /
+           Carl Rodrigues). intlNumber() strips non-digits and would
+           concatenate them into one 20-digit garbage tel link. First
+           number wins for the Call link, shuttle-locally; the label
+           shows the number actually dialled. WhatsApp still refuses a
+           combined number (validWaNumber), as before. */
+        var firstPhone = String(m.phone || "").split(/[\/,;]/)[0].trim();
+        var tel = intlNumber(firstPhone, "");
+        var wa = validWaNumber(m.phone);
+        return '<div class="memberrow"><span class="dname">' + esc(clean(m.name) || "Member") + "</span>"
+          + '<div class="vmeta" style="margin-top:3px">Role: <b>' + esc(clean(m.role) || "—") + '</b> · Hotel: <b>' + esc(clean(m.hotel) || "—") + '</b> · Supervisor: <b>' + esc(clean(m.supervisor) || "—") + "</b></div>"
+          + '<div class="rowflex" style="margin-top:10px">'
+          + (tel ? '<a class="btn" href="tel:+' + tel + '">Call ' + esc(firstPhone) + "</a>" : '<span class="vmeta">' + esc(clean(m.phone) || "No number") + "</span>")
+          + (wa ? '<a class="btn" href="https://wa.me/91' + wa + '" target="_blank" rel="noopener">WhatsApp</a>' : '<span class="vmeta">WhatsApp: no valid number</span>')
+          + "</div></div>";
+      }
+
+      /* ---------- v35 — SHUTTLE CARS: section render ---------- */
+      function renderShuttle(){
+        var box = $("shuttleView");
+        if(!box) return;
+        var head = '<p class="viewhead">Shuttle Cars — opening ceremony, 20 Nov</p>'
+          + '<p class="viewsub">Cars deployed to the hotels for the opening ceremony shuttles to ESG (Inox Parking). Cars come from the Shuttle Cars sheet — read live every 30 seconds. Tap a hotel to see its cars and members; tap a car to mark it deployed or mark its position.</p>';
+        if(!shuttleLinkUrl()){
+          box.innerHTML = head + '<div class="empty"><strong>No shuttle sheet linked yet</strong>Add the Shuttle Cars sheet link in Settings (Menu → Settings → Shuttle Cars sheet link), or open the team link carrying <code>?sheet_shuttle=…</code>. No sample data is shown here — only the sheet\'s own rows.</div>';
+          return;
+        }
+        if(shuttleStatus === "loading" && !shuttleLoaded){
+          box.innerHTML = head + '<div class="empty"><strong>Loading shuttle cars…</strong>Reading the Shuttle Cars sheet.</div>';
+          return;
+        }
+        if(shuttleStatus === "error" && !shuttleLoaded){
+          box.innerHTML = head + '<div class="empty"><strong>Shuttle Cars sheet could not be read</strong>Check the sheet link and the Cars / Members tab gids in Settings, and that the sheet is shared as “Anyone with the link can view”, then tap Refresh now.</div>';
+          return;
+        }
+        if(shuttleLoaded && !shuttleCars.length && !shuttleMembers.length){
+          if(shuttleRowsRead > 0){
+            /* v35 rework (Founder): rows exist but none could be read —
+               say so plainly with the fix, instead of the misleading
+               "no cars saved yet". */
+            box.innerHTML = head + '<div class="empty"><strong>No shuttle cars could be read</strong>The sheet returned ' + shuttleRowsRead + ' row' + (shuttleRowsRead === 1 ? '' : 's') + ' but none matched the expected columns — check the sheet headers (Vehicle No. | Reporting Hotel | Driver No. | Cordinator Name) in Settings.</div>';
+          }else{
+            box.innerHTML = head + '<div class="empty"><strong>No shuttle cars saved yet</strong>Add rows to the Shuttle Cars sheet and they will appear here on the next refresh.</div>';
+          }
+          return;
+        }
+        var skippedWarn = '';
+        if(shuttleSkippedRows.length){
+          skippedWarn = '<div class="uploadwarn" role="status" style="margin:0 0 10px">' + shuttleSkippedRows.length + ' row' + (shuttleSkippedRows.length === 1 ? ' has' : 's have') + ' no vehicle number yet (' + esc(shuttleSkippedRows.map(function(s){ return [s.type, s.hotel, s.person].filter(Boolean).join(" · "); }).join("; ")) + ') — add a vehicle number in the sheet to see ' + (shuttleSkippedRows.length === 1 ? 'it' : 'them') + ' here.</div>';
+        }
+        var warn = (shuttleStatus === "error" ? '<div class="uploadwarn" role="status" style="margin:0 0 10px">Could not refresh the Shuttle Cars sheet — showing the last loaded list.</div>' : '')
+          + (!shuttleGidCars() ? '<div class="uploadwarn" role="status" style="margin:0 0 10px">Cars tab gid is not set — the cars are read by tab name, so a basic filter on the sheet CAN hide cars from the tool. Add the Cars gid in Settings to make the read filter-proof.</div>' : '')
+          + (!shuttleHookUrl() ? '<div class="uploadwarn" role="status" style="margin:0 0 10px">No shuttle webhook set — Deployed and Position markings save on this phone only until the webhook URL is set (Settings → Shuttle Cars webhook URL).</div>' : '')
+          + skippedWarn;
+        var modeTabs = '<div class="chips" role="group" aria-label="Shuttle view" style="margin-bottom:10px">'
+          + '<button class="chip" type="button" data-shuttlemode="cars" aria-pressed="' + (shuttleMode === "cars" ? "true" : "false") + '">Cars</button>'
+          + '<button class="chip" type="button" data-shuttlemode="positions" aria-pressed="' + (shuttleMode === "positions" ? "true" : "false") + '">Vehicle Positions</button>'
+          + "</div>";
+        /* Filter selects — rebuilt on every render from the loaded data,
+           so a new hotel / supervisor / person / position appears by itself. */
+        function optList(values, allLabel, sel){
+          var seen = {}, out = ['<option value="">' + esc(allLabel) + "</option>"];
+          values.forEach(function(v){
+            v = clean(v);
+            if(!v || seen[v]) return;
+            seen[v] = 1;
+            out.push('<option value="' + esc(v) + '"' + (v === sel ? " selected" : "") + ">" + esc(v) + "</option>");
+          });
+          return out.join("");
+        }
+        var groups = shuttleHotelGroups();
+        var hotelOpts = ['<option value="">All hotels</option>'].concat(Object.keys(groups).sort().map(function(gk){
+          return '<option value="' + esc(gk) + '"' + (shuttleHotelFilter === gk ? " selected" : "") + ">" + esc(gk) + " (" + (groups[gk].cars + groups[gk].members) + ")</option>";
+        }));
+        var supValues = [], perValues = [], posValues = [];
+        shuttleCars.forEach(function(c){ supValues.push(c.supervisor); perValues.push(c.person); if(clean(c.position)) posValues.push(clean(c.position)); });
+        shuttleMembers.forEach(function(m){ supValues.push(m.supervisor); });
+        var filters = '<div class="searchrow" style="margin-bottom:10px"><input type="search" id="shuttleSearch" placeholder="Search vehicle / driver / member / phone…" autocomplete="off" aria-label="Search shuttle cars and members" value="' + esc(shuttleQuery) + '" /></div>'
+          + '<div class="selrow"><select id="shuttleHotelFilter" aria-label="Filter by hotel">' + hotelOpts.join("") + "</select>"
+          + '<select id="shuttleSupervisorFilter" aria-label="Filter by supervisor">' + optList(supValues, "All supervisors", shuttleSupervisorFilter) + "</select>"
+          + '<select id="shuttlePersonFilter" aria-label="Filter by person responsible">' + optList(perValues, "All persons responsible", shuttlePersonFilter) + "</select>"
+          + '<select id="shuttleDeployedFilter" aria-label="Filter by deployed status"><option value="all"' + (shuttleDeployedFilter === "all" ? " selected" : "") + '>All cars</option><option value="deployed"' + (shuttleDeployedFilter === "deployed" ? " selected" : "") + '>Deployed</option><option value="available"' + (shuttleDeployedFilter === "available" ? " selected" : "") + '>Available</option></select>'
+          + '<select id="shuttlePositionFilter" aria-label="Filter by position"><option value="all"' + (shuttlePositionFilter === "all" ? " selected" : "") + '>All positions</option><option value="notmarked"' + (shuttlePositionFilter === "notmarked" ? " selected" : "") + '>Not marked</option>' + posValues.filter(function(v, i, a){ return a.indexOf(v) === i; }).sort().map(function(v){ return '<option value="' + esc(v) + '"' + (shuttlePositionFilter === v ? " selected" : "") + ">" + esc(v) + "</option>"; }).join("") + "</select></div>";
+        box.innerHTML = head + warn + modeTabs + filters + '<div id="shuttleContent"></div>';
+        var inp = $("shuttleSearch");
+        if(inp) inp.addEventListener("input", function(){ shuttleQuery = inp.value; renderShuttleContent(); });
+        [["shuttleHotelFilter", "hotel"], ["shuttleSupervisorFilter", "supervisor"], ["shuttlePersonFilter", "person"], ["shuttleDeployedFilter", "deployed"], ["shuttlePositionFilter", "position"]].forEach(function(pair){
+          var el = $(pair[0]);
+          if(el) el.addEventListener("change", function(){
+            if(pair[1] === "hotel") shuttleHotelFilter = el.value;
+            if(pair[1] === "supervisor") shuttleSupervisorFilter = el.value;
+            if(pair[1] === "person") shuttlePersonFilter = el.value;
+            if(pair[1] === "deployed") shuttleDeployedFilter = el.value;
+            if(pair[1] === "position") shuttlePositionFilter = el.value;
+            renderShuttle();
+          });
+        });
+        var mt = box.querySelectorAll("[data-shuttlemode]");
+        for(var i=0;i<mt.length;i++) mt[i].addEventListener("click", function(){ shuttleMode = this.getAttribute("data-shuttlemode"); renderShuttle(); });
+        renderShuttleContent();
+      }
+      function renderShuttleContent(){
+        var box = $("shuttleContent");
+        if(!box) return;
+        if(shuttleHotelDrill){ renderShuttleHotelDrill(); return; }
+        if(shuttleMode === "positions"){ renderShuttlePositions(); return; }
+        /* Cars mode: hotel chips first, then the filtered car list. */
+        var groups = shuttleHotelGroups();
+        var keys = Object.keys(groups).sort();
+        var chips = keys.map(function(gk){
+          var g = groups[gk];
+          return '<button class="chip" type="button" data-shuttle-hotel="' + esc(gk) + '">' + esc(gk) + " · " + g.cars + " car" + (g.cars === 1 ? "" : "s") + " · " + g.members + " member" + (g.members === 1 ? "" : "s") + "</button>";
+        }).join("");
+        var list = shuttleFilteredCars();
+        var html = '<div class="chips" role="group" aria-label="Hotels" style="margin-bottom:10px">' + chips + "</div>"
+          + '<p class="count" style="margin:0 2px 10px"><strong>' + list.length + "</strong> car" + (list.length === 1 ? "" : "s") + (shuttleCars.length !== list.length ? " of " + shuttleCars.length : "") + "</p>";
+        if(!list.length){
+          html += '<div class="empty"><strong>No cars match</strong>Try another hotel, supervisor or search.</div>';
+        }else{
+          html += '<div class="results" style="margin-top:0">' + list.map(shuttleCarCardHtml).join("") + "</div>";
+        }
+        box.innerHTML = html;
+        wireShuttleContent(box);
+      }
+      function renderShuttlePositions(){
+        var box = $("shuttleContent");
+        if(!box) return;
+        /* The live board: every car with its current position and who
+           last updated it (name + role + time + where the car was).
+           Filtered by hotel + position + search (and supervisor). */
+        var list = shuttleFilteredCars();
+        var html = '<p class="viewsub">Live board — every shuttle car and where it is right now. Updates on the 30-second refresh; a position change shows in the bell.</p>'
+          + '<p class="count" style="margin:0 2px 10px"><strong>' + list.length + "</strong> car" + (list.length === 1 ? "" : "s") + "</p>";
+        if(!list.length){
+          html += '<div class="empty"><strong>No cars match</strong>Try another hotel or position filter.</div>';
+        }else{
+          html += '<div class="results" style="margin-top:0">' + list.map(function(c){
+            var idx = shuttleCars.indexOf(c);
+            var by = clean(c.positionBy);
+            var at = clean(c.positionAt);
+            var role = by ? shuttleUpdaterRole(by) : "";
+            return '<div class="memberrow"><span class="dname">' + esc(clean(c.vehicle) || "No vehicle no.") + "</span>"
+              + ' <span class="badge ' + (shuttleCarDeployed(c) ? "arrived" : "") + '">' + (shuttleCarDeployed(c) ? "Deployed ✓" : "Available") + "</span>"
+              + '<div class="vmeta" style="margin-top:3px">' + esc(clean(c.vehType) || "—") + " · Driver: <b>" + esc(clean(c.driver) || "—") + "</b> · Hotel: <b>" + esc(clean(c.hotel) || "—") + "</b></div>"
+              + '<div class="vmeta" style="margin-top:3px">Person: <b>' + esc(clean(c.person) || "—") + "</b> · Supervisor: <b>" + esc(clean(c.supervisor) || "—") + "</b></div>"
+              + '<div class="vmeta" style="margin-top:3px">Position: <b>' + esc(clean(c.position) || "Not marked") + "</b>" + (clean(c.position) ? " · Last updated by <b>" + esc(by || "not recorded") + "</b>" + (role ? " · " + esc(role) : "") + (at ? " · " + esc(shuttlePositionTime(at)) : "") : "") + "</div>"
+              + '<div class="rowflex" style="margin-top:10px"><button class="btn small primary" type="button" data-shuttle-open="' + idx + '">Open car</button></div></div>';
+          }).join("") + "</div>";
+        }
+        box.innerHTML = html;
+        wireShuttleContent(box);
+      }
+      function renderShuttleHotelDrill(){
+        var box = $("shuttleContent");
+        if(!box) return;
+        var gk = shuttleHotelDrill;
+        var loc = matchHotelLocation(gk === "No hotel listed" ? "" : gk);
+        var cars = shuttleFilteredCars().filter(function(c){ return hotelGroupKey(c.hotel) === gk; });
+        var members = shuttleFilteredMembers().filter(function(m){ return hotelGroupKey(m.hotel) === gk; });
+        var html = '<div class="rowflex" style="margin-bottom:10px"><button class="btn small" type="button" data-shuttle-back="1">← Back to shuttle cars</button></div>'
+          + '<p class="viewhead" style="margin-top:0">' + esc(gk) + "</p>"
+          + (loc ? '<p class="viewsub">' + esc(loc.address || "") + (loc.link ? ' · <a href="' + esc(loc.link) + '" target="_blank" rel="noopener">Open in Maps</a>' : "") + "</p>" : "")
+          + '<div class="chips" role="group" aria-label="Hotel detail view" style="margin-bottom:10px">'
+          + '<button class="chip" type="button" data-shuttledrilltab="cars" aria-pressed="' + (shuttleDrillTab === "cars" ? "true" : "false") + '">Cars (' + cars.length + ")</button>"
+          + '<button class="chip" type="button" data-shuttledrilltab="members" aria-pressed="' + (shuttleDrillTab === "members" ? "true" : "false") + '">Members (' + members.length + ")</button>"
+          + "</div>";
+        if(shuttleDrillTab === "members"){
+          html += members.length ? '<div class="results" style="margin-top:0">' + members.map(shuttleMemberRowHtml).join("") + "</div>"
+            : '<div class="empty"><strong>No members here</strong>No members of this hotel match the current filters.</div>';
+        }else{
+          html += cars.length ? '<div class="results" style="margin-top:0">' + cars.map(shuttleCarCardHtml).join("") + "</div>"
+            : '<div class="empty"><strong>No cars here</strong>No cars of this hotel match the current filters.</div>';
+        }
+        box.innerHTML = html;
+        wireShuttleContent(box);
+      }
+      function wireShuttleContent(box){
+        var opens = box.querySelectorAll("[data-shuttle-open]");
+        for(var i=0;i<opens.length;i++) opens[i].addEventListener("click", function(){ openShuttleDetail(parseInt(this.getAttribute("data-shuttle-open"), 10)); });
+        var hotels = box.querySelectorAll("[data-shuttle-hotel]");
+        for(var j=0;j<hotels.length;j++) hotels[j].addEventListener("click", function(){ shuttleHotelDrill = this.getAttribute("data-shuttle-hotel"); shuttleDrillTab = "cars"; renderShuttleContent(); });
+        var backs = box.querySelectorAll("[data-shuttle-back]");
+        for(var k=0;k<backs.length;k++) backs[k].addEventListener("click", function(){ shuttleHotelDrill = ""; renderShuttleContent(); });
+        var tabs = box.querySelectorAll("[data-shuttledrilltab]");
+        for(var l=0;l<tabs.length;l++) tabs[l].addEventListener("click", function(){ shuttleDrillTab = this.getAttribute("data-shuttledrilltab"); renderShuttleContent(); });
+      }
+
+      /* ---------- v35 — SHUTTLE CARS: car detail overlay ---------- */
+      function openShuttleDetail(idx){
+        var c = shuttleCars[idx];
+        if(!c) return;
+        shuttleCurrent = c;
+        shuttlePendingDeployed = normalizeDeployed(c.deployed);
+        shuttleDeployedTouched = false;
+        shuttlePendingPosition = "";
+        shuttlePositionTouched = false;
+        renderShuttleDetail();
+        var o = $("shuttleOverlay");
+        if(o){ o.classList.add("open"); o.scrollTop = 0; }
+        document.body.style.overflow = "hidden";
+      }
+      function closeShuttleDetail(){
+        shuttleCurrent = null;
+        var o = $("shuttleOverlay");
+        if(o) o.classList.remove("open");
+        document.body.style.overflow = "";
+      }
+      function renderShuttleDetail(){
+        var c = shuttleCurrent;
+        if(!c) return;
+        $("shName").textContent = clean(c.vehicle) || "Vehicle";
+        $("shDesig").textContent = clean(c.vehType) || "";
+        var tel = intlNumber(c.driverPhone, "");
+        var wa = validWaNumber(c.driverPhone);
+        var callBtn = $("shCallDriverBtn");
+        if(callBtn){ if(tel){ callBtn.setAttribute("href", "tel:+" + tel); callBtn.style.display = ""; } else { callBtn.removeAttribute("href"); callBtn.style.display = "none"; } }
+        var waBtn = $("shWaDriverBtn");
+        if(waBtn){ if(wa){ waBtn.setAttribute("href", "https://wa.me/91" + wa + "?text=" + encodeURIComponent("Shuttle car " + (clean(c.vehicle) || "") + " — Hotel: " + (clean(c.hotel) || ""))); waBtn.style.display = ""; } else waBtn.style.display = "none"; }
+        var rows = [
+          ["Vehicle Number", clean(c.vehicle)], ["Vehicle Type", clean(c.vehType)],
+          ["Driver", clean(c.driver)], ["Driver Phone", clean(c.driverPhone)],
+          ["Hotel", clean(c.hotel)], ["Person Responsible", clean(c.person)],
+          ["Supervisor", clean(c.supervisor) + (clean(c.supervisorPhone) ? " (" + clean(c.supervisorPhone) + ")" : "")],
+          ["Deployed", normalizeDeployed(c.deployed) || "—"],
+          ["Position", clean(c.position) || "—"],
+          ["Position Updated By", clean(c.positionBy) || "—"],
+          ["Position Updated At", shuttlePositionTime(c.positionAt) || "—"]
+        ];
+        $("shuttleFields").innerHTML = rows.map(function(r){
+          return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1] || "—") + "</td></tr>";
+        }).join("");
+        var yb = $("shuttleDeployYesBtn"), nb = $("shuttleDeployNoBtn");
+        if(yb) yb.classList.toggle("primary", shuttlePendingDeployed === "Yes");
+        if(nb) nb.classList.toggle("primary", shuttlePendingDeployed === "No");
+        var cur = $("shuttleDeployCurrent");
+        if(cur){
+          var rec = c._deployRec;
+          if(normalizeDeployed(c.deployed)){
+            cur.innerHTML = "Deployed: <b>" + esc(normalizeDeployed(c.deployed)) + "</b>"
+              + (rec && rec.by ? " · " + esc(rec.by) : "")
+              + (rec && rec.time ? " · " + esc(shuttlePositionTime(rec.time)) : "")
+              + (!rec ? " · from the sheet" : "");
+          }else{
+            cur.innerHTML = '<p class="cols-note" style="margin:6px 0">Not deployed yet.</p>';
+          }
+        }
+        var dn = $("shuttleDeployNoColsNote");
+        if(dn) dn.style.display = (!shuttleHasDeployedCol) ? "" : "none";
+        var dl = $("shuttleDeployLocalNote");
+        if(dl) dl.style.display = (!shuttleHookUrl() || !shuttleHasDeployedCol) ? "" : "none";
+        var de = $("shuttleDeployError");
+        if(de) de.textContent = "";
+        var pcur = $("shuttlePositionCurrent");
+        if(pcur){
+          if(clean(c.position)){
+            var by = clean(c.positionBy), at = clean(c.positionAt);
+            var role = by ? shuttleUpdaterRole(by) : "";
+            pcur.innerHTML = "Position: <b>" + esc(clean(c.position)) + "</b>"
+              + " · by " + esc(by || "not recorded") + (role ? " · " + esc(role) : "")
+              + (at ? " · " + esc(shuttlePositionTime(at)) : "");
+          }else{
+            pcur.innerHTML = '<p class="cols-note" style="margin:6px 0">Not marked yet.</p>';
+          }
+        }
+        var posBtns = [["shPosVenueBtn", "At Venue (ESG Inox Parking)"], ["shPosArrivedBtn", "Arrived at Hotel"], ["shPosEnRouteBtn", "Departed / En Route"], ["shPosAvailBtn", "Available at Hotel"]];
+        posBtns.forEach(function(pair){
+          var b = $(pair[0]);
+          if(b) b.classList.toggle("primary", shuttlePendingPosition === pair[1]);
+        });
+        var pn = $("shuttlePositionNoColsNote");
+        if(pn) pn.style.display = (!shuttleHasPositionCols) ? "" : "none";
+        var pl = $("shuttlePositionLocalNote");
+        if(pl) pl.style.display = (!shuttleHookUrl() || !shuttleHasPositionCols) ? "" : "none";
+        var pe = $("shuttlePositionError");
+        if(pe) pe.textContent = "";
+      }
+
+      /* ---------- v35 — SHUTTLE CARS: Deployed + Position ticks ---------- */
+      /* The shared record for shuttle markings is the shuttle sheet's
+         Activity tab (written by the Apps Script). The bell entry for a
+         marking is phone-local only (skipPost) — nothing is posted to
+         the event webhook, which belongs to the guest sheet. */
+      function recordShuttleAction(action, target, details, notifText){
+        try{
+          var list = localActivity();
+          list.push({ date:istDateStr(), time:hhmmss(new Date()), by:shuttleActorName(), action:String(action||""), target:String(target||""), details:String(details||""), ts:new Date().toISOString() });
+          if(list.length>500) list = list.slice(list.length-500);
+          lsSetJSON(localActivityKey(), list);
+        }catch(e){}
+        if(notifText) addNotif("action", notifText, shuttleActorName(), true);
+        if(state.adminOpen) renderActivity();
+      }
+      function markCarDeployed(){
+        var c = shuttleCurrent;
+        if(!c) return;
+        if(!currentUser){ toast("Log in first"); return; }
+        if(!shuttleDeployedTouched){ toast("Tap Deployed — Yes or No first"); return; }
+        var errBox = $("shuttleDeployError");
+        if(errBox) errBox.textContent = "";
+        var val = shuttlePendingDeployed;
+        function applied(){
+          /* The local copy mirrors exactly what was sent. A phone-local
+             "No" is never stored (see applyKnownShuttleDeployed) — the
+             sheet's "Yes" always wins over it. */
+          saveLocalShuttleDeployed(c._key, val, new Date().toISOString(), shuttleActorName());
+          c.deployed = val;
+          if(normalizeDeployed(val) === "Yes") c._deployRec = {deployed:"Yes", time:new Date().toISOString(), by:shuttleActorName()};
+          else delete c._deployRec;
+          recordShuttleAction("Shuttle car deployed", clean(c.vehicle), val, "Shuttle car " + clean(c.vehicle) + " marked Deployed " + val);
+          renderShuttle();
+          renderShuttleDetail();
+        }
+        if(shuttleHookUrl() && shuttleHasDeployedCol){
+          postToShuttleHook({action:"markCarDeployed", vehicle:c.vehicle, hotel:c.hotel, driverPhone:c.driverPhone, deployed:val, by:shuttleActorName(), time:new Date().toISOString()})
+            .then(function(res){ return res.json(); })
+            .then(function(data){
+              if(data && data.ok && data.updated === 1){ applied(); toast("Deployed saved to the sheet", 4000); }
+              else if(errBox) errBox.textContent = (data && data.error) || "Could not save — check the shuttle webhook URL in Settings";
+            }).catch(function(){ if(errBox) errBox.textContent = "Could not reach the shuttle webhook — check the URL in Settings"; });
+        }else{
+          applied();
+          toast("Deployed saved on this phone", 4000);
+        }
+      }
+      function markCarPosition(){
+        var c = shuttleCurrent;
+        if(!c) return;
+        if(!currentUser){ toast("Log in first"); return; }
+        if(!shuttlePositionTouched || !shuttlePendingPosition){ toast("Pick a position first"); return; }
+        var errBox = $("shuttlePositionError");
+        if(errBox) errBox.textContent = "";
+        var val = shuttlePositionValue(shuttlePendingPosition, c);
+        var nowIso = new Date().toISOString();
+        function applied(){
+          /* Phone-local fallback: device time (the webhook writes
+             server time instead — the sheet value replaces this on the
+             next refresh). A mark REPLACES the previous Position / By /
+             At in place — the car row keeps only the most recent mark,
+             never a history. The pending pick then resets, so the action
+             stays available for the next mark (cars shuttle hotel →
+             venue → hotel repeatedly). */
+          saveLocalShuttlePosition(c._key, val, shuttleActorName(), nowIso);
+          c.position = val; c.positionBy = shuttleActorName(); c.positionAt = nowIso;
+          c._posRec = {position:val, by:shuttleActorName(), time:nowIso};
+          shuttlePendingPosition = "";
+          shuttlePositionTouched = false;
+          recordShuttleAction("Shuttle car position", clean(c.vehicle), val, "Position for " + clean(c.vehicle) + ": " + val);
+          renderShuttle();
+          renderShuttleDetail();
+        }
+        if(shuttleHookUrl() && shuttleHasPositionCols){
+          postToShuttleHook({action:"markCarPosition", vehicle:c.vehicle, hotel:c.hotel, driverPhone:c.driverPhone, position:val, by:shuttleActorName(), time:nowIso})
+            .then(function(res){ return res.json(); })
+            .then(function(data){
+              if(data && data.ok && data.updated === 1){ applied(); toast("Position saved to the sheet", 4000); }
+              else if(errBox) errBox.textContent = (data && data.error) || "Could not save — check the shuttle webhook URL in Settings";
+            }).catch(function(){ if(errBox) errBox.textContent = "Could not reach the shuttle webhook — check the URL in Settings"; });
+        }else{
+          applied();
+          toast("Position saved on this phone", 4000);
+        }
+      }
+      $("shuttleBackBtn").addEventListener("click", closeShuttleDetail);
+      $("shuttleCloseBtn").addEventListener("click", closeShuttleDetail);
+      $("shuttleDeployYesBtn").addEventListener("click", function(){ shuttlePendingDeployed = "Yes"; shuttleDeployedTouched = true; renderShuttleDetail(); });
+      $("shuttleDeployNoBtn").addEventListener("click", function(){ shuttlePendingDeployed = "No"; shuttleDeployedTouched = true; renderShuttleDetail(); });
+      $("shuttleDeploySaveBtn").addEventListener("click", markCarDeployed);
+      $("shPosVenueBtn").addEventListener("click", function(){ shuttlePendingPosition = "At Venue (ESG Inox Parking)"; shuttlePositionTouched = true; renderShuttleDetail(); });
+      $("shPosArrivedBtn").addEventListener("click", function(){ shuttlePendingPosition = "Arrived at Hotel"; shuttlePositionTouched = true; renderShuttleDetail(); });
+      $("shPosEnRouteBtn").addEventListener("click", function(){ shuttlePendingPosition = "Departed / En Route"; shuttlePositionTouched = true; renderShuttleDetail(); });
+      $("shPosAvailBtn").addEventListener("click", function(){ shuttlePendingPosition = "Available at Hotel"; shuttlePositionTouched = true; renderShuttleDetail(); });
+      $("shuttlePositionSaveBtn").addEventListener("click", markCarPosition);
+
       /* ================= v31 — LIVE MAP =================
          All vehicles on ONE map. Honest constraint, stated in the tab
          itself: a Google Maps live-location share link cannot be read
@@ -6935,10 +8373,10 @@ function setCallTick_(data) {
 
       function setView(v){
         state.view = v;
-        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers"), hotels:$("tabHotels"), members:$("tabMembers"), map:$("tabMap") };
+        var tabs = { guests:$("tabGuests"), today:$("tabToday"), vehicles:$("tabVehicles"), drivers:$("tabDrivers"), hotels:$("tabHotels"), members:$("tabMembers"), shuttle:$("tabShuttle"), map:$("tabMap") };
         Object.keys(tabs).forEach(function(k){ if(tabs[k]) tabs[k].setAttribute("aria-pressed", k===v ? "true" : "false"); });
         var sb = $("searchbar"), rs = $("results"), es = $("emptyState");
-        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView"), hv = $("hotelsView"), mv = $("membersView"), mpv = $("mapView");
+        var tv = $("todayView"), vv = $("vehiclesView"), dv = $("driversView"), hv = $("hotelsView"), mv = $("membersView"), shv = $("shuttleView"), mpv = $("mapView");
         if(sb) sb.style.display = v==="guests" ? "" : "none";
         if(rs) rs.style.display = v==="guests" ? "" : "none";
         if(es) es.style.display = v==="guests" ? (state.guests.length ? "none" : "block") : "none";
@@ -6947,6 +8385,7 @@ function setCallTick_(data) {
         if(dv) dv.style.display = v==="drivers" ? "" : "none";
         if(hv) hv.style.display = v==="hotels" ? "" : "none";
         if(mv) mv.style.display = v==="members" ? "" : "none";
+        if(shv) shv.style.display = v==="shuttle" ? "" : "none";
         if(mpv) mpv.style.display = v==="map" ? "" : "none";
         if(v==="guests") render();
         else if(v==="today") renderToday();
@@ -6954,6 +8393,7 @@ function setCallTick_(data) {
         else if(v==="drivers"){ fetchCallTicks(); renderDrivers(); }
         else if(v==="hotels"){ hotelDrill = ""; renderHotels(); }
         else if(v==="members") renderMembers();
+        else if(v==="shuttle") renderShuttle();
         else if(v==="map"){ fetchLivePositions(true); renderMap(); }
       }
       function refreshCurrentView(){
@@ -6962,6 +8402,7 @@ function setCallTick_(data) {
         else if(state.view==="drivers") renderDrivers();
         else if(state.view==="hotels") renderHotelList();
         else if(state.view==="members") renderMembers();
+        else if(state.view==="shuttle") renderShuttle();
         else if(state.view==="map") renderMap();
       }
 
@@ -7020,12 +8461,27 @@ function setCallTick_(data) {
         if(rosterParam) setRosterLinkUrl(rosterParam);
         var locationsParam = params ? params.get("locations") : null;
         if(locationsParam) setLocationsLinkUrl(locationsParam);
+        /* v35 — the shared Shuttle Cars sheet: ?sheet_shuttle= (sheet
+           link), ?gid_shuttle_cars= / ?gid_shuttle_members= (real tab
+           gids — the export read needs them), ?hook_shuttle= (webhook). */
+        var shuttleParam = params ? params.get("sheet_shuttle") : null;
+        if(shuttleParam) setShuttleLinkUrl(shuttleParam);
+        var gidCarsParam = params ? params.get("gid_shuttle_cars") : null;
+        if(gidCarsParam) setShuttleGidCars(gidCarsParam);
+        var gidMembersParam = params ? params.get("gid_shuttle_members") : null;
+        if(gidMembersParam) setShuttleGidMembers(gidMembersParam);
+        var shuttleHookParam = params ? params.get("hook_shuttle") : null;
+        if(shuttleHookParam) setShuttleHookUrl(shuttleHookParam);
         $("sheetInputCmot").value = sheetUrlFor("CMOT");
         $("sheetInputIffi").value = sheetUrlFor("IFFI");
         $("hookInputCmot").value = hookUrlFor("CMOT");
         $("hookInputIffi").value = hookUrlFor("IFFI");
         $("rosterInput").value = rosterLinkUrl();
         $("locationsInput").value = locationsLinkUrl();
+        $("shuttleInput").value = shuttleLinkUrl();
+        $("shuttleGidCarsInput").value = shuttleGidCars();
+        $("shuttleGidMembersInput").value = shuttleGidMembers();
+        $("shuttleHookInput").value = shuttleHookUrl();
         if(typeof renderTeam==="function"){ try{ renderTeam(); }catch(e){} }
         setActiveEventUI();
 
@@ -7045,6 +8501,10 @@ function setCallTick_(data) {
           updateLoginNote();
           restoreSession();
         }
+        /* v35 — the Shuttle Cars sheet loads at boot too, so the tab
+           is filled before anyone taps it; a missing link just shows the
+           honest "No shuttle sheet linked yet" empty state. */
+        loadShuttle(true);
         fetchRemarks(true);
         fetchVehicleStatuses(true);
         /* v29 wiring: drawer (panels move, listeners untouched), bell, legs,
@@ -7093,6 +8553,7 @@ function setCallTick_(data) {
         var tabD = $("tabDrivers"); if(tabD) tabD.addEventListener("click", function(){ setView("drivers"); });
         var tabH = $("tabHotels"); if(tabH) tabH.addEventListener("click", function(){ setView("hotels"); });
         var tabM = $("tabMembers"); if(tabM) tabM.addEventListener("click", function(){ setView("members"); });
+        var tabS = $("tabShuttle"); if(tabS) tabS.addEventListener("click", function(){ setView("shuttle"); });
         var tabMp = $("tabMap"); if(tabMp) tabMp.addEventListener("click", function(){ setView("map"); });
         setView("guests");
         /* PWA: register the app-shell service worker (staged next to this
