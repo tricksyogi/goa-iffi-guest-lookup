@@ -1357,7 +1357,7 @@ function setCallTick_(data) {
               <button class="btn" id="gasShuttleToggleBtn" type="button" aria-expanded="false" aria-controls="gasCodeShuttle">Show Shuttle Cars Apps Script code</button>
               <button class="btn" id="gasShuttleCopyBtn" type="button">Copy the Shuttle Cars Apps Script code</button>
             </div>
-            <div class="fmt" id="gasCodeShuttle" style="margin-top:10px;display:none">/* Shuttle Cars — Apps Script v35 (standalone, bound to the Shuttle Cars sheet)
+            <div class="fmt" id="gasCodeShuttle" style="margin-top:10px;display:none">/* Shuttle Cars — Apps Script v35 (bound to the IFFI Planning sheet)
    Modelled exactly on Goa-IFFI-Apps-Script-v33.gs: the same narrowing
    matcher, the same {ok:true, updated:1} success contract, and the same
    skip-write guard (an empty/missing field means "no change", NEVER
@@ -1366,14 +1366,18 @@ function setCallTick_(data) {
    Deployed tick and the Position marking, plus the read views below
    and the Activity log the team history lives in.
 
-   THE REAL SHEET (20 Nov 2026): "opening ceremony shuttle", ONE tab
-   "Shuttle 20th-28th" with headers S No. | Vehicle Start Date |
-   Vehicle End Date | Cordinator Name | Cordinator No. |
+   THE REAL SHEET (20 Nov 2026): the IFFI Planning sheet
+   (ID 1qqui99KxQ6AoejCRMXaIzAqMFDFF-tmy-xh4-5UrJ2o), tab
+   "Shuttle- 20th" (gid 803211367) with headers S No. | Vehicle Start
+   Date | Vehicle End Date | Cordinator Name | Cordinator No. |
    Reporting Hotel | Reporting Time | Vehicle Usage | Vehicle Type |
-   Vehicle No. | Driver Name | Driver No. | Deployed | Position |
-   Position Updated By | Position Updated At. There is NO separate
-   Cars or Members tab — the script finds the car tab by its Vehicle
-   column (the first tab carrying one) and NEVER creates tabs on read;
+   Vehicle No. | Driver Name | Driver No. — plus Deployed | Position |
+   Position Updated By | Position Updated At, which the sheet owner
+   adds in columns M–P (the script does NOT create them). This is a
+   SHARED spreadsheet: its first tab is the IFFI guest list (served
+   by Goa-IFFI-Apps-Script-v33.gs, a separate project) and both
+   scripts log to one shared "Activity" tab. The car tab is found,
+   never assumed — see carsSheet_() — and NEVER created on read;
    only the Activity tab is ever created. A Members tab is optional:
    without one, doGet view=members returns [] and the tool derives
    the members (coordinators + drivers) from the car rows. Column
@@ -1381,12 +1385,14 @@ function setCallTick_(data) {
    column order and the real header spellings ("Vehicle No.",
    "Reporting Hotel", "Driver No.", "Cordinator Name") all work.
 
-   DEPLOY: Extensions -&gt; Apps Script in the Shuttle Cars sheet, paste
-   this file, Deploy -&gt; New deployment -&gt; Web app -&gt; Execute as Me,
-   Who has access: Anyone. Copy the /exec URL into the tool:
-   Menu -&gt; Settings -&gt; Shuttle Cars webhook URL (or the team link's
-   ?hook_shuttle= param). Until it is deployed, Deployed and Position
-   markings save on each member's phone only. */
+   DEPLOY: Extensions -> Apps Script in the IFFI Planning sheet,
+   paste this file as a NEW project (never redeploy the v33 guest
+   project — that would mix guest and shuttle writes), Deploy ->
+   New deployment -> Web app -> Execute as Me, Who has access:
+   Anyone. Copy the /exec URL into the tool: Menu -> Settings ->
+   Shuttle Cars webhook URL (or the team link's ?hook_shuttle=
+   param). Until it is deployed, Deployed and Position markings
+   save on each member's phone only. */
 
 function doGet(e) {
   var view = e &amp;&amp; e.parameter &amp;&amp; e.parameter.view;
@@ -1462,22 +1468,49 @@ function tabSheet_(name, headers) {
   return sh;
 }
 
-/* The car tab is found, never assumed: the first tab whose header row
-   carries a Vehicle column (normalised). The real sheet has ONE tab
-   ("Shuttle 20th-28th"); a sheet with separate Cars/Members tabs
-   still resolves to its Cars tab. NO tab is ever created on read —
-   a missing car tab falls back to the first tab (so a misconfigured
-   sheet reports "column not in this sheet" instead of silently
-   creating an empty Cars tab and writing into it). */
+/* The car tab is found, never assumed — and NEVER the guest tab.
+   The shuttle tab lives inside the shared IFFI Planning sheet,
+   whose first tab is the IFFI guest list (headers "Guest Name",
+   "Vehicle", "Vehicle Number") served by the separate v33 script,
+   so the first tab with a Vehicle column is the WRONG tab here.
+   Resolution order: (a) a tab whose NAME contains "shuttle"
+   (case-insensitive) and whose header row carries a Vehicle column;
+   (b) a tab whose headers carry a Vehicle column AND a shuttle
+   signature header ("reporting hotel", "cordinator name" or
+   "coordinator name"); (c) the old behaviour — the first tab with
+   a Vehicle column — SKIPPING any tab whose headers include
+   "guest name". Fallback is the first tab. NO tab is ever created
+   on read — a missing car tab falls back to the first tab (so a
+   misconfigured sheet reports "column not in this sheet" instead
+   of silently creating an empty Cars tab and writing into it). */
 function carsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheets = ss.getSheets();
   if (!sheets.length) return null;
+  var tabs = [];
   for (var s = 0; s &lt; sheets.length; s++) {
     var vals = sheets[s].getDataRange().getValues();
-    if (!vals.length || !vals[0].length) continue;
-    var headers = vals[0].map(function(h){ return norm_(h); });
-    if (carCol_(headers, ["vehicle number", "vehicle no", "vehicle"]) &gt;= 0) return sheets[s];
+    var headers = (vals.length &amp;&amp; vals[0].length) ? vals[0].map(function(h){ return norm_(h); }) : [];
+    var name = "";
+    if (sheets[s].getName) name = String(sheets[s].getName()).toLowerCase();
+    tabs.push({ sheet: sheets[s], name: name, headers: headers });
+  }
+  var hasVehicle = function(t) { return carCol_(t.headers, ["vehicle number", "vehicle no", "vehicle"]) >= 0; };
+  var isGuest = function(t) { return t.headers.indexOf("guest name") >= 0; };
+  var hasShuttleSig = function(t) {
+    return t.headers.indexOf("reporting hotel") >= 0 ||
+      t.headers.indexOf("cordinator name") >= 0 ||
+      t.headers.indexOf("coordinator name") >= 0;
+  };
+  var i;
+  for (i = 0; i &lt; tabs.length; i++) {
+    if (!isGuest(tabs[i]) &amp;&amp; tabs[i].name.indexOf("shuttle") >= 0 &amp;&amp; hasVehicle(tabs[i])) return tabs[i].sheet;
+  }
+  for (i = 0; i &lt; tabs.length; i++) {
+    if (!isGuest(tabs[i]) &amp;&amp; hasVehicle(tabs[i]) &amp;&amp; hasShuttleSig(tabs[i])) return tabs[i].sheet;
+  }
+  for (i = 0; i &lt; tabs.length; i++) {
+    if (!isGuest(tabs[i]) &amp;&amp; hasVehicle(tabs[i])) return tabs[i].sheet;
   }
   return sheets[0];
 }
@@ -1577,15 +1610,15 @@ function findCarRow_(rows, vehicleIdx, hotelIdx, phoneIdx, data) {
   }
   if (!cands.length) return -1;
   if (cands.length === 1) return cands[0];
-  if (hotel &amp;&amp; hotelIdx &gt;= 0) {
+  if (hotel &amp;&amp; hotelIdx >= 0) {
     var narrowed = cands.filter(function(i){ return norm_(rows[i][hotelIdx]) === hotel; });
     if (narrowed.length === 1) return narrowed[0];
-    if (narrowed.length &gt; 1) cands = narrowed;
+    if (narrowed.length > 1) cands = narrowed;
   }
-  if (phone &amp;&amp; phoneIdx &gt;= 0) {
+  if (phone &amp;&amp; phoneIdx >= 0) {
     var phoned = cands.filter(function(i){ return normMobile_(rows[i][phoneIdx]) === phone; });
     if (phoned.length === 1) return phoned[0];
-    if (phoned.length &gt; 1) return -2;
+    if (phoned.length > 1) return -2;
   }
   return -2;
 }
@@ -1602,7 +1635,7 @@ function carsHeaders_() {
 function carCol_(headers, names) {
   for (var n = 0; n &lt; names.length; n++) {
     var idx = headers.indexOf(names[n]);
-    if (idx &gt;= 0) return idx;
+    if (idx >= 0) return idx;
   }
   return -1;
 }
@@ -1674,8 +1707,8 @@ function markCarPosition_(data) {
        position; At is always server time. An empty position writes
        nothing at all (skip-write guard — a mark with no position is not
        a mark). */
-    if (byIdx &gt;= 0) sh.getRange(found + 1, byIdx + 1).setValue(byVal);
-    if (atIdx &gt;= 0) {
+    if (byIdx >= 0) sh.getRange(found + 1, byIdx + 1).setValue(byVal);
+    if (atIdx >= 0) {
       var atStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd'T'HH:mm:ss'+05:30'");
       sh.getRange(found + 1, atIdx + 1).setValue(atStr);
     }
@@ -4221,6 +4254,30 @@ function activityRows_() {
       function tableToShuttleCars(table){
         if(!table.length) return [];
         var headers = table[0].map(function(h){ return norm(h); });
+        /* v35.2 — signature guard (20 Nov 2026, same gviz trap as the
+           members bug): the fetched table must look like a shuttle-cars
+           table — one of "reporting hotel" / "cordinator name" /
+           "coordinator name" (the real sheet) or "vehicle type" (the
+           sample fixture's signature). Without one, this table is some
+           other tab the gviz by-name fallback handed back: the guest
+           Main tab carries "Vehicle" / "Vehicle Number" / "Driver
+           Name" / "Driver Number" and would otherwise parse as cars.
+           Parse no cars — but still count the non-blank rows, so the
+           empty state says "could be read — check the headers", not
+           "saved yet". */
+        var hasShuttleSig = headers.indexOf("reporting hotel") >= 0 || headers.indexOf("cordinator name") >= 0 || headers.indexOf("coordinator name") >= 0 || headers.indexOf("vehicle type") >= 0;
+        if(!hasShuttleSig){
+          lastLoadShuttleDeployedCol = false;
+          lastLoadShuttlePositionCols = false;
+          lastLoadShuttleRowsRead = 0;
+          lastLoadShuttleSkipped = [];
+          for(var sg=1;sg<table.length;sg++){
+            var sgRow = table[sg] || [], sgBlank = true;
+            for(var sb=0;sb<sgRow.length;sb++){ if(clean(sgRow[sb])){ sgBlank = false; break; } }
+            if(!sgBlank) lastLoadShuttleRowsRead++;
+          }
+          return [];
+        }
         var colKey = shuttleColKeys(headers, SHUTTLE_CARS_FIELDS);
         /* Header presence (not cell values) decides whether the sheet HAS
            the write columns — same reasoning as hasArrivalCols /
@@ -4287,6 +4344,19 @@ function activityRows_() {
       function tableToShuttleMembers(table){
         if(!table.length) return [];
         var headers = table[0].map(function(h){ return norm(h); });
+        /* v35.2 — header guard (20 Nov 2026, member-count bug): a Members
+           table MUST carry a name column ("Member Name" or "Name", exact
+           normalized match, same as shuttleColKeys). Without one the
+           fetched table is not a Members tab at all — the old gviz
+           by-name fallback silently returned the sheet's FIRST tab when
+           no tab called "Members" existed, so the guest Main list
+           ("Guest Name", "Contact Number", "Hotel") parsed as 314
+           phone-bearing "members". "Guest Name" is not "name", so the
+           guest tab is rejected here and the members derive from the
+           car rows instead. A real Members tab keeps working; the
+           shuttle tab itself (no name column) also parses to [] and
+           derives, which is the designed path. */
+        if(headers.indexOf("member name") < 0 && headers.indexOf("name") < 0) return [];
         var colKey = shuttleColKeys(headers, SHUTTLE_MEMBERS_FIELDS);
         var members = [];
         for(var r=1;r<table.length;r++){
@@ -4731,7 +4801,18 @@ function activityRows_() {
         shuttleStatus = "loading";
         if(state.view==="shuttle") renderShuttle();
         var carsUrl = shuttleTabUrl(url, shuttleGidCars(), "Cars");
-        var membersUrl = shuttleTabUrl(url, shuttleGidMembers(), "Members");
+        /* v35.2 — Members: NO gviz-by-name fallback (20 Nov 2026,
+           member-count bug). When no Members gid is configured there
+           is no Members tab to fetch; the old fallback asked gviz for
+           a tab called "Members", and gviz silently returns the
+           sheet's FIRST tab when no such tab exists — the guest Main
+           list, whose 314 phone-bearing rows then parsed as
+           "members" on every device. With no URL the fetch is skipped
+           (members = []) and the members derive from the car rows
+           below, which is the designed path. The Cars fetch keeps its
+           gviz fallback (the cars table is guarded by the signature
+           check in tableToShuttleCars). */
+        var membersUrl = shuttleGidMembers() ? shuttleTabUrl(url, shuttleGidMembers(), "Members") : null;
         function fetchTab(u, mapFn){
           if(!u) return Promise.resolve(null);
           return fetch(freshUrl(u), {cache:"no-store"}).then(function(res){
@@ -4751,7 +4832,12 @@ function activityRows_() {
           /* A tab that failed to load (null) keeps its previous list —
              one bad tab must not wipe the other tab's data. */
           if(cars === null) cars = shuttleSheetCars;
-          if(members === null) members = shuttleSheetMembers;
+          /* v35.2 — a SKIPPED Members fetch (no gid configured, no URL)
+             is not a failed fetch: it means "no Members tab" — use []
+             so the members derive fresh from the current car rows on
+             every load. A failed fetch (gid configured, read errored)
+             still keeps the previous list, as before. */
+          if(members === null) members = membersUrl ? shuttleSheetMembers : [];
           /* v35 rework: no Members tab (or it read empty) — derive the
              members from the car rows (coordinators + drivers). A real
              Members tab with rows always wins over the derived list. */
