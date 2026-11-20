@@ -254,6 +254,7 @@
       .vtab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
       @media(min-width:760px){.vtab{flex:1 1 20%}}
       .badge.usage{background:var(--surface2);color:var(--ink);border:1px solid var(--line);text-transform:none;letter-spacing:0}
+      .badge.ignored{background:var(--surface2);color:var(--muted);border:1px dashed var(--line);text-transform:none;letter-spacing:0}
       .bellcount{background:#dc2626;color:#fff;border-radius:999px;padding:1px 8px;font-weight:700;font-size:.82rem;margin-left:2px}
       .scrim{position:fixed;inset:0;background:rgba(10,8,5,.5);z-index:80;display:none}
       .scrim.open{display:block}
@@ -288,7 +289,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v35</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v36</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -297,6 +298,7 @@
       <div class="eventswitch" role="group" aria-label="Choose event">
         <button type="button" class="evbtn" id="evBtnCmot" aria-pressed="true">CMOT</button>
         <button type="button" class="evbtn" id="evBtnIffi" aria-pressed="false">IFFI</button>
+        <button type="button" class="evbtn" id="evBtnDaywise" aria-pressed="false">Day Wise Guest</button>
       </div>
 
       <!-- ============ USER BAR ============ -->
@@ -359,7 +361,7 @@
         <h2 id="settings-h">Settings</h2>
         <p class="hint">These are saved on this phone only.</p>
         <h3 style="font-size:.95rem;margin:14px 0 6px">Event sheet links &amp; webhook URLs</h3>
-        <p class="hint" style="margin-bottom:8px">Each event (CMOT and IFFI) has its <strong>own sheet link</strong> and its <strong>own remarks webhook URL</strong> — the Google Apps Script web-app URL that saves remarks into that event's sheet (its “Remarks” tab). Setup steps and the script code are in “Remarks setup” at the bottom of this page. Saving one event's link never changes the other event's. Tip: the admin can share one team link per event carrying both — e.g. the tool link with <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> added — and both are then set automatically on every phone that opens it.</p>
+        <p class="hint" style="margin-bottom:8px">Each event (CMOT, IFFI and Day Wise Guest) has its <strong>own sheet link</strong> and its <strong>own remarks webhook URL</strong> — the Google Apps Script web-app URL that saves remarks into that event's sheet (its “Remarks” tab). Setup steps and the script code are in “Remarks setup” at the bottom of this page. Saving one event's link never changes the other event's. Tip: the admin can share one team link per event carrying both — e.g. the tool link with <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> added — and both are then set automatically on every phone that opens it.</p>
         <label class="setlabel" for="sheetInputCmot">CMOT sheet link
           <input type="url" id="sheetInputCmot" placeholder="Paste the CMOT Google Sheet link…" autocomplete="off" />
         </label>
@@ -384,23 +386,42 @@
         <div class="rowflex" style="margin-top:8px">
           <button class="btn primary" id="hookSaveIffi" type="button">Save IFFI webhook URL</button>
         </div>
-        <h3 style="font-size:.95rem;margin:18px 0 6px">Team roster sheet (shared — both events)</h3>
-        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Team Member Allocation</strong> sheet — holds the login list for the whole team, for <strong>both CMOT and IFFI</strong>. Paste its link here once; the tool reads <strong>Name, Mobile and Date of birth</strong> from it live, and each member's password is their <strong>year of birth</strong>. A new form response in that sheet appears automatically on the next refresh — no tool change needed. The sheet must stay shared as “Anyone with the link can view”. The admin can also share one team link carrying it: the tool link with <code>?roster=…</code> added. Saving this link never changes either event's sheet link or webhook URL.</p>
+        <label class="setlabel" for="sheetInputDaywise">Day Wise Guest sheet link
+          <input type="url" id="sheetInputDaywise" placeholder="Paste the Day Wise Guest Google Sheet link…" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="sheetSaveDaywise" type="button">Save Day Wise Guest sheet link</button>
+        </div>
+        <label class="setlabel" for="hookInputDaywise">Day Wise Guest webhook URL
+          <input type="url" id="hookInputDaywise" placeholder="Paste Day Wise Guest remarks webhook URL (copied from Apps Script deploy)" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn primary" id="hookSaveDaywise" type="button">Save Day Wise Guest webhook URL</button>
+        </div>
+        <label class="setlabel" for="daywiseGidInput">Day Wise Guest tab gid
+          <input type="text" id="daywiseGidInput" placeholder="e.g. 1182126454 — the number after #gid= in the sheet address bar" autocomplete="off" />
+        </label>
+        <div class="rowflex" style="margin-top:8px">
+          <button class="btn" id="daywiseGidSave" type="button">Save Day Wise Guest tab gid</button>
+        </div>
+        <p class="hint" style="margin-top:8px">Day Wise Guest reads its own tab through the export endpoint, so the tool needs the tab's real gid — the sheet's first tab is a summary, not the guest list. Without the gid the Day Wise tab cannot load (the tool never reads another tab instead). Marks in Day Wise Guest save on this phone only until its sheet gets the arrival/tick columns and its own webhook — this sheet has neither yet.</p>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Team roster sheet (shared — all events)</h3>
+        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Team Member Allocation</strong> sheet — holds the login list for the whole team, for <strong>CMOT, IFFI and Day Wise Guest</strong>. Paste its link here once; the tool reads <strong>Name, Mobile and Date of birth</strong> from it live, and each member's password is their <strong>year of birth</strong>. A new form response in that sheet appears automatically on the next refresh — no tool change needed. The sheet must stay shared as “Anyone with the link can view”. The admin can also share one team link carrying it: the tool link with <code>?roster=…</code> added. Saving this link never changes either event's sheet link or webhook URL.</p>
         <label class="setlabel" for="rosterInput">Team roster sheet link
           <input type="url" id="rosterInput" placeholder="Paste the Team Member Allocation sheet link…" autocomplete="off" />
         </label>
         <div class="rowflex" style="margin-top:8px">
           <button class="btn" id="rosterSaveBtn" type="button">Save roster sheet link</button>
         </div>
-        <h3 style="font-size:.95rem;margin:18px 0 6px">Hotel locations sheet (shared — both events)</h3>
-        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Hotel Locations</strong> sheet — holds every hotel's name, address and map location link, for <strong>both CMOT and IFFI</strong>. The tool only <strong>reads</strong> it (it never writes to it): the list powers the <strong>Hotels tab</strong> and adds the hotel address + location link to the driver message. New hotels are added as rows in that sheet and appear here on the next refresh — no tool change needed. Paste its link here once, or open the tool through a team link carrying <code>?locations=…</code>. The admin can share one team link carrying it. Saving this link never changes either event's sheet link, webhook URL, or the roster link. This link is <strong>team-only</strong>, like the guest sheet link — never post it in the client group.</p>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Hotel locations sheet (shared — all events)</h3>
+        <p class="hint" style="margin-bottom:8px">ONE shared sheet — the <strong>Hotel Locations</strong> sheet — holds every hotel's name, address and map location link, for <strong>CMOT, IFFI and Day Wise Guest</strong>. The tool only <strong>reads</strong> it (it never writes to it): the list powers the <strong>Hotels tab</strong> and adds the hotel address + location link to the driver message. New hotels are added as rows in that sheet and appear here on the next refresh — no tool change needed. Paste its link here once, or open the tool through a team link carrying <code>?locations=…</code>. The admin can share one team link carrying it. Saving this link never changes either event's sheet link, webhook URL, or the roster link. This link is <strong>team-only</strong>, like the guest sheet link — never post it in the client group.</p>
         <label class="setlabel" for="locationsInput">Hotel locations sheet link
           <input type="url" id="locationsInput" placeholder="Paste the Hotel Locations sheet link…" autocomplete="off" />
         </label>
         <div class="rowflex" style="margin-top:8px">
           <button class="btn" id="locationsSaveBtn" type="button">Save locations sheet link</button>
         </div>
-        <h3 style="font-size:.95rem;margin:18px 0 6px">Shuttle Cars sheet (shared — both events)</h3>
+        <h3 style="font-size:.95rem;margin:18px 0 6px">Shuttle Cars sheet (shared — all events)</h3>
         <p class="hint" style="margin-bottom:8px">ONE shared sheet holds the shuttle cars for the opening ceremony — one tab, <strong>Shuttle 20th-28th</strong> (S No. | Vehicle Start Date | Vehicle End Date | Cordinator Name | Cordinator No. | Reporting Hotel | Reporting Time | Vehicle Usage | Vehicle Type | Vehicle No. | Driver Name | Driver No. | Deployed | Position | Position Updated By | Position Updated At). The coordinator of a row is that car's person responsible and its supervisor; the members are the coordinators + drivers from the car rows (a separate Members tab is optional — if one exists with rows, it is used instead). The tool reads it live every 30 seconds through the <strong>export</strong> endpoint, so a basic filter on the sheet can never hide cars from the tool — but the export needs the tab's real sheet ID (gid): open the sheet, click the tab, and copy the number after <code>#gid=</code> in the address bar (571032344 for this sheet). Without the gid the tool falls back to reading the tab by name, which a sheet filter CAN hide. The shuttle webhook URL (from the Shuttle Cars Apps Script, in Help → Shuttle Cars webhook setup) shares the Deployed and Position markings with the whole team; without it they save on this phone only.</p>
         <label class="setlabel" for="shuttleInput">Shuttle Cars sheet link
           <input type="url" id="shuttleInput" placeholder="Paste the Shuttle Cars Google Sheet link…" autocomplete="off" />
@@ -520,6 +541,9 @@
             <input type="time" id="timeTo" aria-label="Pickup time to" />
           </label>
         </div>
+        <div class="selrow">
+          <label class="flabel" for="hideIgnoredChk" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="hideIgnoredChk" checked style="width:auto" /> Hide rows marked Ignore <span id="ignoredCountNote" style="font-weight:400"></span></label>
+        </div>
         <p class="cols-note" id="filtersNoDataHint" style="margin:8px 2px 0">Filters and sort work on the loaded guest list — load the event sheet first (Menu → Load data, or open the team link).</p>
           </div>
         </details>
@@ -577,11 +601,11 @@
             </ul>
           </div>
           <div>
-            <h3>Two events (CMOT / IFFI)</h3>
+            <h3>Three events (CMOT / IFFI / Day Wise Guest)</h3>
             <ul>
-              <li>This tool runs <strong>two events separately</strong>: <strong>CMOT</strong> and <strong>IFFI</strong>. Use the <strong>CMOT / IFFI buttons at the top</strong> to switch — each event shows only its own guests, its own team list and its own remarks, and switching never mixes the two.</li>
-              <li>Each event has its <strong>own sheet link and its own webhook URL</strong> — both are set per event in <strong>Settings</strong> (“CMOT sheet link”, “CMOT webhook URL”, “IFFI sheet link”, “IFFI webhook URL”). Saving one event's link never changes the other event's.</li>
-              <li>Team-link format, one per event: <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> — and the same pattern with <code>iffi</code> for IFFI. The older <code>?sheet=…&amp;hook=…</code> form still works and applies to the event named by <code>?event=</code> (CMOT if none is named).</li>
+              <li>This tool runs <strong>three events separately</strong>: <strong>CMOT</strong>, <strong>IFFI</strong> and <strong>Day Wise Guest</strong>. Use the <strong>CMOT / IFFI / Day Wise Guest buttons at the top</strong> to switch — each event shows only its own guests, its own team list and its own remarks, and switching never mixes them. Day Wise Guest reads its own tab by gid through the export endpoint (filter-proof); rows marked <strong>Ignore = Yes</strong> in that sheet are hidden by default (untick “Hide rows marked Ignore” to show them).</li>
+              <li>Each event has its <strong>own sheet link and its own webhook URL</strong> — both are set per event in <strong>Settings</strong> (“CMOT sheet link”, “CMOT webhook URL”, “IFFI sheet link”, “IFFI webhook URL”, “Day Wise Guest sheet link”, “Day Wise Guest webhook URL”). Saving one event's link never changes the other events'.</li>
+              <li>Team-link format, one per event: <code>?event=CMOT&amp;sheet_cmot=…&amp;hook_cmot=…</code> — and the same pattern with <code>iffi</code> for IFFI and <code>daywise</code> for Day Wise Guest (which also needs <code>gid_daywise=…</code> for its tab). The older <code>?sheet=…&amp;hook=…</code> form still works and applies to the event named by <code>?event=</code> (CMOT if none is named).</li>
               <li>The <strong>CMOT sheet is an Excel file</strong> — for CMOT, if a sheet link is not available, the team can use <strong>Option B (Upload)</strong> in this tool. Upload each event's file while that event's tab is active, so the file loads as that event's data.</li>
             </ul>
           </div>
@@ -2102,11 +2126,12 @@ function activityRows_() {
       /* ---------- Field definitions: canonical key -> header synonyms ----------
          The first synonym of each field is the exact Goa-IFFI-Guest-Master.xlsx header. */
       var FIELDS = [
-        {key:"guestId",     label:"Guest ID",     syn:["guest id","id","guestid"]},
+        {key:"guestId",     label:"Guest ID",     syn:["guest id","id","guestid","s no"]},
         {key:"name",        label:"Guest Name",   syn:["guest name","name","guest","passenger","passenger name","pax name","name (as per aadhaar)","name (as per adhaar)"]},
         {key:"phone",       label:"Phone",        syn:["phone","contact (phone)","guest contact","contact number","guest phone no","mobile","contact","contact no","contact no.","mobile no","phone no","guest phone","whatsapp","contact number & alternative no."]},
         {key:"cc",          label:"Country Code", syn:["country code","cc","dial code","isd code"]},
-        {key:"designation", label:"Designation",  syn:["designation","title","role","category","guest type","organisation","organization","department"]},
+        {key:"category",    label:"Category",     syn:["category"]},
+        {key:"designation", label:"Designation",  syn:["designation","title","role","guest type","organisation","organization","department"]},
         {key:"type",        label:"Type",         syn:["type","movement","movement type","arr dep","service"]},
         {key:"event",       label:"Event",        syn:["event","event name"]},
         {key:"date",        label:"Date",         syn:["date","day","travel date","arrival date","departure date"]},
@@ -2124,10 +2149,11 @@ function activityRows_() {
         {key:"status",      label:"Status",       syn:["status","trip status","movement status"]},
         {key:"pax",         label:"Pax",          syn:["pax","guests","no of guests","persons","passengers"]},
         {key:"remarks",     label:"Remarks",      syn:["remarks","remark","notes","note","special instructions","comments"]},
+        {key:"ignore",      label:"Ignore",       syn:["ignore"]},
         {key:"liveLocation", label:"Live Location Link", syn:["live location link","location link","live location"]},
         {key:"usageType",   label:"Usage Type",   syn:["usage type","vehicle usage","user type","usage","car type","trip type"]},
-        {key:"startDate",   label:"Start Date",   syn:["start date","from date"]},
-        {key:"endDate",     label:"End Date",     syn:["end date","to date","till date"]},
+        {key:"startDate",   label:"Start Date",   syn:["start date","from date","vehicle start"]},
+        {key:"endDate",     label:"End Date",     syn:["end date","to date","till date","vehicle end"]},
         {key:"checkin",     label:"Check-in",     syn:["checkin","check-in","check in","check-in date","check in date"]},
         {key:"checkout",    label:"Check-out",    syn:["checkout","check-out","check out","check-out date","check out date"]},
         {key:"arrived",     label:"Arrived",      syn:["arrived","guest arrived"]},
@@ -2140,7 +2166,7 @@ function activityRows_() {
       var FIELD_BY_KEY = {};
       FIELDS.forEach(function(f){ FIELD_BY_KEY[f.key]=f; });
 
-      var state = { guests:[], typeFilter:"all", locationFilter:"", current:null, currentKey:"", detailOpen:false, adminOpen:false, view:"guests",
+      var state = { guests:[], typeFilter:"all", hideIgnored:true, locationFilter:"", current:null, currentKey:"", detailOpen:false, adminOpen:false, view:"guests",
                     source:{kind:"none", label:"", url:""}, lastUpdated:"" };
       var LS_KEY = "iffi-guest-lookup-sheet-url";
       var LS_HOOK = "iffi-remarks-hook-url";
@@ -2160,6 +2186,38 @@ function activityRows_() {
       var LS_SHUTTLE_GID_CARS = "iffi-shuttle-gid-cars";
       var LS_SHUTTLE_GID_MEMBERS = "iffi-shuttle-gid-members";
       var LS_SHUTTLE_HOOK = "iffi-shuttle-hook-url";
+      var LS_DAYWISE_GID = "iffi-daywise-gid";
+      /* v36 — Day Wise Guest: the tab gid for the export read, plus the
+         "Ignore" flag helpers. daywiseCsvUrl builds the export URL from
+         the stored Day Wise sheet link + gid; without either it returns
+         null and the tool says so instead of reading another tab. */
+      function daywiseGid(){ return String(lsGetRaw(LS_DAYWISE_GID)||"").trim(); }
+      function setDaywiseGid(v){ v = String(v==null?"":v).trim(); if(v) lsSetRaw(LS_DAYWISE_GID, v); else lsDel(LS_DAYWISE_GID); var inp = $("daywiseGidInput"); if(inp) inp.value = v; }
+      function daywiseCsvUrl(url){
+        /* REWORK v36 (Sr Dev gate D2): the Load-data box passes the
+           PASTED link to loadFromUrl — daywiseCsvUrl used to ignore it
+           and read the STORED link, so a different pasted link fetched
+           the old sheet while the success handler stored the new link
+           as its source. Derive the sheet ID (and a #gid=, when the
+           pasted link carries one) from the passed URL when given,
+           falling back to the stored link + gid. */
+        url = url || sheetUrlFor("DAYWISE");
+        var m = String(url).match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        var gid = daywiseGid();
+        var gm = String(url).match(/#gid=(\d+)/);
+        if(gm) gid = gm[1];
+        if(!m || !gid) return null;
+        return "https://docs.google.com/spreadsheets/d/"+m[1]+"/export?format=csv&gid="+encodeURIComponent(gid);
+      }
+      /* v36 — "Ignore" in the Day Wise sheet: only an exact "Yes"
+         (case-insensitive) counts as ignored. Any other value
+         ("Kartik Ji") is shown as a badge, never treated as ignored. */
+      function isIgnoredGuest(g){ return clean(g && g.ignore).toLowerCase()==="yes"; }
+      function ignoreBadge(g){
+        var v = clean(g && g.ignore);
+        if(!v) return "";
+        return ' <span class="badge ignored">'+esc(v.toLowerCase()==="yes" ? "Ignored" : v)+"</span>";
+      }
       var LS_LOCAL_SHUTTLE_DEPLOYED = "iffi-local-shuttle-deployed";
       var LS_LOCAL_SHUTTLE_POSITION = "iffi-local-shuttle-position";
       var REFRESH_MS = 30000;
@@ -2194,19 +2252,19 @@ function activityRows_() {
       var shuttlePendingPosition = ""; /* one of SHUTTLE_POSITIONS or "" */
       var shuttlePositionTouched = false;
 
-      /* ================= EVENTS (CMOT / IFFI) =================
-         Two events, planned separately. Each event keeps its OWN sheet link
+      /* ================= EVENTS (CMOT / IFFI / DAYWISE) =================
+         Three events, planned separately. Each event keeps its OWN sheet link
          and webhook URL in localStorage (namespaced by event), its own loaded
          dataset + roster in this session (eventBuckets), and its own phone-only
          remarks / live-location stores. `state`, `roster` and the hook helpers
          always describe the ACTIVE event; switching swaps them wholesale so
-         the two events' data never mix. The legacy single-event keys
+         the three events' data never mix. The legacy single-event keys
          (LS_KEY / LS_HOOK) are read as CMOT's stored values for continuity. */
-      var EVENTS = ["CMOT","IFFI"];
+      var EVENTS = ["CMOT","IFFI","DAYWISE"];
       var activeEvent = "CMOT";
       function evLc(ev){ return String(ev).toLowerCase(); }
       function emptyBucket(){ return { guests:[], source:{kind:"none", label:"", url:""}, lastUpdated:"", roster:null, touched:false, vstat:{}, pendingRemoval:null, lastReadEmpty:false, emptyReads:0, hasArrivalCols:false, hasTickCols:false }; }
-      var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket() };
+      var eventBuckets = { CMOT: emptyBucket(), IFFI: emptyBucket(), DAYWISE: emptyBucket() };
       function sheetLsKey(ev){ return LS_KEY+"-"+evLc(ev); }
       function hookLsKey(ev){ return LS_HOOK+"-"+evLc(ev); }
       function sheetUrlFor(ev){
@@ -2235,7 +2293,7 @@ function activityRows_() {
       function setHookFor(ev, u){
         u = String(u==null?"":u).trim();
         if(u) lsSetRaw(hookLsKey(ev), u); else lsDel(hookLsKey(ev));
-        var inp = $(ev==="CMOT" ? "hookInputCmot" : "hookInputIffi");
+        var inp = $(ev==="CMOT" ? "hookInputCmot" : ev==="IFFI" ? "hookInputIffi" : "hookInputDaywise");
         if(inp) inp.value = u;
       }
       function updateEmptyState(){
@@ -2248,12 +2306,17 @@ function activityRows_() {
           el.textContent = "No guest data loaded for "+activeEvent+". The team link does not carry the "+activeEvent+" sheet yet — admin: add ?sheet_"+evLc(activeEvent)+"=<sheet link> to the team link, or paste the sheet link in Menu → Settings → "+activeEvent+" sheet link.";
           return;
         }
+        if(activeEvent==="DAYWISE" && !daywiseGid()){
+          el.textContent = "Day Wise Guest sheet linked, but the tab gid is missing — admin: add ?gid_daywise=1182126454 to the team link, or paste the tab gid in Menu → Settings → Day Wise tab gid.";
+          return;
+        }
         el.textContent = "No guest data loaded for "+activeEvent+". Open the team link shared by the admin — it carries the "+activeEvent+" sheet. If you opened this page directly, ask the admin (Yogesh) for the team link.";
       }
       function setActiveEventUI(){
-        var c = $("evBtnCmot"), f = $("evBtnIffi");
+        var c = $("evBtnCmot"), f = $("evBtnIffi"), d = $("evBtnDaywise");
         if(c) c.setAttribute("aria-pressed", activeEvent==="CMOT" ? "true" : "false");
         if(f) f.setAttribute("aria-pressed", activeEvent==="IFFI" ? "true" : "false");
+        if(d) d.setAttribute("aria-pressed", activeEvent==="DAYWISE" ? "true" : "false");
         var ln = $("loadEventName"); if(ln) ln.textContent = activeEvent;
         var un = $("uploadEventName"); if(un) un.textContent = activeEvent;
         updateEmptyState();
@@ -2799,7 +2862,7 @@ function activityRows_() {
          loaded from an uploaded file this session is restored as-is; a
          sheet-link dataset is refreshed from its link. */
       function switchEvent(newEv){
-        if(newEv!=="CMOT" && newEv!=="IFFI") return;
+        if(newEv!=="CMOT" && newEv!=="IFFI" && newEv!=="DAYWISE") return;
         if(newEv===activeEvent){ setActiveEventUI(); return; }
         var b = eventBuckets[activeEvent];
         b.guests = state.guests; b.source = state.source; b.lastUpdated = state.lastUpdated; b.roster = roster; b.touched = true;
@@ -2822,6 +2885,8 @@ function activityRows_() {
         var lcEl = $("locClearBtn"); if(lcEl) lcEl.style.display = "none";
         var lmEl = $("locMenu"); if(lmEl) lmEl.classList.remove("open");
         setType("all");
+        state.hideIgnored = true;
+        var higEl2=$("hideIgnoredChk"); if(higEl2) higEl2.checked = true;
         $("sheetUrl").value = sheetUrlFor(newEv);
         setStatus("");
         updateLoginNote();
@@ -2858,6 +2923,7 @@ function activityRows_() {
       }
       $("evBtnCmot").addEventListener("click", function(){ switchEvent("CMOT"); });
       $("evBtnIffi").addEventListener("click", function(){ switchEvent("IFFI"); });
+      $("evBtnDaywise").addEventListener("click", function(){ switchEvent("DAYWISE"); });
 
       /* ================= v30 — HOTEL LOCATIONS =================
          A NEW read-only data source: the "Hotel Locations" Google Sheet
@@ -3386,7 +3452,7 @@ function activityRows_() {
         copyText(lines.join("\n"), "All remarks copied — paste them into the sheet");
       });
       function saveHookForEvent(ev){
-        setHookFor(ev, $(ev==="CMOT" ? "hookInputCmot" : "hookInputIffi").value);
+        setHookFor(ev, $(ev==="CMOT" ? "hookInputCmot" : ev==="IFFI" ? "hookInputIffi" : "hookInputDaywise").value);
         setSettingsStatus(hookUrlFor(ev)
           ? ev+" webhook URL saved — "+ev+" remarks now save to that event's sheet."
           : ev+" webhook URL cleared — "+ev+" remarks will save on this phone only.", "ok");
@@ -3398,7 +3464,7 @@ function activityRows_() {
         }
       }
       function saveSheetForEvent(ev){
-        var inp = $(ev==="CMOT" ? "sheetInputCmot" : "sheetInputIffi");
+        var inp = $(ev==="CMOT" ? "sheetInputCmot" : ev==="IFFI" ? "sheetInputIffi" : "sheetInputDaywise");
         var u = inp.value.trim();
         setSheetUrlFor(ev, u);
         inp.value = u;
@@ -3412,8 +3478,16 @@ function activityRows_() {
       }
       $("hookSaveCmot").addEventListener("click", function(){ saveHookForEvent("CMOT"); });
       $("hookSaveIffi").addEventListener("click", function(){ saveHookForEvent("IFFI"); });
+      $("hookSaveDaywise").addEventListener("click", function(){ saveHookForEvent("DAYWISE"); });
       $("sheetSaveCmot").addEventListener("click", function(){ saveSheetForEvent("CMOT"); });
       $("sheetSaveIffi").addEventListener("click", function(){ saveSheetForEvent("IFFI"); });
+      $("sheetSaveDaywise").addEventListener("click", function(){ saveSheetForEvent("DAYWISE"); });
+      /* v36 — Day Wise tab gid: saving it reloads the Day Wise tab at once when it is the active event. */
+      $("daywiseGidSave").addEventListener("click", function(){
+        setDaywiseGid($("daywiseGidInput").value);
+        setSettingsStatus(daywiseGid() ? "Day Wise tab gid saved — loading the Day Wise tab now." : "Day Wise tab gid cleared — the Day Wise tab cannot load without it.", "ok");
+        if(activeEvent==="DAYWISE" && daywiseGid() && sheetUrlFor("DAYWISE")) loadFromUrl(sheetUrlFor("DAYWISE"), false, false);
+      });
       /* Save the ONE shared roster sheet link. This writes only the roster
          key — it never touches either event's sheet link or webhook URL. */
       $("rosterSaveBtn").addEventListener("click", function(){
@@ -4166,6 +4240,18 @@ function activityRows_() {
           if(h && h.indexOf("name")===0) return "name";
           return null;
         });
+        /* v36 — REWORK (Sr Dev gate D1): the live Day Wise sheet now
+           has BOTH "Vehicle Type" and "Vehicle" (a registration number,
+           e.g. GA07AV0508). Bare "vehicle" is a vehType synonym, so
+           without this the number column maps to Vehicle Type and the
+           registration is dropped — first-non-blank-wins fills vehType
+           from the earlier "Vehicle Type" column, and the number never
+           lands in _extra either. When a "vehicle type" header exists,
+           bare "vehicle" is the registration → vehNo. IFFI has
+           "Vehicle" but no "Vehicle Type", so its mapping is unchanged. */
+        if(headers.indexOf("vehicle type")>-1){
+          for(var vc=0;vc<headers.length;vc++){ if(headers[vc]==="vehicle") colKey[vc]="vehNo"; }
+        }
         /* v32: whether this sheet HAS the arrival columns (Arrived /
            Arrival Remark / Actual Vehicle). Recorded per load — a sheet
            with the columns but all-blank cells looks identical to a
@@ -4195,6 +4281,14 @@ function activityRows_() {
             if(colKey[c]){ if(!g[colKey[c]]) g[colKey[c]]=v; }
             else if(headers[c] && v){ g._extra[table[0][c]]=v; }
           }
+          /* REWORK v36 (Supervisor gate F1): "Category" used to be a
+             designation synonym (v35), so a guest with a blank
+             Designation but a Category value showed the Category as
+             their designation. v36 gives Category its own field (for
+             Day Wise) — restore the v35 fallback so those guests
+             (39 in the 18-Nov IFFI fixture) keep their card chip, the
+             driver-message "Department" line and the detail header. */
+          if(!g.designation && g.category) g.designation = g.category;
           if(g.name || g.phone || g.flight) guests.push(g);
         }
         return guests;
@@ -4672,7 +4766,17 @@ function activityRows_() {
       }
       function loadFromUrl(url, quiet, silent){
         var forEvent = activeEvent;
-        var csvUrl = sheetCsvUrl(url);
+        /* v36 — Day Wise Guest reads its own tab by gid through the
+           EXPORT endpoint (filter-proof, like the shuttle cars): the
+           Day Wise sheet's first tab is a summary, not the guest list,
+           so the gviz first-tab rule would read the wrong tab. The gid
+           comes from the team link (?gid_daywise=) or Settings; without
+           it the tool never falls back to another tab — it says so. */
+        var csvUrl = forEvent==="DAYWISE" ? daywiseCsvUrl(url) : sheetCsvUrl(url);
+        if(forEvent==="DAYWISE" && !csvUrl){
+          if(!quiet) setStatus("Day Wise Guest needs its tab gid — admin: add ?gid_daywise=1182126454 to the team link, or paste the tab gid in Menu → Settings → Day Wise tab gid.", "err");
+          return;
+        }
         if(!csvUrl){
           if(!quiet) setStatus("That doesn't look like a Google Sheet link. Copy the full link from the sheet's address bar or Share dialog.", "err");
           return;
@@ -4684,6 +4788,10 @@ function activityRows_() {
         }).then(function(text){
           if(/^\s*</.test(text)) throw new Error("html");
           setSheetUrlFor(forEvent, url);
+          /* REWORK v36 (Sr Dev gate D2): a pasted Day Wise link may carry
+             a #gid= for a different tab — store it too, or the next
+             30-second refresh would fetch the old tab under the new link. */
+          if(forEvent==="DAYWISE"){ var gm2 = String(url).match(/#gid=(\d+)/); if(gm2) setDaywiseGid(gm2[1]); }
           var guests = tableToGuests(parseCSV(text));
           if(forEvent!==activeEvent){
             /* The user switched events while this sheet was loading — keep the
@@ -5107,6 +5215,9 @@ function activityRows_() {
       $("hotelFilter").addEventListener("change", render);
       $("airportFilter").addEventListener("change", render);
       $("dateFilter").addEventListener("change", render);
+      /* v36 — Hide-ignored checkbox (Day Wise Guest; inert for CMOT/IFFI, which have no Ignore values). */
+      var higEl = $("hideIgnoredChk");
+      if(higEl) higEl.addEventListener("change", function(){ state.hideIgnored = higEl.checked; render(); });
       $("sortSelect").addEventListener("change", render);
       $("timeFrom").addEventListener("input", render);
       $("timeFrom").addEventListener("change", render);
@@ -5115,6 +5226,8 @@ function activityRows_() {
       $("q").addEventListener("input", render);
       function clearAllFilters(){
         $("q").value=""; $("hotelFilter").value=""; $("dateFilter").value="";
+        state.hideIgnored = true;
+        var hig=$("hideIgnoredChk"); if(hig) hig.checked = true;
         var af=$("airportFilter"); if(af) af.value="";
         var tf=$("timeFrom"); if(tf) tf.value="";
         var tt=$("timeTo"); if(tt) tt.value="";
@@ -5568,6 +5681,7 @@ function activityRows_() {
         var loc = state.locationFilter;
         var list = state.guests.filter(function(g){
           return typeMatches(g) && matchesQuery(g,q)
+            && (!state.hideIgnored || !isIgnoredGuest(g))
             && (!loc || guestAtLocation(g, loc))
             && (!hf || hotelGroupKey(g.hotel)===hf) && (!df || g.date===df)
             && (!af || airportForGuest(g)===af)
@@ -5579,9 +5693,14 @@ function activityRows_() {
         if(!state.guests.length){
           $("countLine").innerHTML = "";
         }else{
+          var ignHidden = 0;
+          state.guests.forEach(function(g){ if(isIgnoredGuest(g)) ignHidden++; });
+          var ignNote = $("ignoredCountNote");
+          if(ignNote) ignNote.textContent = ignHidden ? "("+ignHidden+" rows)" : "";
           var cntHtml = "<strong>"+list.length+" guest"+(list.length===1?"":"s")+"</strong>";
           if(loc) cntHtml += " at <strong>"+esc(loc)+"</strong>";
           if(list.length!==state.guests.length) cntHtml += " (of "+state.guests.length+" loaded)";
+          if(ignHidden) cntHtml += state.hideIgnored ? " · "+ignHidden+" ignored hidden" : " · "+ignHidden+" ignored shown";
           cntHtml += " — tap a card for full details and send options.";
           $("countLine").innerHTML = cntHtml;
         }
@@ -5619,6 +5738,7 @@ function activityRows_() {
             + (g.type ? ' <span class="badge '+typeClass(g.type)+'">'+esc(g.type)+"</span>" : "")
             + (g._sample ? ' <span class="badge sample">Sample</span>' : "")
             + (uTxt ? ' <span class="badge usage">'+esc(uTxt)+"</span>" : "")
+            + ignoreBadge(g)
             + vsBadge
             + arrivedBadge
             + tickBadges(g)
@@ -8532,7 +8652,8 @@ function activityRows_() {
         var params = null;
         try{ params = new URLSearchParams(window.location.search); }catch(e){}
         var evParam = params ? String(params.get("event") || "") : "";
-        activeEvent = evParam.trim().toUpperCase() === "IFFI" ? "IFFI" : "CMOT";
+        var evUp = evParam.trim().toUpperCase();
+        activeEvent = (evUp==="IFFI" || evUp==="DAYWISE") ? evUp : "CMOT";
         EVENTS.forEach(function(ev){
           var sp = params ? params.get("sheet_" + evLc(ev)) : null;
           if(sp) setSheetUrlFor(ev, sp);
@@ -8558,10 +8679,16 @@ function activityRows_() {
         if(gidMembersParam) setShuttleGidMembers(gidMembersParam);
         var shuttleHookParam = params ? params.get("hook_shuttle") : null;
         if(shuttleHookParam) setShuttleHookUrl(shuttleHookParam);
+        /* v36 — Day Wise Guest tab gid (?gid_daywise=), for the export read. */
+        var gidDaywiseParam = params ? params.get("gid_daywise") : null;
+        if(gidDaywiseParam) setDaywiseGid(gidDaywiseParam);
         $("sheetInputCmot").value = sheetUrlFor("CMOT");
         $("sheetInputIffi").value = sheetUrlFor("IFFI");
+        $("sheetInputDaywise").value = sheetUrlFor("DAYWISE");
         $("hookInputCmot").value = hookUrlFor("CMOT");
         $("hookInputIffi").value = hookUrlFor("IFFI");
+        $("hookInputDaywise").value = hookUrlFor("DAYWISE");
+        $("daywiseGidInput").value = daywiseGid();
         $("rosterInput").value = rosterLinkUrl();
         $("locationsInput").value = locationsLinkUrl();
         $("shuttleInput").value = shuttleLinkUrl();
