@@ -305,7 +305,7 @@
   <body>
     <div class="wrap">
       <header class="top">
-        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v37</div>
+        <div class="eyebrow">57th IFFI · Goa · 20–28 Nov 2026 · v37.1</div>
         <h1>Guest Lookup</h1>
         <p class="sub">Search any guest by <strong>name, phone, flight number, hotel or vehicle number</strong> — the full record opens in one tap, ready to copy and send to the guest or the driver in the fixed format.</p>
       </header>
@@ -702,7 +702,7 @@ Pickup Point: {Pickup Point}</div>
         </div>
         <div style="margin-top:14px">
           <h3 style="font-size:.98rem;margin:0 0 6px">Fixed format — message to guest (line-wise)</h3>
-          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”, after the welcome line. The first line is the event-aware welcome: “Welcome to Goa for IFFI 2026!” for IFFI, or “Welcome to Goa for CMOT 2026!” for CMOT. A line is omitted when its value is blank; with no vehicle assigned, the Vehicle Number, Driver Name and Driver Number lines are omitted entirely. The preview, Copy and Share all use this same line-wise text.</p>
+          <p style="font-size:.92rem;color:var(--ink2);margin:0 0 6px">Sent line by line — one field per line, in this exact order, as “Label: value”, after the welcome line. The first line is the event-aware welcome: “Welcome to Goa for IFFI 2026!” for IFFI, or “Welcome to Goa for CMOT 2026!” for CMOT. Day Wise guests get the IFFI welcome too. A line is omitted when its value is blank; with no vehicle assigned, the Vehicle Number, Driver Name and Driver Number lines are omitted entirely. The preview, Copy and Share all use this same line-wise text.</p>
           <div class="fmt">Welcome to Goa for IFFI 2026!
 Guest Name: {Guest Name}
 Contact Number: {Phone}
@@ -5926,6 +5926,10 @@ function activityRows_() {
       function welcomeLine(g){
         var ev = clean(g && g.event).toUpperCase();
         if(ev!=="CMOT" && ev!=="IFFI") ev = activeEvent;
+        /* v37.1: Day Wise has no Event column, so a Day Wise guest falls
+           through to activeEvent "DAYWISE" — but the message template is
+           the IFFI one, so Day Wise guests get the IFFI welcome. */
+        if(ev==="DAYWISE") ev = "IFFI";
         return "Welcome to Goa for "+ev+" 2026!";
       }
       function validWaNumber(phone){
