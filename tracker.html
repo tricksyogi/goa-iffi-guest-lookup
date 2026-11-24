@@ -30,6 +30,7 @@ header h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:#ffd98a;font-
 .btncall{background:var(--blu);color:#fff}.btnwa{background:#25d366;color:#06130b}
 .btnghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.btnrep{background:var(--blu);color:#fff}.card.rep{border-color:var(--blu)}.badge.st-rep{background:var(--blu);color:#fff}
 .note{color:var(--mut);font-size:.85rem}.teamrow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
 .teamrow b{display:block}.teamrow span{color:var(--mut);font-size:.86rem}
 </style></head><body>
@@ -39,13 +40,13 @@ header h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:#ffd98a;font-
 <div class="wrap">
 <div class="board" id="board"></div>
 <div class="tabs"><button id="tabV" class="on" onclick="showTab('v')">🚗 Vehicles (<span id="vCount">31</span>)</button>
-<button id="tabT" onclick="showTab('t')">👥 Team (<span id="tCount">4</span>)</button></div>
+<button id="tabT" onclick="showTab('t')">👥 Team (<span id="tCount">7</span>)</button></div>
 
 <div id="vehView">
 <div class="filters">
 <select id="fTime"></select><select id="fHotel"></select><select id="fType">
 <option value="">All vehicle types</option><option>Dzire</option><option>Ertiga</option><option>Crysta</option></select>
-<select id="fStatus"><option value="">All statuses</option><option value="av">Available</option><option value="out">Out now</option><option value="back">Back / Arrived</option></select>
+<select id="fStatus"><option value="">All statuses</option><option value="rep">Reported</option><option value="av">Available</option><option value="out">Out now</option><option value="back">Back / Arrived</option></select>
 <input id="fQ" placeholder="Search driver, vehicle no., hotel…" oninput="render()">
 <button class="btn btnghost" style="border:1px solid var(--line)" onclick="loadSheet(true)">↻ Refresh from sheet</button>
 </div>
@@ -54,7 +55,7 @@ header h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:#ffd98a;font-
 
 <div id="teamView" style="display:none"><div class="note" style="margin-bottom:8px">Tap a number to call, or WhatsApp to message. Team list comes from Sheet2 of the same sheet.</div><div id="teamList"></div></div>
 
-<p class="note">How it works — Depart: tap <b>Departed → Mopa / Dabolim</b>, the time is recorded and Expected Return is Left + 2 hours. Back: tap <b>Arrived</b> and the vehicle shows Available again. Marks and guest names are shared for the whole team through the sheet — once the sheet webhook is connected, every phone sees the same status. Data: ONLY the Departures Planning sheet — Sheet1 (vehicles) + Sheet2 (team). Edit the sheet and the tool picks it up on refresh.</p>
+<p class="note">How it works — <b>Reported:</b> tap <b>✓ Vehicle Reported</b> when a vehicle first arrives/reports at the hotel — the board counts how many have reported and how many haven't. Depart: tap <b>Departed → Mopa / Dabolim</b>, the time is recorded and Expected Return is Left + 2 hours. Back: tap <b>Arrived</b> and the vehicle shows Available again. Marks and guest names are shared for the whole team through the sheet — once the sheet webhook is connected, every phone sees the same status. Data: ONLY the Departures Planning sheet — Sheet1 (vehicles) + Sheet2 (team). Edit the sheet and the tool picks it up on refresh.</p>
 </div>
 <script>
 const SHEET_ID='1165EPtA-F9qr9VkMKpV7wzbewny_jdkeQ9Px4BZSbmg';
@@ -81,7 +82,7 @@ function outInfo(v){const s=st(v);
 }
 // Saved copy of the same sheet (25 Nov 2026, 02:32 IST) — used only if the live sheet cannot be reached.
 let VEHICLES=[{"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA03V0372", "drv": "UMESH", "dm": "7498451644", "hotel": "Ginger", "time": "3:00", "sheet": "DONE"}, {"type": "Dzire", "rawType": "DZIRE 4", "vn": "GA07T1135", "drv": "ZAMEER", "dm": "7972696062", "hotel": "TAJ HORIZON", "time": "3:00", "sheet": "done"}, {"type": "Dzire", "rawType": "DZIRE 2", "vn": "GA07T5061", "drv": "MAHESH", "dm": "8999101938", "hotel": "TAJ HORIZON", "time": "3:00", "sheet": "done"}, {"type": "Crysta", "rawType": "Crysta", "vn": "GA07T4682", "drv": "Rajesh", "dm": "7353383151", "hotel": "TAJ HORIZON", "time": "3:00", "sheet": "Already there"}, {"type": "Crysta", "rawType": "CRYSTA 1", "vn": "GA03AV3158", "drv": "GOPAL", "dm": "7624852889", "hotel": "TAJ HORIZON", "time": "3:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA03W6173", "drv": "SADIK", "dm": "9347858764", "hotel": "NOVOTEL", "time": "3:00", "sheet": "DONE"}, {"type": "Ertiga", "rawType": "ERTIGA 3", "vn": "GA 07T 1326", "drv": "Keshav", "dm": "8446189761", "hotel": "Ginger", "time": "4:00", "sheet": "done"}, {"type": "Crysta", "rawType": "Crysta", "vn": "GA03AH9922", "drv": "Sural", "dm": "9579477260", "hotel": "TAJ HORIZON", "time": "4:00", "sheet": "done"}, {"type": "Dzire", "rawType": "Dzire", "vn": "GA07T2630", "drv": "Sagar", "dm": "7972838127", "hotel": "TAJ HORIZON", "time": "4:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "W7086", "drv": "Uddhav", "dm": "7796242474", "hotel": "NOVOTEL", "time": "5:30", "sheet": "done"}, {"type": "Ertiga", "rawType": "Ertiga", "vn": "5371", "drv": "Ramzan", "dm": "7875240031", "hotel": "Fortune", "time": "6:00", "sheet": "done"}, {"type": "Dzire", "rawType": "Dzire", "vn": "GA07F7925", "drv": "AMAN", "dm": "9686123892", "hotel": "Fortune", "time": "6:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA03M9218", "drv": "FIROZ", "dm": "9371371696", "hotel": "Ginger", "time": "6:00", "sheet": "DONE"}, {"type": "Dzire", "rawType": "DZIRE 1", "vn": "GA07T3277", "drv": "KRISHNA", "dm": "8805919102", "hotel": "TAJ HORIZON", "time": "6:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA 2", "vn": "GA07T5422", "drv": "SUNIL", "dm": "9019867219", "hotel": "TAJ HORIZON", "time": "6:00", "sheet": "done"}, {"type": "Dzire", "rawType": "Dzire", "vn": "GA07T1488", "drv": "Vijay", "dm": "9518392149", "hotel": "TAJ HORIZON", "time": "6:00", "sheet": "done"}, {"type": "Crysta", "rawType": "Crysta", "vn": "GA03V0830", "drv": "Sunil", "dm": "8310709966", "hotel": "TAJ HORIZON", "time": "6:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA07T2737", "drv": "ALTAF", "dm": "8618637373", "hotel": "NOVOTEL", "time": "6:00", "sheet": "DONE"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA07T3165", "drv": "PRITHVIRAJ", "dm": "7972672858", "hotel": "NOVOTEL", "time": "6:00", "sheet": "DONE"}, {"type": "Crysta", "rawType": "CRYSTA 3", "vn": "GA03AV0272", "drv": "AKASH", "dm": "8088721824", "hotel": "Prazarres", "time": "6:00", "sheet": "DONE"}, {"type": "Dzire", "rawType": "Dzire", "vn": "4560", "drv": "Shahid", "dm": "7709254314", "hotel": "Fortune", "time": "7:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA07T0159", "drv": "KADAR", "dm": "8788313304", "hotel": "GOLDEN LANDMARK", "time": "7:00", "sheet": "DONE"}, {"type": "Ertiga", "rawType": "ERTIGA 1", "vn": "GA07T4065", "drv": "SHAHID", "dm": "7709254314", "hotel": "TAJ HORIZON", "time": "7:00", "sheet": "done"}, {"type": "Dzire", "rawType": "Dzire", "vn": "GA07T1488", "drv": "Vijay", "dm": "9518392149", "hotel": "Ginger", "time": "8:00", "sheet": "done"}, {"type": "Crysta", "rawType": "CRYSTA 2", "vn": "GA03AV1238", "drv": "SRINIVAS", "dm": "8867123865", "hotel": "TAJ HORIZON", "time": "8:00", "sheet": "done"}, {"type": "Crysta", "rawType": "Crysta", "vn": "GA03V0911", "drv": "Santosh", "dm": "7219231519", "hotel": "TAJ HORIZON", "time": "8:00", "sheet": "done"}, {"type": "Crysta", "rawType": "Crysta", "vn": "GA03V0445", "drv": "Santosh", "dm": "8548845517", "hotel": "TAJ HORIZON", "time": "9:00", "sheet": "DONE"}, {"type": "Ertiga", "rawType": "Ertiga", "vn": "GA07T0108", "drv": "Datta", "dm": "7588544993", "hotel": "TAJ HORIZON", "time": "9:00", "sheet": "done"}, {"type": "Dzire", "rawType": "DZIRE 4", "vn": "GA07T1135", "drv": "ZAMEER", "dm": "7972696062", "hotel": "TAJ HORIZON", "time": "9:00", "sheet": "done"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA07T4233", "drv": "AZMAT", "dm": "9606114110", "hotel": "TAJ TAJ HORIZON", "time": "9:00", "sheet": "DONE"}, {"type": "Ertiga", "rawType": "ERTIGA", "vn": "GA08V2930", "drv": "SACHIN", "dm": "8668556301", "hotel": "TAJ TAJ HORIZON", "time": "9:00", "sheet": "DONE"}];
-let TEAM=[{"name": "Piyush", "shift": "Night", "from": "21:00", "to": "6:00", "mobile": "9667750379", "hotel": "TAJ HORIZON"}, {"name": "karan", "shift": "Day", "from": "6:00", "to": "18:00", "mobile": "8766099040", "hotel": "TAJ HORIZON"}, {"name": "Shravan", "shift": "Day", "from": "6:00", "to": "18:00", "mobile": "9322656409", "hotel": "TAJ HORIZON"}, {"name": "Manish", "shift": "", "from": "2:00", "to": "21:00", "mobile": "63783 39595", "hotel": ""}];
+let TEAM=[{"name": "Piyush", "shift": "Night", "from": "21:00", "to": "6:00", "mobile": "9667750379", "hotel": "TAJ HORIZON"}, {"name": "karan", "shift": "Day", "from": "6:00", "to": "18:00", "mobile": "8766099040", "hotel": "TAJ HORIZON"}, {"name": "Shravan", "shift": "Day", "from": "6:00", "to": "18:00", "mobile": "9322656409", "hotel": "TAJ HORIZON"}, {"name": "Manish", "shift": "Day", "from": "2:00", "to": "21:00", "mobile": "63783 39595", "hotel": "TAJ HORIZON"}, {"name": "Om", "shift": "Day", "from": "2:00", "to": "21:00", "mobile": "81490 64059", "hotel": "TAJ HORIZON"}, {"name": "Akshay", "shift": "Day", "from": "2:00", "to": "21:00", "mobile": "91374 54674", "hotel": "TAJ HORIZON"}, {"name": "Yogesh", "shift": "Day", "from": "2:00", "to": "21:00", "mobile": "9261201083", "hotel": "TAJ HORIZON"}];
 const KEY='iffi-tracker-v2-sheet';
 let S={}; try{S=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){S={}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
@@ -122,14 +123,15 @@ function buildFilters(){
 ['fTime','fHotel','fType','fStatus'].forEach(id=>document.getElementById(id).addEventListener('change',render));
 function statusOf(v){const s=st(v);if(s.back)return 'back';if(s.out)return 'out';
   if(v.sheetStatus==='ARRIVED')return 'back';
-  if(v.sheetStatus&&v.sheetStatus.indexOf('OUT')===0)return 'out';return 'av'}
+  if(v.sheetStatus&&v.sheetStatus.indexOf('OUT')===0)return 'out';
+  if(s.reported||v.sheetStatus==='REPORTED')return 'rep';return 'av'}
 function board(){
-  let out=0,mopa=0,dab=0,due=0,over=0;const now=Date.now();
-  VEHICLES.forEach(v=>{if(statusOf(v)!=='out')return;const o=outInfo(v);if(!o)return;out++;
+  let out=0,mopa=0,dab=0,due=0,over=0,rep=0;const now=Date.now();
+  VEHICLES.forEach(v=>{if(statusOf(v)==='rep')rep++;if(statusOf(v)!=='out')return;const o=outInfo(v);if(!o)return;out++;
     if(o.air==='Mopa')mopa++;if(o.air==='Dabolim')dab++;
     const mins=Math.round((o.ts+2*3600e3-now)/60000);
     if(mins>=0&&mins<=30)due++;if(mins<0)over++;});
-  const cards=[['OUT right now',out,'out'],['Available now',VEHICLES.length-out,'av'],
+  const cards=[['Reported',rep,''],['OUT right now',out,'out'],['Available now',VEHICLES.length-out,'av'],
     ['Out to Mopa',mopa,''],['Out to Dabolim',dab,''],['Due back ≤ 30 min',due,''],['Overdue',over,'over']];
   document.getElementById('board').innerHTML=cards.map(c=>`<div class="stat ${c[2]}"><b>${c[1]}</b><span>${c[0]}</span></div>`).join('');
 }
@@ -162,9 +164,9 @@ function render(){
     const ago=o?Math.max(0,Math.round((Date.now()-o.ts)/60000)):null;
     const guest=(s.guest||v.guest||'');
     const k=vid(v);
-    return `<div class="card ${stt==='out'?'out':stt==='back'?'back':''}">
+    return `<div class="card ${stt==='out'?'out':stt==='back'?'back':stt==='rep'?'rep':''}">
     <div class="top"><span><span class="badge ${v.type}">${v.type}</span> <span class="badge">25 Nov 2026 • ${esc(v.time)}</span></span>
-    <span class="badge ${stt==='out'?'st-out':'st-av'}">${stt==='out'?'OUT — '+((o&&o.air)||v.airport||''):stt==='back'?'ARRIVED • Available':'Available'}</span></div>
+    <span class="badge ${stt==='out'?'st-out':stt==='rep'?'st-rep':'st-av'}">${stt==='out'?'OUT — '+((o&&o.air)||v.airport||''):stt==='back'?'ARRIVED • Available':stt==='rep'?'✓ REPORTED':'Available'}</span></div>
     <div class="guest">${esc(v.drv)} — ${esc(v.vn)}</div>
     ${guest?`<div class="meta">👤 Guest: <b>${esc(guest)}</b></div>`:''}
     <div class="meta">🚗 <b>${esc(v.rawType)}</b> &nbsp;•&nbsp; 🏨 ${esc(v.hotel)} &nbsp;•&nbsp; Sheet: ${esc(v.sheet||'—')}<br>
@@ -173,6 +175,8 @@ function render(){
       <input placeholder="Guest name" value="${esc(guest)}" onchange="setGuest('${esc(k)}',this.value)" style="flex:1;min-width:120px;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--ink)">
     </div>
     <div class="row">
+      ${stt==='rep'?`<button class="btn btnrep" onclick="unreport('${esc(k)}')">✓ Reported — tap to unmark</button>`
+      :stt==='av'?`<button class="btn btnrep" onclick="report('${esc(k)}')">✓ Vehicle Reported</button>`:''}
       ${stt!=='out'?`<button class="btn btndep" onclick="depart('${esc(k)}','Mopa')">Departed → Mopa</button>
       <button class="btn btndep" onclick="depart('${esc(k)}','Dabolim')">Departed → Dabolim</button>`
       :`<button class="btn btnarr" onclick="arrive('${esc(k)}')">✓ Arrived — Available</button>`}
@@ -185,6 +189,8 @@ function byKey(k){return VEHICLES.find(v=>vid(v)===k)}
 function setGuest(k,val){const s=S[k]||{};s.guest=val.trim();S[k]=s;save();const v=byKey(k);if(v)sync('guest',v,{guest:s.guest});render();}
 function depart(k,air){const s=S[k]||{};s.out=Date.now();s.air=air;delete s.back;S[k]=s;save();const v=byKey(k);if(v)sync('depart',v,{airport:air,leftAt:new Date(s.out).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})});render();}
 function arrive(k){const s=S[k]||{};s.back=Date.now();S[k]=s;save();const v=byKey(k);if(v)sync('arrive',v,{});render();}
+function report(k){const s=S[k]||{};s.reported=Date.now();delete s.back;S[k]=s;save();const v=byKey(k);if(v)sync('reported',v,{});render();}
+function unreport(k){const s=S[k]||{};delete s.reported;S[k]=s;save();const v=byKey(k);if(v)sync('unreported',v,{});render();}
 function resetV(k){delete S[k];save();render();}
 buildFilters();render();loadSheet(false);setInterval(board,30000);setInterval(()=>loadSheet(false),60000);
 </script></body></html>
