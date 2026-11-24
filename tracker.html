@@ -31,6 +31,8 @@ header h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:#ffd98a;font-
 .btnghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btnrep{background:var(--blu);color:#fff}.card.rep{border-color:var(--blu)}.badge.st-rep{background:var(--blu);color:#fff}
+.refreshBar{display:flex;gap:10px;align-items:center;margin:4px 0 12px;flex-wrap:wrap}
+.btnrefresh{background:var(--grn);color:#06130b;font-size:1.05rem;padding:12px 20px}
 .note{color:var(--mut);font-size:.85rem}.teamrow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
 .teamrow b{display:block}.teamrow span{color:var(--mut);font-size:.86rem}
 </style></head><body>
@@ -39,6 +41,7 @@ header h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:#ffd98a;font-
 <p>Departures • Team • Dispatch — 25 Nov 2026 • Live from the Departures Planning sheet</p></div></header>
 <div class="wrap">
 <div class="board" id="board"></div>
+<div class="refreshBar"><button class="btn btnrefresh" onclick="refreshAll()">↻ Refresh All Status</button><span id="updNote" class="note"></span></div>
 <div class="tabs"><button id="tabV" class="on" onclick="showTab('v')">🚗 Vehicles (<span id="vCount">31</span>)</button>
 <button id="tabT" onclick="showTab('t')">👥 Team (<span id="tCount">7</span>)</button></div>
 
@@ -189,8 +192,10 @@ function byKey(k){return VEHICLES.find(v=>vid(v)===k)}
 function setGuest(k,val){const s=S[k]||{};s.guest=val.trim();S[k]=s;save();const v=byKey(k);if(v)sync('guest',v,{guest:s.guest});render();}
 function depart(k,air){const s=S[k]||{};s.out=Date.now();s.air=air;delete s.back;S[k]=s;save();const v=byKey(k);if(v)sync('depart',v,{airport:air,leftAt:new Date(s.out).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})});render();}
 function arrive(k){const s=S[k]||{};s.back=Date.now();S[k]=s;save();const v=byKey(k);if(v)sync('arrive',v,{});render();}
+function refreshAll(){const n=document.getElementById('updNote');n.textContent='Updating all statuses from the sheet…';
+  loadSheet(true).then(()=>{n.textContent='All statuses updated at '+new Date().toLocaleTimeString('en-IN');});}
 function report(k){const s=S[k]||{};s.reported=Date.now();delete s.back;S[k]=s;save();const v=byKey(k);if(v)sync('reported',v,{});render();}
 function unreport(k){const s=S[k]||{};delete s.reported;S[k]=s;save();const v=byKey(k);if(v)sync('unreported',v,{});render();}
 function resetV(k){delete S[k];save();render();}
-buildFilters();render();loadSheet(false);setInterval(board,30000);setInterval(()=>loadSheet(false),60000);
+buildFilters();render();loadSheet(false);setInterval(board,30000);setInterval(()=>loadSheet(false),30000);
 </script></body></html>
